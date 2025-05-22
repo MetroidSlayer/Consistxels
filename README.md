@@ -1,6 +1,10 @@
 # Consistxels
+
 A tool for more consistent pixel art.
+
 _<sub>If you need to, pronounce it "Consixels" - it's much easier to say. I would've just named it that, but it's less obvious what it's supposed to do that way.</sub>_
+
+
 
 **~~Fear~~ _Inconsistency_ is the little-death that brings total obliteration...**
 
