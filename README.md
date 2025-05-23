@@ -6,7 +6,7 @@ _<sup>If you need to, pronounce it "Consixels" - it's much easier to say. I woul
 
 "~~Fear~~ **_Inconsistency_ is the little-death that brings total obliteration...**"\
 _- Dune Atreides, 20XX_
-<br\>
+
 ...or, if not obliteration, at least dissatisfaction and subpar sprites.
 
 I hate knowing that one pixel on one pose on a sprite sheet is out-of-place, but I might hate copying and pasting every limb from every layer to double-check even more. The solution was *obviously* to create an entire program to automatically distill a sprite sheet into JSON data, detect identical poses in a given layer, and do all that copying and pasting for me.
