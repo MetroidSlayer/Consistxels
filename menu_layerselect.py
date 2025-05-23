@@ -97,7 +97,7 @@ class Menu_LayerSelect(tk.Frame):
         # self.preview_canvas.bind("<Configure>", self.update_preview)
 
         self.preview_canvas.pack(side="left", fill="both", expand=True)
-        ToolTip(self.preview_canvas, '''A preview image of all the layers you've added, in order.''')
+        # ToolTip(self.preview_canvas, '''A preview image of all the layers you've added, in order.''')
 
         # Footer frame
         # self.footer = tk.Frame(self.root, bg=self.bg_color)
@@ -112,6 +112,12 @@ class Menu_LayerSelect(tk.Frame):
         self.generate_button = tk.Button(self.footer, text="Generate JSON", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
         self.generate_button.pack(side="left", padx=5, pady=5)
         ToolTip(self.generate_button, "Generate JSON data! (May take a while)", True)
+
+        self.search_right_to_left = tk.BooleanVar()
+        self.search_right_to_left_checkbutton = tk.Checkbutton(self.footer, text="Search right-to-left", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
+        self.search_right_to_left_checkbutton.pack(side="left", padx=5, pady=5)
+        self.search_right_to_left_checkbutton.select()
+        ToolTip(self.search_right_to_left_checkbutton, "Search the spritesheet from right-to-left, instead of from left-to-right. Recommended, as most characters face right by default, and most sprite sheets show the rightmost sprites on the right side of the sheet, so the generated data will use the right-facing poses as the defaults. Just leave this checked if you're not sure.", True)
 
         # tk.Button(self.footer, text="Zoom In", command=lambda: self.change_zoom(1.1)).pack(side="right", padx=5)
         # tk.Button(self.footer, text="Zoom Out", command=lambda: self.change_zoom(0.9)).pack(side="right")
@@ -261,4 +267,6 @@ class Menu_LayerSelect(tk.Frame):
         for data in self.image_data:
             image_info.append({"path": data["path"], "name": data["name"]})
         
-        GenerateJSON(self.border_path, self.border_color, image_info)
+        print(self.search_right_to_left.get())
+
+        GenerateJSON(self.border_path, self.border_color, image_info, self.search_right_to_left.get())

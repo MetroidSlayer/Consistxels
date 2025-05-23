@@ -2,11 +2,11 @@
 
 A tool for more consistent pixel art.
 
-_<sub>If you need to, pronounce it "Consixels" - it's much easier to say. I would've just named it that, but it's less obvious what it's supposed to do that way.</sub>_
+_<sup>If you need to, pronounce it "Consixels" - it's much easier to say. I would've just named it that, but it's less obvious what it's supposed to do that way.</sup>_
 
 
 
-**~~Fear~~ _Inconsistency_ is the little-death that brings total obliteration...**
+~~Fear~~ **_Inconsistency_ is the little-death that brings total obliteration...** _- Dune Atreides, 20XX_
 
 ...or, if not obliteration, at least dissatisfaction and subpar sprites.
 
@@ -16,4 +16,4 @@ Essentially, this program asks you to input the file(s) you wish to get data on,
 
 This is made to work with multiple layers; i.e., if you have an arm layer and a leg layer, this should be able to update both separately. You'll need to export each layer as its own .png file first when generating the .json, though. Still working out exactly how I want the workflow to go, and still streamlining it.
 
-Hopefully, I get this to work for any given spritesheet, but for now it's just made to work for the Super Metroid Samus sprite sheet used in [SpriteSomething](https://github.com/Artheau/SpriteSomething).
+Hopefully, I get this to work for any given sprite sheet. Most of the functionality should be able to handle a wide variety of sheets already. For now, though, it's just made to work for the Super Metroid Samus sprite sheet used in [SpriteSomething](https://github.com/Artheau/SpriteSomething). If you want this to work for another sprite sheet, you'll need to add borders similar to the ones seen in that sheet.
