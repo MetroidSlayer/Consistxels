@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from tkinter import filedialog, colorchooser
+from tkinter import filedialog, colorchooser, messagebox
 # from PIL import Image, ImageTk, ImageOps
 from PIL import Image, ImageTk
 from generate import GenerateJSON
@@ -160,6 +160,9 @@ class Menu_LayerSelect(tk.Frame):
     def add_border(self):
         path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
         if path:
+            if self.border_image != None:
+                self.border_image.close()
+
             self.border_image = Image.open(path)
             self.border_path = path
             self.border_label.config(text=os.path.basename(path))
@@ -175,6 +178,9 @@ class Menu_LayerSelect(tk.Frame):
             self.update_preview_button.configure(bg="#ffff00", fg="#000000")
 
     def delete_image(self, index):
+        # close image
+        self.image_data[index]["img"].close()
+
         del self.image_data[index]
         self.redraw_image_entries()
         # self.update_preview()
@@ -267,6 +273,18 @@ class Menu_LayerSelect(tk.Frame):
         for data in self.image_data:
             image_info.append({"path": data["path"], "name": data["name"]})
         
-        print(self.search_right_to_left.get())
+        # print(self.search_right_to_left.get())
+        
+        # TODO: check that border and all images are the same size.
+        # could just check images when uploading - they all need to be the same size, etc.
+        # that way we could just check against ONE of the images! which is doable I think
+        if self.border_path != None and len(image_info) > 0:
+            if self.border_color == None: self.border_color = "#000000"
 
-        GenerateJSON(self.border_path, self.border_color, image_info, self.search_right_to_left.get())
+            # TODO: close images when moving to other menu!!!
+            # in fact, have a function that specifically closes the images and moves onto next menu
+
+            GenerateJSON(self.border_path, self.border_color, image_info, self.search_right_to_left.get())
+        else:
+            if self.border_path == None: messagebox.showwarning("Wait!", "Please add a border image")
+            if len(image_info) <= 0: messagebox.showwarning("Wait!", "Please add at least one layer image")
