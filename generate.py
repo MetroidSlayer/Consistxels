@@ -3,6 +3,7 @@ import numpy as np
 from numpy import asarray
 from tkinter import filedialog
 import json
+import math
 
 # I probably should've split this into a few smaller functions. Oh well *shrug*
 def GenerateJSON(border_image_path, border_color, image_info, search_right_to_left = True):
@@ -16,9 +17,6 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
     # get border_color (needs to have an alpha channel)
     # border_color_rgb = ImageColor.getrgb("#00007fff")
     border_color_rgb = ImageColor.getrgb(border_color + "ff")
-
-    # for testing
-    # color_transparent = ImageColor.getrgb("#00000000")
 
     # for storing unique images!
     # specifically, will store the image, and its minimum padding (make min or max padding a setting? just min for now i guess)
@@ -211,13 +209,64 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
 
                             image_index += 1
 
-                        # padding is saved for a few reasons. TODO: make better comment lmao
+                        if not image_is_unique: # extra checks to ensure non-unique images' padding can be compared to their stored counterparts
+                            if is_flipped:
+                                unbound_image = unbound_image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+                            match rotation_amount:
+                                case 1:
+                                    unbound_image = unbound_image.transpose(Image.Transpose.ROTATE_90)
+                                case 2:
+                                    unbound_image = unbound_image.transpose(Image.Transpose.ROTATE_180)
+                                case 3:
+                                    unbound_image = unbound_image.transpose(Image.Transpose.ROTATE_270)
+
+                        # padding is saved for a few reasons. mostly, it's there to make the sprites easier to edit in a separate program once
+                        # they've been output. without the padding, there'd be no room to work with, and you'd need to increase the size of the sprites,
+                        # and then everything would get cut off, and it'd just be a whole mess. minimum padding was chosen because it shows exactly
+                        # where the padding can be such that nothing gets cut off, in any of the poses where the identical image is used. however,
+                        # maximum padding, wherein one can choose to see maximum space available for even a single pose, even if it gets cut off,
+                        # will also be available. as will custom padding values!!! so that's fun. TODO: make comment better
+                        bbox = unbound_image.getbbox()
+                        bound_image = unbound_image.crop(bbox)
+
                         left_padding = bbox[0]
                         top_padding = bbox[1]
                         unbound_height, unbound_width = asarray(unbound_image).shape[:2]
                         bound_height, bound_width = asarray(bound_image).shape[:2]
                         right_padding = unbound_width - (left_padding + bound_width)
                         bottom_padding = unbound_height - (top_padding + bound_height)
+
+                        # the padding needs to change with any rotation
+                        # match rotation_amount:
+                        #     case 1:
+                        #         temp = left_padding
+                        #         left_padding = bottom_padding
+                        #         bottom_padding = right_padding
+                        #         right_padding = top_padding
+                        #         top_padding = temp
+
+                        #         # i dont think we need these actually???
+                        #         # temp = unbound_height
+                        #         # unbound_height = unbound_width
+                        #     case 2:
+                        #         temp = top_padding
+                        #         top_padding = bottom_padding
+                        #         bottom_padding = temp
+                        #         temp = left_padding
+                        #         left_padding = right_padding
+                        #         right_padding = temp
+                        #     case 3:
+                        #         temp = left_padding
+                        #         left_padding = top_padding
+                        #         top_padding = right_padding
+                        #         right_padding = bottom_padding
+                        #         bottom_padding = temp
+
+                        # if is_flipped:
+                        #     temp = left_padding
+                        #     right_padding = left_padding
+                        #     left_padding = temp
 
                         if image_is_unique:
                             image_object_array.append({
@@ -275,17 +324,101 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
                 pose_object_array.append(pose_object)
                 print("Poses found: " + str(len(pose_object_array)))
 
+        print("Search: " + str(math.floor((y / (height - 2)) * 100)) + "%")
+    print("Search complete")
+
+    # ask for output location
+    output_folder_path = filedialog.askdirectory(title="Select an output folder")
+
     # and then, here, we go through all poses, and all limbs, to update their padding according to the image index listed in the limb_object
 
-    # print(json.dumps(pose_object_array, indent=4))
+    # go through pose list
+    # - go through limb list
+    # - reference img index's padding
+    # - subtract left padding from x-offset, and top padding from y-offset
+    for pose in pose_object_array:
+        for limb in pose["limb_objects"]:
+            image_object = image_object_array[limb["image_index"]]
+
+            # make sure the offsets properly account for the padding, which is there to ensure that editing the sprites in a sprite editor doesn't
+            # throw things off
+            limb["x_offset"] -= image_object["left_padding"]
+            limb["y_offset"] -= image_object["top_padding"]
+
+    print("Limb offsets adjusted for padding")
+
+    # go through img list
+    # - update img size using padding
+    # - save imgs!!! we'll need an output folder location, etc.
+    color_transparent = ImageColor.getrgb("#00000000")
+    number_of_characters = len(str(len(image_object_array)))
+
+    image_index = 0
+    for image_object in image_object_array:
+        image = image_object["img"]
+        image_left_padding = image_object["left_padding"]
+        image_top_padding = image_object["top_padding"]
+        image_right_padding = image_object["right_padding"]
+        image_bottom_padding = image_object["bottom_padding"]
+
+        # print(str(image_bottom_padding))
+        # print(str(image_bottom_padding))
+        # print(str(image_bottom_padding))
+        # print(str(image_bottom_padding))
+
+        padded_image = Image.new("RGBA", ((image.width + image_left_padding + image_right_padding), (image.height + image_top_padding + image_bottom_padding)), color_transparent)
+        padded_image.paste(image, (image_left_padding, image_top_padding))
+
+        padded_image.save(output_folder_path + "\\" + str(image_index).rjust(number_of_characters, "0") + ".png")
+        
+        image_index += 1
     
-    with open(filedialog.asksaveasfilename(), 'w') as file:
-        json.dump(pose_object_array, file, indent=4)
+    print("Saved images")
+
+    # create object with .json "header": maybe the paths of the images used, and the path for the output folder
+
+    # header = {
+    #     "output_folder_path": output_folder_path,
+    #     "border_image_path": border_image_path,
+    #     "border_color": border_color,
+    #     "image_info": image_info,
+    #     "search_right_to_left": search_right_to_left
+    # }
+
+    json_output = {
+        "header": { # TODO: at some point, add some way to name the spritesheets. Probably just an entry box in the header of the layerselect menu
+            "output_folder_path": output_folder_path,
+            "border_image_path": border_image_path,
+            "border_color": border_color,
+            "image_info": image_info,
+            "search_right_to_left": search_right_to_left
+        },
+        "pose_data": pose_object_array
+    }
+    
+    json_filename = "\\consistxels_pose_output.json"
+
+    with open(output_folder_path + json_filename, 'w') as file:
+        # json.dump(pose_object_array, file, indent=4)
+        json.dump(json_output, file, indent=4)
+
+    print("Saved .json output")
 
     border_image.close()
 
     for layer_image in layer_images:
         layer_image.close()
+    
+    print("Success!")
+
+    # FOR NEXT TIME:
+    # - clean up comments some more
+    # - add some sort of intuitive progress indicator?
+    # - add some sort of CLEAN way to name the images, and associate names with the images. might have to do that INSTEAD OF indexes, but i dunno
+    #   - if i do it this way, will NEED to have some sort of editor within the program, and that's out of scope for now
+    # 
+    # BIG THINGS FOR NEXT TIME:
+    # - add a way to upload a .json and have it be able to compile everything! it should have a choice to export individual layers, or the whole image at once.
 
 
 
