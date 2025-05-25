@@ -4,6 +4,7 @@ ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PER_MONITOR_AWARE
 import tkinter as tk
 from menu_mainmenu import Menu_MainMenu
 from menu_layerselect import Menu_LayerSelect
+from menu_loadjson import Menu_LoadJson
 
 class ConsistxelsApp(tk.Frame):
     def __init__(self, root):
@@ -35,7 +36,8 @@ class ConsistxelsApp(tk.Frame):
 
         self.frames = {
             "Main": Menu_MainMenu(self.container, self.show_frame),
-            "LayerSelect": Menu_LayerSelect(self.container, self.show_frame)
+            "LayerSelect": Menu_LayerSelect(self.container, self.show_frame),
+            "LoadJson": Menu_LoadJson(self.container, self.show_frame)
         }
 
         for frame in self.frames.values():
