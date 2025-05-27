@@ -11,7 +11,7 @@ _- Dune Atreides, 20XX_
 
 I hate knowing that one pixel on one pose on a sprite sheet is out-of-place, but I might hate copying and pasting every limb from every layer to double-check even more. The solution was *obviously* to create an entire program to automatically distill a sprite sheet into JSON data, detect identical poses in a given layer, and do all that copying and pasting for me.
 
-Essentially, this program asks you to input the file(s) you wish to get data on, showing which are identical. You can then update a given pose to look a bit different, and then export your sprite sheet. All versions of that pose will now be updated with no extra effort on your part.
+Essentially, this program asks you to input the file(s) you wish to get data on, and finds all identical poses in each layer. You can then update a given pose to look a bit different, and then export your sprite sheet. All versions of that pose will now be updated with no extra effort on your part.
 
 This is made to work with multiple layers; i.e., if you have an arm layer and a leg layer, this should be able to update both separately. You'll need to export each layer as its own .png file first when generating the .json, though. Still working out exactly how I want the workflow to go, and still streamlining it.
 

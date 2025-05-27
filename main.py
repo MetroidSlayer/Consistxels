@@ -6,16 +6,23 @@ from menu_mainmenu import Menu_MainMenu
 from menu_layerselect import Menu_LayerSelect
 from menu_loadjson import Menu_LoadJson
 
+from shared import on_global_click
+
+from generate import get_x_range
+
 class ConsistxelsApp(tk.Frame):
     def __init__(self, root):
         super().__init__()
         
-        self.root = root
-        self.root.title("Consistxels")
-        
+        # self.root = root
+        root.title("Consistxels")
+
+        # for x in get_x_range(0, 10, True, False):
+        #     print(x)
+
         # Set window attributes
-        self.root.geometry("900x768")         # window size
-        # self.root.configure(bg = '#303030') # bg color
+        root.geometry("1680x768")         # window size
+        # root.configure(bg = '#303030') # bg color
 
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
@@ -32,7 +39,20 @@ class ConsistxelsApp(tk.Frame):
         # self.border_path = None
         # self.border_color = "#00007f"
 
-        self.root.configure(bg=self.bg_color)
+        root.configure(bg=self.bg_color)
+
+        # def on_global_click(event):
+        #     # Get the widget under the cursor
+        #     clicked_widget = root.winfo_containing(event.x_root, event.y_root)
+
+        #     # If the widget doesn't accept focus, or is the root/frame background, clear focus
+        #     if clicked_widget is root or isinstance(clicked_widget, tk.Frame):
+        #         print("gothere")
+        #         root.focus_set()
+                
+
+        root.bind_all("<Button-1>", on_global_click, add="+")
+        # root.bind_class("Canvas", "<Button-1>", on_global_click, add="+")
 
         self.frames = {
             "Main": Menu_MainMenu(self.container, self.show_frame),

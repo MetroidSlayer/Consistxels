@@ -4,10 +4,12 @@ from numpy import asarray
 from tkinter import filedialog
 import json
 import math
+from itertools import chain
+# from datetime import date
 
 # I probably should've split this into a few smaller functions. Oh well *shrug*
 # padding_type: 0 = minimize (show only pixels that WILL show up on final sheet), 1 = maximize (show ALL pixels that COULD THEORETICALLY end up on sheet), 2 = custom amount
-def GenerateJSON(border_image_path, border_color, image_info, search_right_to_left = True, padding_type = 0, custom_padding = 0):
+def GenerateJSON(output_name, border_image_path, border_color, image_info, start_search_in_center = True, search_right_to_left = False, padding_type = 0, custom_padding = 0):
 
     border_image = Image.open(border_image_path) # get image
 
@@ -50,10 +52,13 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
     # also also, "offset" is referring to how far off the top-left corner of the sprite is from the top-left corner of the pose box.
     # also also also, "flip_h" does what it says on the tin (it's a bool), and "rotation" stores an int, and increments rotation by 90 degrees
 
+    
+
     # always subtracting 2 from the ranges, because there is no pose that can fit in a 2-wide or 2-high box, inclusive of border - there's no space
     for y in range(height - 2): # rows
         # This is where the right-to-left searching or left-to-right searching is decided
-        for x in (range(width - 2, -1, -1) if search_right_to_left else range(width - 2)): # columns
+        # for x in (range(width - 2, -1, -1) if search_right_to_left else range(width - 2)): # columns
+        for x in (get_x_range(0, width, start_search_in_center, search_right_to_left)): # columns
 
             pixel = border_image.getpixel([x,y]) # get the pixel at the current coordinates
 
@@ -234,16 +239,28 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
                         # right_padding = unbound_image.width - bbox[2]
                         # bottom_padding = unbound_image.height - bbox[3]
 
-                        match padding_type:
-                            case 0:
-                                left_padding = bbox[0]
-                                top_padding = bbox[1]
-                                right_padding = unbound_image.width - bbox[2]
-                                bottom_padding = unbound_image.height - bbox[3]
-                            case 1:
-                                pass
-                            case 2:
-                                left_padding, top_padding, right_padding, bottom_padding = custom_padding
+                        # match padding_type:
+                        #     case 2:
+                        #         left_padding, top_padding, right_padding, bottom_padding = custom_padding
+                        #     case _:
+                        #         left_padding = bbox[0]
+                        #         top_padding = bbox[1]
+                        #         right_padding = unbound_image.width - bbox[2]
+                        #         bottom_padding = unbound_image.height - bbox[3]
+                        
+                        # print(custom_padding, type(custom_padding))
+                        left_padding = top_padding = right_padding = bottom_padding = custom_padding
+
+                        if padding_type != 2:
+                            left_padding += bbox[0]
+                            top_padding += bbox[1]
+                            right_padding += unbound_image.width - bbox[2]
+                            bottom_padding += unbound_image.height - bbox[3]
+
+                        left_padding = max(0, left_padding)
+                        top_padding = max(0, top_padding)
+                        right_padding = max(0, right_padding)
+                        bottom_padding = max(0, bottom_padding)
 
                         # left_padding, top_padding, right_padding, bottom_padding = bbox
 
@@ -257,77 +274,44 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
                                 "right_padding": right_padding,
                                 "bottom_padding": bottom_padding
                             })
-                        elif padding_type != 2: #if making automatic padding, either minimize or maximize
-                            # this is where the setting would be to change from min padding to max padding
-                            # currently, it's only min padding
-                            # TODO: make that a setting. i think i deleted the other comment that i recommended the setting in
+                        # if making automatic padding, either minimize or maximize. don't need to do this for custom padding, since it'll be equal;
+                        # rotating and flipping would do nothing
+                        elif padding_type != 2: 
                             
                             if is_flipped:
                                 temp = left_padding
                                 left_padding = right_padding
                                 right_padding = temp
-                            
-                            # match rotation_amount:
-                            #     case 1:
-                            #         temp = left_padding
-                            #         left_padding = top_padding
-                            #         top_padding = right_padding
-                            #         right_padding = bottom_padding
-                            #         bottom_padding = temp
-                            #     case 2:
-                            #         temp = top_padding
-                            #         top_padding = bottom_padding
-                            #         bottom_padding = temp
-                            #         temp = left_padding
-                            #         left_padding = right_padding
-                            #         right_padding = temp
-
-                            #         # top_padding -= 1
-                            #         # bottom_padding += 1
-                            #     case 3:
-                            #         temp = left_padding
-                            #         left_padding = bottom_padding
-                            #         bottom_padding = right_padding
-                            #         right_padding = top_padding
-                            #         top_padding = temp
 
                             paddings = [left_padding, top_padding, right_padding, bottom_padding]
 
                             # Rotate padding values counterclockwise by 90-degree steps
+                            # could definitely make its own function, but then i'd have to worry about the clockwise stuff, and... eh
                             for _ in range(rotation_amount):
                                 paddings = [paddings[1], paddings[2], paddings[3], paddings[0]]
 
                             left_padding, top_padding, right_padding, bottom_padding = paddings
 
-                            
+                            match padding_type: # probably an even more efficient way to do this
+                                case 0:
+                                    image_object_array[image_index]["left_padding"] = min(image_object_array[image_index]["left_padding"], left_padding)
+                                    image_object_array[image_index]["top_padding"] = min(image_object_array[image_index]["top_padding"], top_padding)
+                                    image_object_array[image_index]["right_padding"] = min(image_object_array[image_index]["right_padding"], right_padding)
+                                    image_object_array[image_index]["bottom_padding"] = min(image_object_array[image_index]["bottom_padding"], bottom_padding)
+                                case 1:
+                                    image_object_array[image_index]["left_padding"] = max(image_object_array[image_index]["left_padding"], left_padding)
+                                    image_object_array[image_index]["top_padding"] = max(image_object_array[image_index]["top_padding"], top_padding)
+                                    image_object_array[image_index]["right_padding"] = max(image_object_array[image_index]["right_padding"], right_padding)
+                                    image_object_array[image_index]["bottom_padding"] = max(image_object_array[image_index]["bottom_padding"], bottom_padding)
 
-                            if image_object_array[image_index]["left_padding"] > left_padding:
-                                image_object_array[image_index]["left_padding"] = left_padding
-                            if image_object_array[image_index]["top_padding"] > top_padding:
-                                image_object_array[image_index]["top_padding"] = top_padding
-                            if image_object_array[image_index]["right_padding"] > right_padding:
-                                image_object_array[image_index]["right_padding"] = right_padding
-                            if image_object_array[image_index]["bottom_padding"] > bottom_padding:
-                                image_object_array[image_index]["bottom_padding"] = bottom_padding
-
-                        # print((left_padding, top_padding, right_padding, bottom_padding))
-
-                        # either way, pose json stuff: how does each limb relate to the padding? etc
-
-                        # do we need to store the padding for the originals as well??? well maybe not? idk, padding for the CURRENT thing is stored
-                        # either way. so if it's not relative to other identical limb images, and is instead relative to corner, then that's fine.
-                        # but that does NOT take into account the padding being updated as it goes - so maybe the saved padding should be stored
-                        # somewhere, so it can work backwards for the unpadded size? though I guess we could just bbox again??? but that only works
-                        # for completely unedited sprites
-
-                        # so basically we'd need to update the saved offsets as we go, and that's not gonna happen. so need to figure out more
-                        # automatic way
-
-                        # sooooo I'm thinking we want to figure out the offset stuff later??? but like WHY though. let me think about this
-                        # what i mean is: it may be best to go back & calculate each pose's offset later. but like, no, actually - it needs to
-                        # be set now. but for the sake of the different padding, it's practically *necessary.* so i dunno! but at least the padding
-                        # IS saved, and the image index CAN be traced to the padding pretty darn easily. idk i guess we can edit the offsets all at
-                        # once later, AS LONG AS the offsets ARE determined HERE as well. and we can just add the appropriate padding then
+                            # if image_object_array[image_index]["left_padding"] > left_padding:
+                            #     image_object_array[image_index]["left_padding"] = left_padding
+                            # if image_object_array[image_index]["top_padding"] > top_padding:
+                            #     image_object_array[image_index]["top_padding"] = top_padding
+                            # if image_object_array[image_index]["right_padding"] > right_padding:
+                            #     image_object_array[image_index]["right_padding"] = right_padding
+                            # if image_object_array[image_index]["bottom_padding"] > bottom_padding:
+                            #     image_object_array[image_index]["bottom_padding"] = bottom_padding
 
                         # limb_object = {
                         #     "name": curr_layer_name,
@@ -362,6 +346,9 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
     # ask for output location
     output_folder_path = filedialog.askdirectory(title="Select an output folder")
 
+    # output_folder_path = output_folder_path.rstrip("/consistxels_output_" + output_name)
+    # output_folder_path += "/consistxels_output_" + output_name
+
     # and then, here, we go through all poses, and all limbs, to update their padding according to the image index listed in the limb_object
 
     # go through pose list
@@ -371,26 +358,6 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
     for pose in pose_objects:
         for limb in pose["limb_objects"]:
             image_object = image_object_array[limb["image_index"]]
-            
-            # x_offset_adjust = 0
-            # y_offset_adjust = 0
-
-            # match limb["rotation"]:
-            #     case 2:
-            #         # y_offset_adjust -= 1
-            
-            # x_offset_adjust = -image_object["left_padding"]
-            # y_offset_adjust = -image_object["top_padding"]
-
-            # print(pose["name"], limb["name"], image_object["top_padding"])
-
-            # match limb["rotation"]:
-            #     case 2:
-            #         y_offset_adjust -= 1
-            
-            # if (image_object["width"] % 2 != image_object["height"] % 2) and (limb["rotation"] == 2) and limb["flip_h"]:
-                # y_offset_adjust -= 1
-                # print(pose["name"], limb["name"])
 
             image_left_padding = image_object["left_padding"]
             image_top_padding = image_object["top_padding"]
@@ -485,12 +452,13 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
         padded_image = Image.new("RGBA", ((image.width + image_left_padding + image_right_padding), (image.height + image_top_padding + image_bottom_padding)), color_transparent)
         padded_image.paste(image, (image_left_padding, image_top_padding))
 
-        image_path = output_folder_path + "/" + str(image_index).rjust(number_of_characters, "0") + ".png" # TODO: rather than saving relative path, just save image name. we already have the output folder!
+        # image_path = output_folder_path + "/" + str(image_index).rjust(number_of_characters, "0") + ".png" # TODO: rather than saving relative path, just save image name. we already have the output folder!
+        image_path = str(image_index).rjust(number_of_characters, "0") + ".png"
         images.append(image_path)
         # TODO: in GENERAL, the path stuff is... not my favorite. it's really dependant on the user's individual machine, and is therefore unable to be shared around. i COULD separately share the images, pose_objects, etc., that would be fine. i dunno. header relies on absolute paths for the border image, too. maybe that should just be included with the output?
         # (similarly: don't even NEED the layer paths, if ya think about it, only the names!)
 
-        padded_image.save(image_path)
+        padded_image.save(output_folder_path + "/" + image_path)
         
         image_index += 1
     
@@ -506,20 +474,26 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
     #     "search_right_to_left": search_right_to_left
     # }
 
+    layer_names = [layer["name"] for layer in image_info]
+
     json_output = {
-        "header": { # TODO: at some point, add some way to name the spritesheets. Probably just an entry box in the header of the layerselect menu
-            "name": "poop", # TODO: FIX FIX FIX
-            "output_folder_path": output_folder_path,
-            "border_image_path": border_image_path,
+        "header": {
+            "name": output_name,
+            # "output_folder_path": output_folder_path,
+            # "date_generated": date.today(),
+            # "border_image_path": border_image_path,
+            # "border_image_path": output_folder_path + "/border.png",
+            "border_image_path": "border.png",
             "border_color": border_color,
-            "layer_info": image_info,
+            "layer_names": layer_names,
+            "start_search_in_center": start_search_in_center,
             "search_right_to_left": search_right_to_left
         },
         "pose_objects": pose_objects,
         "images": images
     }
     
-    json_filename = "/consistxels_pose_output.json"
+    json_filename = "/consistxels_pose_output_" + output_name + ".json"
 
     with open(output_folder_path + json_filename, 'w') as file:
         # json.dump(pose_object_array, file, indent=4)
@@ -543,3 +517,36 @@ def GenerateJSON(border_image_path, border_color, image_info, search_right_to_le
     # 
     # BIG THINGS FOR NEXT TIME:
     # - add a way to upload a .json and have it be able to compile everything! it should have a choice to export individual layers, or the whole image at once.
+
+# fiddling with this a bit; technically, it's not good to so this without adding a setting, but... it's better anyway, and i WILL add the setting.
+# TODO: Change "search right to left" into "Reverse search order", and I guess change "Start search in center" to "search outward"?
+# It'd be *good* to have that as a setting and keep the original implementation, but... not necessary.
+def get_x_range(start = 0, end = 10, start_search_in_center = False, search_right_to_left = False): # for our purposes, assuming that width has NOT already been subtracted by two.
+    # if start_search_in_center:
+    #     width = end - start
+    #     midpoint = math.ceil(float(width) / 2.0) + start
+    #     if width % 2: midpoint -= 1
+
+    #     if not search_right_to_left:
+    #         return chain(range(midpoint, end - 2), range(start, midpoint))
+    #     else:
+    #         return chain(range(midpoint - 1, start - 1, -1), range(end - 3, midpoint - 1, -1))
+    # else:
+    #     if not search_right_to_left:
+    #         return range(start, end - 2)
+    #     else:
+    #         return range(end - 3, start - 1, -1)
+    if start_search_in_center:
+        width = end - start
+        midpoint = math.ceil(float(width) / 2.0) + start
+        if width % 2: midpoint -= 1
+
+        if not search_right_to_left:
+            return chain(range(midpoint, end - 2), range(midpoint - 1, start - 1, -1))
+        else:
+            return chain(range(midpoint - 1, start - 1, -1), range(midpoint, end - 2))
+    else:
+        if not search_right_to_left:
+            return range(start, end - 2)
+        else:
+            return range(end - 3, start - 1, -1)
