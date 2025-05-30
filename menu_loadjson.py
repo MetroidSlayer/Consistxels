@@ -36,23 +36,58 @@ class Menu_LoadJson(tk.Frame):
         self.loaded_json_label = tk.Label(self.top_frame, text="No .json loaded", bg=self.bg_color, fg=self.fg_color)
         self.loaded_json_label.pack(side="left", padx=5)
 
-        ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+
+
+        
+        self.mid_frame = tk.Frame(self, bg=self.bg_color)
+        # self.mid_frame.pack(fill="x", padx=10, pady=5)
+        self.mid_frame.pack(side="left", fill="y", padx=10)
+
+
+        # other options
+        self.include_border = tk.BooleanVar()
+        include_border_checkbutton = tk.Checkbutton(self.mid_frame, text="Include border in export", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.include_border)
+        include_border_checkbutton.select()
+        # include_border_checkbutton.pack(side="left", padx=5)
+        include_border_checkbutton.grid(row=0, column=0, sticky="w")
+        ToolTip(include_border_checkbutton, "In exported images, include the border.\n(Recommended for full sprite sheet exports)")
+        # could instead have an optionmenu where it's, like, "above", "below", "none" in case the position of the border matters
 
         # export stuff
-        self.export_sheet_button = tk.Button(self.top_frame, text="Export Sprite Sheet", bg=self.button_bg, fg=self.fg_color, command=self.export_sprite_sheet, state="disabled")
-        self.export_sheet_button.pack(side="left", padx=5)
-        # self.export_sheet_button.
-        ToolTip(self.export_sheet_button, "Export the entire sprite sheet.")
+        self.export_sheet_button = tk.Button(self.mid_frame, text="Export Sprite Sheet Image", bg=self.button_bg, fg=self.fg_color, command=self.export_sprite_sheet, state="disabled")
+        # self.export_sheet_button.pack(padx=5)
+        self.export_sheet_button.grid(row=1, column=0, sticky="w")
+        ToolTip(self.export_sheet_button, "Export the entire sprite sheet as a single image.")
 
-        ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
-
-        # self.export_layer_optionmenu =         
+        # ttk.Separator(self.mid_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+ 
         
-        self.export_layer_button = tk.Button(self.top_frame, text="Export Individual Layer", bg=self.button_bg, fg=self.fg_color, command=self.export_layer, state="disabled")
-        self.export_layer_button.pack(side="left", padx=5)
-        ToolTip(self.export_layer_button, "Export one layer.")
+        self.export_layer_button = tk.Button(self.mid_frame, text="Export Individual Layer Image", bg=self.button_bg, fg=self.fg_color, command=self.export_layer, state="disabled")
+        # self.export_layer_button.pack(padx=5)
+        self.export_layer_button.grid(row=2, column=0, sticky="w")
+        ToolTip(self.export_layer_button, "Export one layer as an image.")
+        
+        self.layer_option = tk.StringVar()
+        self.layer_option.set("")
+        self.export_layer_optionmenu = tk.OptionMenu(self.mid_frame, self.layer_option, "")
 
-        ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        
+        self.export_layer_optionmenu.configure(bg=self.bg_color, fg=self.fg_color, activebackground=self.secondary_bg, activeforeground=self.fg_color, width=28, anchor="w", justify="left", state="disabled")
+        self.export_layer_optionmenu["menu"].configure(bg=self.field_bg, fg=self.fg_color, activebackground=self.secondary_bg, activeforeground=self.fg_color)
+
+        # self.export_layer_optionmenu.pack(side="left", padx=5)
+        self.export_layer_optionmenu.grid(row=2, column=1, sticky="w")
+        ToolTip(self.export_layer_optionmenu, "Choose which layer to export.")
+
+
+
+
+
+        # ttk.Separator(self.mid_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+
+
+
 
         back_button = tk.Button(self.top_frame, text="Back to Main Menu", bg=self.button_bg, fg=self.fg_color, command=lambda: show_frame_callback("Main"))
         back_button.pack(side="right", padx=5)
@@ -68,8 +103,27 @@ class Menu_LoadJson(tk.Frame):
                 json_file.close()
 
                 self.output_folder_path = os.path.dirname(path)
-                self.loaded_json_label.config(text=os.path.basename(path))
+                self.loaded_json_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
+
+                self.export_sheet_button.configure(state="normal")
+                self.export_layer_button.configure(state="normal")
+
+                self.export_layer_optionmenu.configure(state="normal")
+                menu = self.export_layer_optionmenu["menu"]
+                menu.delete(0, "end")
+
+                for layer_name in self.json_data["header"]["layer_names"]:
+                    menu.add_command(label=layer_name, command=lambda value=layer_name: self.layer_option.set(value))
                 
+                if self.json_data["header"]["layer_names"]:
+                    self.layer_option.set(self.json_data["header"]["layer_names"][0])
+                else:
+                    self.layer_option.set("")
+                
+
+                with Image.open(self.output_folder_path + "/" + self.json_data["header"]["border_image_path"]) as border_image:
+                    self.image_size = border_image.size
+
                 # self.load_sprite_sheet(json_data, os.path.dirname(path))
 
                 # TODO NEXT
@@ -104,9 +158,14 @@ class Menu_LoadJson(tk.Frame):
 
         # border_image = Image.open(header["border_image_path"])
 
-        with Image.open(self.output_folder_path + "/" + header["border_image_path"]) as border_image:
-            sprite_sheet = border_image.copy()
-            # border_image.close()
+        # with Image.open(self.output_folder_path + "/" + header["border_image_path"]) as border_image:
+        #     sprite_sheet = border_image.copy()
+        #     # border_image.close()
+
+        # with Image.open(self.output_folder_path + "/" + self.json_data["header"]["border_image_path"]) as border_image:
+        #     size = border_image.size # might be worth saving the size as a property of self?
+
+        sprite_sheet = Image.new("RGBA", self.image_size, self.color_transparent)
 
         # color_transparent = ImageColor.getrgb("#00000000")
 
@@ -184,7 +243,15 @@ class Menu_LoadJson(tk.Frame):
         sprite_sheet_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")], initialfile= "export_" + self.json_data["header"]["name"] + "_full.png")
         # sprite_sheet = self.format_sprite_sheet(os.path.dirname(path))
         # sprite_sheet.save(sprite_sheet_path)
-        self.format_sprite_sheet().save(sprite_sheet_path)
+
+        sprite_sheet_image = self.format_sprite_sheet()
+
+        if (self.include_border.get()):
+            with Image.open(self.output_folder_path + "/" + self.json_data["header"]["border_image_path"]) as border_image:
+                sprite_sheet_image = Image.alpha_composite(sprite_sheet_image, border_image)
+
+        # self.format_sprite_sheet().save(sprite_sheet_path)
+        sprite_sheet_image.save(sprite_sheet_path)
 
     # def load_layer(self, layer_info, layer_index, width, height, pose_objects):
     #     layer_image = Image.new("RGBA", (width, height), self.color_transparent)
@@ -215,10 +282,10 @@ class Menu_LoadJson(tk.Frame):
         curr_layer_name = layer_names[layer_index]
         images = self.json_data["images"]
 
-        with Image.open(self.output_folder_path + "/" + self.json_data["header"]["border_image_path"]) as border_image:
-            size = border_image.size # might be worth saving the size as a property of self?
+        # with Image.open(self.output_folder_path + "/" + self.json_data["header"]["border_image_path"]) as border_image:
+        #     size = border_image.size # might be worth saving the size as a property of self?
 
-        layer_image = Image.new("RGBA", size, self.color_transparent)
+        layer_image = Image.new("RGBA", self.image_size, self.color_transparent)
 
         for pose in pose_objects:
             x_position = pose["x_position"]
@@ -256,10 +323,19 @@ class Menu_LoadJson(tk.Frame):
         return layer_image
 
     def export_layer(self):
-        layer_index = 0
-        layer_name = self.json_data["header"]["layer_names"][layer_index] # or, rather than using layername, could use string inside optionmenu?
+        # layer_index = self.json_data["header"]["layer_names"]
+        # layer_name = self.json_data["header"]["layer_names"][layer_index] # or, rather than using layername, could use string inside optionmenu?
+        layer_name = self.layer_option.get() # or, rather than using layername, could use string inside optionmenu?
+        layer_index = self.json_data["header"]["layer_names"].index(layer_name) # will throw error if not a layer, soooo try/except?
         layer_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")], initialfile= "export_" + self.json_data["header"]["name"] + "_" + layer_name + ".png")
-        self.format_layer(layer_index).save(layer_path)
+        
+        layer_image = self.format_layer(layer_index)
+
+        if (self.include_border.get()):
+            with Image.open(self.output_folder_path + "/" + self.json_data["header"]["border_image_path"]) as border_image:
+                layer_image = Image.alpha_composite(layer_image, border_image)
+
+        layer_image.save(layer_path)
 
 # def adjust_offset_coordinates(
 #     x: int,

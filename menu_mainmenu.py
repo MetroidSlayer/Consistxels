@@ -38,7 +38,12 @@ def verify_identical():
             difference = ImageChops.difference(img1, img2)
             result = (difference.getbbox() == None)
             if not result:
-                difference.show()
+                # difference.show()
+                difference_path = filedialog.asksaveasfilename(defaultextension=".png")
+                try:
+                    difference.save(difference_path)
+                except:
+                    pass
 
         print(result)
     

@@ -7,8 +7,9 @@ from menu_layerselect import Menu_LayerSelect
 from menu_loadjson import Menu_LoadJson
 
 from shared import on_global_click
+# import shared
 
-from generate import get_x_range
+# from generate import get_x_range
 
 class ConsistxelsApp(tk.Frame):
     def __init__(self, root):
@@ -32,6 +33,7 @@ class ConsistxelsApp(tk.Frame):
         self.secondary_bg = "#3a3a3a"
         self.button_bg = "#444"
         # self.button_fg = "#fff"
+        
 
         # Track images and border
         # self.image_data = []  # List of dicts: {path, name, thumbnail, img_obj}

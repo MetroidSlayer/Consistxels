@@ -6,10 +6,17 @@ import json
 import math
 from itertools import chain
 # from datetime import date
+# import time
+# from datetime import time
+from datetime import datetime
 
 # I probably should've split this into a few smaller functions. Oh well *shrug*
 # padding_type: 0 = minimize (show only pixels that WILL show up on final sheet), 1 = maximize (show ALL pixels that COULD THEORETICALLY end up on sheet), 2 = custom amount
 def GenerateJSON(output_name, border_image_path, border_color, image_info, start_search_in_center = True, search_right_to_left = False, padding_type = 0, custom_padding = 0):
+
+    # start_time = time.localtime()
+    # start_time = time()
+    start_time = datetime.now()
 
     border_image = Image.open(border_image_path) # get image
 
@@ -52,7 +59,7 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
     # also also, "offset" is referring to how far off the top-left corner of the sprite is from the top-left corner of the pose box.
     # also also also, "flip_h" does what it says on the tin (it's a bool), and "rotation" stores an int, and increments rotation by 90 degrees
 
-    
+    last_percent = -1 # for printing info during search
 
     # always subtracting 2 from the ranges, because there is no pose that can fit in a 2-wide or 2-high box, inclusive of border - there's no space
     for y in range(height - 2): # rows
@@ -326,7 +333,7 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
                             "name": curr_layer_name,
                             "x_offset": bbox[0], # guess what ISN'T fucking unaltered, dipshit (if i forget to delete this comment and someone sees it: this took me 12 hours to figure out)
                             "y_offset": bbox[1],
-                            "image_index": image_index,
+                            "image_index": image_index, # might be a good idea to NOT have this rely on image index. while faster, it means reorganizing pose images will be much tougher. on the other hand, renaming them is massively simple.
                             "flip_h": is_flipped,
                             "rotation": rotation_amount
                         }
@@ -338,10 +345,26 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
                 # some sort of dialog box that updates with what's currently going on, maybe? like a "Poses: ###"
 
                 pose_objects.append(pose_object)
-                print("Poses found: " + str(len(pose_objects)))
+                # print("Poses found: " + str(len(pose_objects)))
 
-        print("Search: " + str(math.floor((y / (height - 2)) * 100)) + "%")
-    print("Search complete")
+        # print("Search: " + str(math.floor((y / (height - 2)) * 100)) + "%")
+        curr_percent = math.floor((y / (height - 2)) * 100)
+        if curr_percent > last_percent:
+            print("Search: " + str(curr_percent) + "%\tPoses found: " + str(len(pose_objects)) + "\tUnique images found: " + str(len(image_object_array)))
+            last_percent = curr_percent
+
+    print("Search: 100%\tPoses found: " + str(len(pose_objects)) + "\tUnique images found: " + str(len(image_object_array)))
+    
+    # end_time = time.localtime()
+    end_time = datetime.now()
+    time_elapsed = end_time - start_time
+    time_elapsed_seconds = int(time_elapsed.total_seconds())
+    hours = time_elapsed_seconds // 3600
+    minutes = (time_elapsed_seconds % 3600) // 60
+    seconds = time_elapsed_seconds % 60
+    formatted = f"{hours:02}:{minutes:02}:{seconds:02}"
+    
+    print("Search complete! Time elapsed: " + formatted)
 
     # ask for output location
     output_folder_path = filedialog.askdirectory(title="Select an output folder")
