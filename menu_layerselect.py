@@ -8,6 +8,8 @@ from tooltip import ToolTip
 
 from shared import on_global_click
 
+import json
+
 class Menu_LayerSelect(tk.Frame):
     def __init__(self, master, show_frame_callback):
         super().__init__(master)
@@ -189,6 +191,18 @@ class Menu_LayerSelect(tk.Frame):
         self.generate_button.pack(side="right", padx=5, pady=5)
         ToolTip(self.generate_button, "Generate data! (May take a while)", True, True)
 
+        ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="right", padx=5)
+        
+        export_layer_select_json_button = tk.Button(self.footer, bg=self.button_bg, fg=self.fg_color, text="Export...", command=self.export_layer_select_json)
+        export_layer_select_json_button.pack(side="right", padx=5, pady=5)
+        ToolTip(export_layer_select_json_button, "Export a .json file containing the layer information, so you don't have to fill out the layer info again.", True, True) # explain better. also, it IS possible to use an output .json, you just gotta be smart about it.
+
+        import_layer_select_json_button = tk.Button(self.footer, bg=self.button_bg, fg=self.fg_color, text="Import...", command=self.import_layer_select_json)
+        import_layer_select_json_button.pack(side="right", padx=5, pady=5)
+        ToolTip(import_layer_select_json_button, "Import a .json file containing the layer information.\n(DO NOT use a .json generated with the \"Generate...\" button!)", True, True) # explain better. also, it IS possible to use an output .json, you just gotta be smart about it.
+
+
+
         self.bind_all("<Button-1>", on_global_click, add="+")
 
     def on_mousewheel(self, event):
@@ -245,13 +259,36 @@ class Menu_LayerSelect(tk.Frame):
         # print("gothere3")
         return color
 
+    def add_images(self, data = None):
+        # paths = filedialog.askopenfilenames(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
 
-    def add_images(self):
-        paths = filedialog.askopenfilenames(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
-        for path in paths:
-            filename = os.path.basename(path)
-            name = os.path.splitext(filename)[0]
+
+        if not data:
+            paths = filedialog.askopenfilenames(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
+
+            # data["path"] = 
+            # data["name"] =
+            data = []
+            for path in paths:
+                data.append({"path": path, "name": os.path.splitext(os.path.basename(path))[0], "alt_source": None})
+        # else:
+        #     paths = []
+        #     for d in data:
+        #         # paths.append(d["path"])
+        #         pass
+        
+        # for i, path in enumerate(paths):
+        for d in data:
+
+
+
+            # filename = os.path.basename(path)
+            # name = os.path.splitext(filename)[0]
             
+            path = d["path"]
+            name = d["name"]
+            alt_source = d["alt_source"]
+
             image = Image.open(path)
 
             if len(self.image_data):
@@ -268,13 +305,16 @@ class Menu_LayerSelect(tk.Frame):
             thumb = image.copy()
             thumb.thumbnail((64, 64))
             photo = ImageTk.PhotoImage(thumb)
-            self.image_data.append({"path": path, "name": name, "img": image, "thumb": photo})
+            self.image_data.append({"path": path, "name": name, "img": image, "thumb": photo, "alt_source": alt_source})
+        
         self.redraw_image_entries()
         # self.update_preview()
         self.update_preview_button.configure(bg="#ffff00", fg="#000000")
 
-    def add_border(self):
-        path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
+    def add_border(self, path = None):
+        if path == None:
+            path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
+
         if path:
             if self.border_image != None:
                 self.border_image.close()
@@ -345,8 +385,15 @@ class Menu_LayerSelect(tk.Frame):
 
             name_entry.bind("<FocusOut>", save_name, add="+")
 
+            alt_source_button = tk.Button(frame, text="@", bg=self.button_bg, fg=("#00f870" if data["alt_source"] else self.fg_color))
+            # alt_source_button.grid(row=0, column=3, rowspan=2, padx=5)
+            alt_source_button.grid(row=0, column=3, padx=5)
+            alt_source_button.configure(command=lambda idx=i, widget=alt_source_button: self.add_alternate_image_source(idx, widget))
+            ToolTip(alt_source_button, "Add an alternate image that will be used as the source for exported pose images.\n\nThe main image is the one being searched, and by default, the source for\npose images as well. Adding an alternate image makes it so replacing one large sheet's poses with\nanother's is easier, and you don't have to manually copy-paste everything.\n\n(Just leave this alone if you're not sure.)")
+
             x_button = tk.Button(frame, text="X", fg="red", command=lambda idx=i: self.delete_image(idx), bg=self.button_bg)
-            x_button.grid(row=0, column=3, rowspan=2, padx=5)
+            # x_button.grid(row=0, column=3, rowspan=2, padx=5)
+            x_button.grid(row=1, column=3, padx=5)
             ToolTip(x_button, f"Delete layer {i+1}")
 
             up_button = tk.Button(frame, text="↑", command=lambda idx=i: self.move_image(idx, -1), bg=self.button_bg, fg=self.fg_color)
@@ -358,6 +405,12 @@ class Menu_LayerSelect(tk.Frame):
             ToolTip(down_button, f"Reorder layer {i+1} downwards")
 
             self.scrollable_frame.bind_all("<Button-1>", on_global_click, add="+")
+
+    def add_alternate_image_source(self, index, widget):
+        path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
+        if path:
+            self.image_data[index]["alt_source"] = path
+            widget.configure(fg="#00f870")
 
     def update_preview(self):
         self.update_preview_button.configure(bg=self.button_bg, fg=self.fg_color)
@@ -391,6 +444,66 @@ class Menu_LayerSelect(tk.Frame):
     #     self.zoom_level *= factor
     #     self.update_preview()
 
+    def export_layer_select_json(self):
+        name = self.name_entry_input.get()
+        if not name:
+            name = "unnamed_sprite_sheet"
+
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("Json File", "*.json")], initialfile="consistxels_" + name + "_layers.json")
+        if path:
+
+            header = {
+                # "name": self.name_entry_input.get(),
+                "name": name,
+                "border_color": self.border_color,
+                "border_path": self.border_path,
+                "start_search_in_center": self.start_search_in_center.get(),
+                "search_right_to_left": self.search_right_to_left.get(),
+                "automatic_padding_type": self.padding_types.index(self.padding_type_option.get()),
+                "custom_padding_amount": self.custom_padding.get()
+            }
+
+            layer_data = []
+
+            for image in self.image_data:
+                layer_data.append({"path": image["path"], "name": image["name"], "alt_source": image["alt_source"]})
+
+            export = {"header": header, "layer_data": layer_data}
+
+            with open(path, 'w') as file:
+                json.dump(export, file, indent=4)
+
+    def import_layer_select_json(self):
+        path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
+        if path:
+            with open(path) as json_file:
+                json_data = json.load(json_file)
+                header = json_data["header"]
+                layer_data = json_data["layer_data"]
+
+                self.name_entry_input.set(header["name"])
+
+                self.update_border_color(self.format_color_string(header["border_color"]))
+
+                self.add_border(header["border_path"])
+
+                # if header["start_search_in_center"]:
+                self.start_search_in_center.set(header["start_search_in_center"])
+
+                self.search_right_to_left.set(header["search_right_to_left"])
+                # if header["search_right_to_left"]:
+                    # pass
+
+                self.padding_type_option.set(self.padding_types[header["automatic_padding_type"]])
+
+                self.custom_padding.set(header["custom_padding_amount"])
+
+                # delete current images too!!!
+                self.add_images(layer_data)
+
+
+            
+
     def generate_output(self):
         # border image
         # border color
@@ -404,7 +517,7 @@ class Menu_LayerSelect(tk.Frame):
             if data["name"] in [image["name"] for image in image_info]:
                 duplicate_layer_name = True
                 break
-            image_info.append({"path": data["path"], "name": data["name"]})
+            image_info.append({"path": data["path"], "name": data["name"], "alt_source": data["alt_source"]})
         # print(image_info)
         
         # print(self.search_right_to_left.get())

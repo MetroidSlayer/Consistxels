@@ -99,8 +99,8 @@ class Menu_LoadJson(tk.Frame):
             # json_file = open(path)
             with open(path) as json_file:
                 # json_data = json.load(json_file)
-                self.json_data = json.load(json_file)
-                json_file.close()
+                self.json_data = json.load(json_file) #could unindent after this?
+                # json_file.close()
 
                 self.output_folder_path = os.path.dirname(path)
                 self.loaded_json_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
@@ -234,8 +234,10 @@ class Menu_LoadJson(tk.Frame):
             
             # sprite_sheet.paste(layer_image)
             sprite_sheet = Image.alpha_composite(sprite_sheet, self.format_layer(i))
+            print("Layer " + layer_names[i] + " formatted")
         
         # sprite_sheet.show()
+        print("Success")
         return sprite_sheet
 
     # def export_sprite_sheet(self, path):
@@ -300,6 +302,7 @@ class Menu_LoadJson(tk.Frame):
 
                     with Image.open(self.output_folder_path + "/" + images[limb["image_index"]]) as limb_image:
                         adjusted_image = limb_image.copy()
+                        # could probably make everything go down 1 tab since we don't need limb_image anymore?
                         rotate_type = None
 
                         if limb["flip_h"]:
@@ -316,9 +319,29 @@ class Menu_LoadJson(tk.Frame):
                         if rotate_type:
                             adjusted_image = adjusted_image.transpose(rotate_type)
 
-                        x_offset_adjust, y_offset_adjust = x_offset + x_position, y_position + y_offset
-                        layer_image.paste(adjusted_image, (x_offset_adjust, y_offset_adjust))
-                        # return adjusted_image, x_offset_adjust, y_offset_adjust
+                        # x_offset_adjust, y_offset_adjust = x_offset + x_position, y_position + y_offset
+                        
+                        # layer_image.paste(adjusted_image, (x_offset_adjust, y_offset_adjust)) # this should PROBABLY be alpha composite to avoid cutoff issues
+                        
+                        
+                        # stuff to prevent clipping with the different image sizes n stuff
+                        adjusted_image_bbox = adjusted_image.getbbox()
+                        if adjusted_image_bbox:
+                            adjusted_image = adjusted_image.crop(adjusted_image_bbox)
+                            # layer_image.paste(adjusted_image, (x_offset_adjust, y_offset_adjust))
+
+                            # print(adjusted_image_bbox[0])
+                            # print(adjusted_image_bbox[1])
+                            # print(adjusted_image_bbox)
+                            x_offset_adjust, y_offset_adjust = x_offset + x_position + adjusted_image_bbox[0], y_position + y_offset + adjusted_image_bbox[1]
+
+                            layer_image.paste(adjusted_image, (x_offset_adjust, y_offset_adjust))
+                            
+                            
+                            
+                            # layer_image = Image.alpha_composite()
+
+                            # return adjusted_image, x_offset_adjust, y_offset_adjust
         
         return layer_image
 

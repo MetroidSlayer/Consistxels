@@ -33,6 +33,10 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
     # format: [{"img", "left_padding", "top_padding", "right_padding", "bottom_padding"}]
     image_object_array = []
 
+    # format: [{"x_position", "y_position", "width", "height"}]
+    # or i guess we could just store each's original pose? cause all that's stored there just fine
+    TEMP_image_original_pose_data = []
+
     # for storing pose information, which will be output in .json format
     # format:
     # [{
@@ -47,8 +51,20 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
 
     # opening layer images here so that we don't have to re-open and -close them over and over while searching for poses 
     layer_images = []
+    layer_image_sources = []
     for layer_data in image_info:
-        layer_images.append(Image.open(layer_data["path"]))
+        layer_image = Image.open(layer_data["path"])
+
+        # layer_images.append(Image.open(layer_data["path"]))
+        layer_images.append(layer_image)
+
+        if layer_data["alt_source"]:
+            layer_image_sources.append(Image.open(layer_data["alt_source"]))
+        else:
+            layer_image_sources.append(layer_image)
+
+    # layer_image_sources = []
+    # for layer_data in image_info:
 
     # and for good measure, limb_objects format:
     # [{"x_offset", "y_offset", "image_index", "flip_h", "rotation"}]
@@ -134,7 +150,7 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
 
                     # we already opened the layer images provided, so that we don't have to open and close them every time we find a pose box
                     curr_layer_image = layer_images[layer_index]
-                    layer_index += 1
+                    # layer_index += 1
                     
                     curr_layer_name = layer_data["name"]
 
@@ -281,6 +297,15 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
                                 "right_padding": right_padding,
                                 "bottom_padding": bottom_padding
                             })
+
+                            # test for a feature that will likely never be used by anyone but me but i will get GREAT use out of it
+                            TEMP_image_original_pose_data.append({
+                                "x_position": found_pose_x,
+                                "y_position": found_pose_y,
+                                "width": found_pose_width,
+                                "height": found_pose_height,
+                                "layer_index": layer_index
+                            })
                         # if making automatic padding, either minimize or maximize. don't need to do this for custom padding, since it'll be equal;
                         # rotating and flipping would do nothing
                         elif padding_type != 2: 
@@ -340,7 +365,9 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
 
                         pose_object["limb_objects"].append(limb_object)
 
-                        # and HERE'S where layer stuff stops mattering
+                    # and HERE'S where layer stuff stops mattering
+
+                    layer_index += 1
 
                 # some sort of dialog box that updates with what's currently going on, maybe? like a "Poses: ###"
 
@@ -473,7 +500,73 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
         # print(str(image_bottom_padding))
 
         padded_image = Image.new("RGBA", ((image.width + image_left_padding + image_right_padding), (image.height + image_top_padding + image_bottom_padding)), color_transparent)
-        padded_image.paste(image, (image_left_padding, image_top_padding))
+        # padded_image.paste(image, (image_left_padding, image_top_padding))
+
+
+        # get original pose that has this image
+        # get bbox for this new padded_image
+        # get bbox for original pose's version of the image
+        # compare original pose's version's bbox to bbox for source version of image
+        # factoring in necessary adjustments, add padded_image's bbox appropriately
+
+        TEMP_x = TEMP_image_original_pose_data[image_index]["x_position"]
+        TEMP_y = TEMP_image_original_pose_data[image_index]["y_position"]
+        TEMP_w = TEMP_image_original_pose_data[image_index]["width"]
+        TEMP_h = TEMP_image_original_pose_data[image_index]["height"]
+        TEMP_layer = TEMP_image_original_pose_data[image_index]["layer_index"]
+
+        # print(TEMP_layer)
+
+        original_pose_image = layer_images[TEMP_layer].crop((TEMP_x, TEMP_y, TEMP_x + TEMP_w, TEMP_y + TEMP_h))
+        source_image = layer_image_sources[TEMP_layer].crop((TEMP_x, TEMP_y, TEMP_x + TEMP_w, TEMP_y + TEMP_h))
+        # these SHOULD be the same size
+
+        final_output_image = padded_image.copy()
+
+        if original_pose_image.tobytes() == source_image.tobytes(): #could instead check if source img is same as search img
+            final_output_image.paste(image, (image_left_padding, image_top_padding))
+        else:
+            original_pose_bbox = original_pose_image.getbbox()
+
+            if original_pose_bbox: # NOT a problem, because there cannot NOT be an original pose
+                source_bbox = source_image.getbbox()
+                # theoretically different sizes
+
+                if source_bbox:
+
+                    #if the original image is BIGGER THAN the source image, then the original image's bbox is SMALLER THAN the source image's bbox
+                    #if the original image is SMALLER THAN the source image, then the original image's bbox is BIGGER THAN the source image's bbox
+
+                    # new_bbox = (source_bbox[0] - original_pose_bbox[0], source_bbox[1] - original_pose_bbox[1], source_bbox[2] - original_pose_bbox[2], source_bbox[3] - original_pose_bbox[3])
+
+                    # image_left_padding = image_left_padding + new_bbox[0]
+                    # image_top_padding = image_top_padding + new_bbox[1]
+
+                    # image_left_padding -= source_bbox[0]
+                    # image_top_padding -= source_bbox[1] # doesnt work ## actually, test again? changed smth. might just wanna do select layer json stuff first to save time
+
+                    # ok, still causes issues when original_pose and source are diff sizes. also, likely works even worse when rotations/flips involved. (NO, because these are the IMAGES, not the posed limbs, so we're only storing unrotated/unflipped info anyway)
+                    # image_left_padding += original_pose_bbox[0] - source_bbox[0]
+                    # image_top_padding += original_pose_bbox[1] - source_bbox[1]
+
+                    # image_left_padding -= original_pose_bbox[0]
+                    # image_top_padding -= original_pose_bbox[1]
+                    
+                    # image_left_padding += source_bbox[0]
+                    # image_top_padding += source_bbox[1]
+
+                    image_left_padding -= source_bbox[0]
+                    image_top_padding -= source_bbox[1]
+
+                    image_left_padding -= original_pose_bbox[0] - source_bbox[0]
+                    image_top_padding -= original_pose_bbox[1] - source_bbox[1]
+
+                    # final_output_image.paste(source_image.crop(source_bbox), (image_left_padding, image_top_padding))
+                    final_output_image.paste(source_image, (image_left_padding, image_top_padding))
+
+
+
+        
 
         # image_path = output_folder_path + "/" + str(image_index).rjust(number_of_characters, "0") + ".png" # TODO: rather than saving relative path, just save image name. we already have the output folder!
         image_path = str(image_index).rjust(number_of_characters, "0") + ".png"
@@ -481,7 +574,8 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
         # TODO: in GENERAL, the path stuff is... not my favorite. it's really dependant on the user's individual machine, and is therefore unable to be shared around. i COULD separately share the images, pose_objects, etc., that would be fine. i dunno. header relies on absolute paths for the border image, too. maybe that should just be included with the output?
         # (similarly: don't even NEED the layer paths, if ya think about it, only the names!)
 
-        padded_image.save(output_folder_path + "/" + image_path)
+        # padded_image.save(output_folder_path + "/" + image_path)
+        final_output_image.save(output_folder_path + "/" + image_path)
         
         image_index += 1
     
@@ -527,8 +621,13 @@ def GenerateJSON(output_name, border_image_path, border_color, image_info, start
     border_image.save(output_folder_path + "/border.png") # TODO: WORK ON MORE. GET LOADING TO LOOK AT THIS INSTEAD!
     border_image.close()
 
+    for layer_image_source in layer_image_sources:
+        if not layer_image_source in layer_images:
+            layer_image_source.close()
+
     for layer_image in layer_images:
         layer_image.close()
+    
     
     print("Success!")
 
