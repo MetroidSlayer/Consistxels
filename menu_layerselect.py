@@ -40,166 +40,381 @@ class Menu_LayerSelect(tk.Frame):
 
     def setup_ui(self, show_frame_callback):
 
-        # Top frame for controls
-        # self.top_frame = tk.Frame(self.root, bg=self.bg_color)
-        self.top_frame = tk.Frame(self, bg=self.bg_color)
-        self.top_frame.pack(fill="x", padx=10, pady=5)
+        # Header
+        self.header = tk.Frame(self, bg=self.bg_color)
+        self.header.pack(fill="x", padx=10, pady=5)
 
-        name_label = tk.Label(self.top_frame, text="Sprite sheet name:", bg=self.bg_color, fg=self.fg_color)
-        name_label.pack(side="left", padx = 5, pady=5)
+        # Header left:
+
+        # Save button
+        save_button = tk.Button(self.header, text="Save", bg=self.button_bg, fg=self.fg_color, command=self.export_layer_select_json)
+        save_button.pack(padx=5, pady=5, side="left")
+        ToolTip(save_button, "REPLACE")
         
-        self.name_entry_input = tk.StringVar()
-        name_entry = tk.Entry(self.top_frame, width=32, bg=self.field_bg, fg=self.fg_color, textvariable=self.name_entry_input)
-        name_entry.bind("<FocusIn>", self.on_entry_FocusIn)
-        name_entry.bind("<FocusOut>", self.on_entry_FocusOut)
-        name_entry.pack(side="left", padx = 5)
-        # name_entry.bind("<FocusOut>")
+        # Load button
+        load_button = tk.Button(self.header, text="Load", bg=self.button_bg, fg=self.fg_color, command=self.import_layer_select_json)
+        load_button.pack(padx=5, pady=5, side="left")
+        ToolTip(load_button, "REPLACE")
 
-        ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # New button
+        new_button = tk.Button(self.header, text="New", bg=self.button_bg, fg=self.fg_color)
+        new_button.pack(padx=5, pady=5, side="left")
+        ToolTip(new_button, "REPLACE")
 
-        add_images_button = tk.Button(self.top_frame, text="Add Images", command=self.add_images, bg=self.button_bg, fg=self.fg_color)
-        add_images_button.pack(side="left", padx=5)
-        ToolTip(add_images_button, "Add one more more images.")
+        # Header right:
 
-        ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
-
-        choose_border_button = tk.Button(self.top_frame, text="Choose Border", command=self.add_border, bg=self.button_bg, fg=self.fg_color)
-        choose_border_button.pack(side="left", padx=5)
-        ToolTip(choose_border_button, "Choose an image file containing the borders of the sprites' poses. This will be searched in order to find the poses and generate the data.")
-
-        self.border_label = tk.Label(self.top_frame, text="No border selected", bg=self.bg_color, fg=self.fg_color)
-        self.border_label.pack(side="left", padx=5)
-
-        tk.Label(self.top_frame, text="Border Color:", bg=self.bg_color, fg=self.fg_color).pack(side="left", padx=(20, 5))
-
-        self.border_color_swatch = tk.Canvas(self.top_frame, width=20, height=20, bg=self.border_color,
-        highlightthickness=1, highlightbackground="black")
-        self.border_color_swatch.pack(side="left", padx=5)
-
-        self.color_entry_input = tk.StringVar()
-        self.color_entry_input.set(self.format_color_string(self.border_color))
-        color_entry = tk.Entry(self.top_frame, width=10, bg=self.field_bg, fg=self.fg_color, textvariable=self.color_entry_input)
-        color_entry.bind("<FocusIn>", self.on_entry_FocusIn)
-        color_entry.bind("<FocusOut>", self.on_entry_FocusOut)
-        color_entry.bind("<FocusOut>", self.border_color_entry_input, add="+")
-        color_entry.pack(side="left", padx = 5)
-        ToolTip(color_entry, "Type the color that will be interpreted as the border.")
-
-        pick_border_color_button = tk.Button(self.top_frame, text="Open Color Picker", command=self.pick_color, bg=self.button_bg, fg=self.fg_color)
-        pick_border_color_button.pack(side="left", padx=5)
-        ToolTip(pick_border_color_button, "Pick the color that will be interpreted as the border.")
-
-        ttk.Separator(self.top_frame, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
-
-        back_button = tk.Button(self.top_frame, text="Back to Main Menu", bg=self.button_bg, fg=self.fg_color, command=lambda: show_frame_callback("Main"))
+        # Back button
+        back_button = tk.Button(self.header, text="Back to Main Menu", bg=self.button_bg, fg=self.fg_color, command=lambda: show_frame_callback("Main"))
         back_button.pack(side="right", padx=5)
         ToolTip(back_button, "...Come on, this one is self explanatory.", False, True, 2000)
 
-        # Main frame split left/right
-        # self.main_frame = tk.Frame(self.root, bg=self.bg_color)
+        # Main frame
         self.main_frame = tk.Frame(self, bg=self.bg_color)
         self.main_frame.pack(fill="both", expand=True, padx=10, pady=(0, 5))
 
-        # Left scrollable frame for image entries
-        self.left_frame = tk.Frame(self.main_frame, bg=self.bg_color)
-        self.left_frame.pack(side="left", fill="y", padx=(5, 10))
+        paned_window_test = tk.PanedWindow(self.main_frame, bg=self.bg_color, handlesize=16, handlepad=16)
+        paned_window_test.pack(fill="both", expand=True)
 
-        self.canvas = tk.Canvas(self.left_frame, width=400, bg=self.bg_color, highlightthickness=0)
-        self.scrollbar = tk.Scrollbar(self.left_frame, orient="vertical", command=self.canvas.yview)
-        # self.scrollbar.configure(bg=self.secondary_bg, fg=self.secondary_fg)
-        self.scrollable_frame = tk.Frame(self.canvas, bg=self.bg_color)
 
+
+        # Left frame
+        # self.left_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        self.left_frame = tk.Frame(paned_window_test, bg=self.bg_color)
+        # self.left_frame.pack(side="left", fill="y", padx=(5, 10))
+        self.left_frame.pack(side="left", fill="both", padx=10, expand=True)
+
+        # Right frame
+        # self.right_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        self.right_frame = tk.Frame(paned_window_test, bg=self.bg_color)
+        # self.right_frame.pack(side="right", fill="y", padx=(5, 10))
+        self.right_frame.pack(side="right", fill="both", padx=10, expand=True)
+
+        # Center frame
+        self.center_frame = tk.Frame(paned_window_test, bg=self.field_bg)
+        # self.center_frame.pack(side="left", fill="both", padx=(5, 10))
+        self.center_frame.pack(side="left", fill="both", padx=10, expand=True)
+
+        paned_window_test.add(self.left_frame)
+        paned_window_test.add(self.center_frame)
+        paned_window_test.add(self.right_frame)
+        
+        # Layer options:
+
+        # Layer header
+        layer_header = tk.Frame(self.left_frame, bg=self.bg_color)
+        layer_header.pack(side="top", fill="x")
+
+        # Layer main frame
+        layer_main_frame = tk.Frame(self.left_frame, bg=self.bg_color)
+        layer_main_frame.pack(side="top", fill="both", expand=True)
+
+        # Actual layer menu
+        # self.layer_canvas = tk.Canvas(layer_main_frame, bg=self.bg_color)
+        self.layer_canvas = tk.Canvas(layer_main_frame, bg=self.bg_color, width=0)
+        self.layer_scrollbar = tk.Scrollbar(layer_main_frame, orient="vertical", command=self.layer_canvas.yview)
+        # self.layer_scrollbar = tk.Scrollbar(self.layer_canvas, orient="vertical", command=self.layer_canvas.yview)
+        self.scrollable_frame = tk.Frame(self.layer_canvas, bg=self.bg_color)
+
+        # Bind scrolling
         self.scrollable_frame.bind(
-            "<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            "<Configure>", lambda e: self.layer_canvas.configure(scrollregion=self.layer_canvas.bbox("all"))
         )
 
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        # Create canvas in which to show layer info
+        self.layer_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.layer_canvas.configure(yscrollcommand=self.layer_scrollbar.set)
 
-        self.canvas.pack(side="left", fill="y")
-        self.scrollbar.pack(side="right", fill="y")
+        # self.layer_canvas.pack(side="left", fill="y")
+        self.layer_canvas.pack(side="left", fill="both", expand=True)
+        # self.layer_scrollbar.pack(side="right", fill="y")
+        self.layer_scrollbar.pack(side="left", fill="y")
 
         # Mousewheel scrolling
-        self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
+        self.layer_canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
-        # Right canvas for preview
-        self.preview_canvas = tk.Canvas(self.main_frame, width=400, height=400, bg=self.field_bg)
-        # self.preview_canvas.bind("<Configure>", self.update_preview)
+        # Layer footer
+        layer_footer = tk.Frame(self.left_frame, bg=self.bg_color)
+        layer_footer.pack(side="top", fill="x") # does not show up below canvas for some reason
+        # layer_footer.pack_propagate(True)
 
-        self.preview_canvas.pack(side="left", fill="both", expand=True)
+        # Top add buttons
+        layer_add_blank_top = tk.Button(layer_header, text="+ Blank layer", bg=self.button_bg, fg=self.fg_color)
+        layer_add_blank_top.pack(side="left", padx=5, pady=5)
+        ToolTip(layer_add_blank_top, "Add a blank layer as the top layer.")
+
+        layer_add_images_top = tk.Button(layer_header, text="+ From image(s)", bg=self.button_bg, fg=self.fg_color)
+        layer_add_images_top.pack(side="left", padx=5, pady=5)
+        ToolTip(layer_add_images_top, "Add image(s) as the top layer(s). Layer's name will be autofilled with its image's filename.")
+
+        # Bottom add buttons (NEED SOME WAY TO MAKE IT ADD TO BOTTOM/TOP CORRECTLY)
+        layer_add_blank_bottom = tk.Button(layer_footer, text="+ Blank layer", bg=self.button_bg, fg=self.fg_color)
+        layer_add_blank_bottom.pack(side="left", padx=5, pady=5)
+        ToolTip(layer_add_blank_bottom, "Add a blank layer as the bottom layer.", True)
+
+        layer_add_images_bottom = tk.Button(layer_footer, text="+ From image(s)", bg=self.button_bg, fg=self.fg_color)
+        layer_add_images_bottom.pack(side="left", padx=5, pady=5)
+        ToolTip(layer_add_images_bottom, "Add image(s) as the bottom layer(s). Layer's name will be autofilled with its image's filename.", True)
+
+        # Center preview:
+
+        # Preview canvas
+        # self.preview_canvas = tk.Canvas(self.main_frame, width=400, height=400, bg=self.field_bg)
+        # self.preview_canvas = tk.Canvas(self.main_frame, bg=self.field_bg)
+        self.preview_canvas = tk.Canvas(self.center_frame, bg=self.field_bg)
+        self.preview_canvas.pack(side="top", fill="both", expand=True)
+
+        # Canvas scroll bars
+        preview_canvas_vert_scroll = tk.Scrollbar(self.preview_canvas, orient="vertical", command=self.layer_canvas.yview)
+        preview_canvas_vert_scroll.pack(side="right", fill="y")
+
+        preview_canvas_hori_scroll = tk.Scrollbar(self.preview_canvas, orient="horizontal", command=self.layer_canvas.xview)
+        preview_canvas_hori_scroll.pack(side="bottom", fill="x")
+
+        # Canvas buttons have to go *some*where.
+        # (would really like this to be ON the canvas at some point.)
+        # canvas_buttons_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        canvas_buttons_frame = tk.Frame(self.center_frame, bg=self.bg_color)
+        canvas_buttons_frame.pack(side="top", fill="x")
+        # canvas_buttons_frame = tk.Frame(self.preview_canvas, bg=self.bg_color)
+        # canvas_buttons_frame.pack(side="bottom", fill="x")
+
+        # Bottomleft reload button
+        self.update_preview_button = tk.Button(canvas_buttons_frame, text="Update Preview", command=self.update_preview, bg=self.button_bg, fg=self.fg_color)
+        self.update_preview_button.pack(side="left", padx=5, pady=5) # figure out how to get bottom-left
+        ToolTip(self.update_preview_button, "Update the preview image that contains all layers ordered as shown. (May take a while if you have a lot of images)\n\nIf the button is yellow, changes have been made, and the preview can be updated.", True)
+
+        # Bottomright zoom buttons
+        zoom_in_button = tk.Button(canvas_buttons_frame, text="+", bg=self.button_bg, fg=self.fg_color)
+        zoom_in_button.pack(side="right", padx=5, pady=5)
+        ToolTip(zoom_in_button, "Zoom in", True)
+
+        zoom_out_button = tk.Button(canvas_buttons_frame, text="-", bg=self.button_bg, fg=self.fg_color)
+        zoom_out_button.pack(side="right", padx=5, pady=5)
+        ToolTip(zoom_in_button, "Zoom out", True)
+
+        # Right menu:
+
+
+        # Name label & entry
+        # Separator
+
+        # Search type label & optionmenu
+        # Variations for different types
+
+        # Border option:
+        # Border thumbnail
+        # Border path label, entry, button
+        # Border color label, swatch, entry, button
+
+        # Spacing option:
+        # Outline padding label, entry, label
+        # Inner padding label, entry, label
+        # Spacing label, entry, label, entry, label
+
+        # .json option:
+        # Source label, entry, button
+
+        # Separator
+
+        # Search options label
+        # Start-from-center checkbox
+        # Right-to-left checkbox
+        # Separator
+
+        # Destination folder label, entry, & button
+        # Export json label & checkbox
+        # Export images label & checkbox
+        # 
+
+        # name_label = tk.Label(self.header, text="Sprite sheet name:", bg=self.bg_color, fg=self.fg_color)
+        name_label = tk.Label(self.right_frame, text="Sprite sheet name:", bg=self.bg_color, fg=self.fg_color)
+        # name_label.pack(side="left", padx=5, pady=5)
+        name_label.grid(padx=5, pady=5, row=0, column=0)
+        
+        self.name_entry_input = tk.StringVar()
+        # name_entry = tk.Entry(self.header, width=32, bg=self.field_bg, fg=self.fg_color, textvariable=self.name_entry_input)
+        name_entry = tk.Entry(self.right_frame, width=32, bg=self.field_bg, fg=self.fg_color, textvariable=self.name_entry_input)
+        name_entry.bind("<FocusIn>", self.on_entry_FocusIn) # can simply change to check StringVar, no need to save all that stuff >:(
+        name_entry.bind("<FocusOut>", self.on_entry_FocusOut)
+        # name_entry.pack(side="left", padx = 5)
+        name_entry.grid(padx=5, pady=5, row=0, column=1)
+        # name_entry.bind("<FocusOut>")
+
+        # ttk.Separator(self.header, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.right_frame, orient="horizontal", style=self.separator_style).pack(fill="x", side="bottom", pady=5)
+
+        # add_images_button = tk.Button(self.header, text="Add Images", command=self.add_images, bg=self.button_bg, fg=self.fg_color)
+        # add_images_button.pack(side="left", padx=5)
+        # ToolTip(add_images_button, "Add one more more images.")
+
+        # ttk.Separator(self.header, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+
+        # choose_border_button = tk.Button(self.header, text="Choose Border", command=self.add_border, bg=self.button_bg, fg=self.fg_color)
+        choose_border_button = tk.Button(self.right_frame, text="Choose Border", command=self.add_border, bg=self.button_bg, fg=self.fg_color)
+        # choose_border_button.pack(side="left", padx=5)
+        choose_border_button.grid(padx=5, pady=5, row=1, column=0)
+        ToolTip(choose_border_button, "Choose an image file containing the borders of the sprites' poses. This will be searched in order to find the poses and generate the data.")
+
+        # self.border_label = tk.Label(self.header, text="No border selected", bg=self.bg_color, fg=self.fg_color)
+        self.border_label = tk.Label(self.right_frame, text="No border selected", bg=self.bg_color, fg=self.fg_color)
+        # self.border_label.pack(side="left", padx=5)
+        self.border_label.grid(padx=5, pady=5, row=1, column=1)
+
+        # tk.Label(self.header, text="Border Color:", bg=self.bg_color, fg=self.fg_color).pack(side="left", padx=(20, 5))
+        tk.Label(self.right_frame, text="Border Color:", bg=self.bg_color, fg=self.fg_color).grid(padx=5, pady=5, row=2, column=0)
+
+        # self.border_color_swatch = tk.Canvas(self.header, width=20, height=20, bg=self.border_color,
+        self.border_color_swatch = tk.Canvas(self.right_frame, width=20, height=20, bg=self.border_color,
+        highlightthickness=1, highlightbackground="black")
+        # self.border_color_swatch.pack(side="left", padx=5)
+        self.border_color_swatch.grid(padx=5, pady=5, row=3, column=0)
+
+        self.color_entry_input = tk.StringVar()
+        self.color_entry_input.set(self.format_color_string(self.border_color))
+        # color_entry = tk.Entry(self.header, width=10, bg=self.field_bg, fg=self.fg_color, textvariable=self.color_entry_input)
+        color_entry = tk.Entry(self.right_frame, width=10, bg=self.field_bg, fg=self.fg_color, textvariable=self.color_entry_input)
+        color_entry.bind("<FocusIn>", self.on_entry_FocusIn)
+        color_entry.bind("<FocusOut>", self.on_entry_FocusOut)
+        color_entry.bind("<FocusOut>", self.border_color_entry_input, add="+")
+        # color_entry.pack(side="left", padx = 5)
+        color_entry.grid(padx=5, pady=5, row=3, column=1)
+        ToolTip(color_entry, "Type the color that will be interpreted as the border.")
+
+        # pick_border_color_button = tk.Button(self.header, text="Open Color Picker", command=self.pick_color, bg=self.button_bg, fg=self.fg_color)
+        pick_border_color_button = tk.Button(self.right_frame, text="Open Color Picker", command=self.pick_color, bg=self.button_bg, fg=self.fg_color)
+        # pick_border_color_button.pack(side="left", padx=5)
+        pick_border_color_button.grid(padx=5, pady=5, row=3, column=2)
+        ToolTip(pick_border_color_button, "Pick the color that will be interpreted as the border.")
+
+        # ttk.Separator(self.header, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.right_frame, orient="horizontal", style=self.separator_style).pack(fill="x", side="bottom", pady=5)
+
+        # back_button = tk.Button(self.header, text="Back to Main Menu", bg=self.button_bg, fg=self.fg_color, command=lambda: show_frame_callback("Main"))
+        # back_button.pack(side="right", padx=5)
+        # ToolTip(back_button, "...Come on, this one is self explanatory.", False, True, 2000)
+
+        # Main frame split left/right
+        # self.main_frame = tk.Frame(self.root, bg=self.bg_color)
+        # self.main_frame = tk.Frame(self, bg=self.bg_color)
+        # self.main_frame.pack(fill="both", expand=True, padx=10, pady=(0, 5))
+
+        # Left scrollable frame for image entries
+        # self.left_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        # self.left_frame.pack(side="left", fill="y", padx=(5, 10))
+
+        # self.layer_canvas = tk.Canvas(self.left_frame, width=400, bg=self.bg_color, highlightthickness=0)
+        
+        # self.layer_scrollbar = tk.Scrollbar(self.left_frame, orient="vertical", command=self.layer_canvas.yview)
+        # # self.scrollbar.configure(bg=self.secondary_bg, fg=self.secondary_fg)
+        # self.scrollable_frame = tk.Frame(self.layer_canvas, bg=self.bg_color)
+
+        # self.scrollable_frame.bind(
+        #     "<Configure>", lambda e: self.layer_canvas.configure(scrollregion=self.layer_canvas.bbox("all"))
+        # )
+
+        # self.layer_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        # self.layer_canvas.configure(yscrollcommand=self.layer_scrollbar.set)
+
+        # self.layer_canvas.pack(side="left", fill="y")
+        # self.layer_scrollbar.pack(side="right", fill="y")
+
+        # # Mousewheel scrolling
+        # self.layer_canvas.bind_all("<MouseWheel>", self.on_mousewheel)
+
+        # # Right canvas for preview
+        # self.preview_canvas = tk.Canvas(self.main_frame, width=400, height=400, bg=self.field_bg)
+        # # self.preview_canvas.bind("<Configure>", self.update_preview)
+
+        # self.preview_canvas.pack(side="left", fill="both", expand=True)
         # ToolTip(self.preview_canvas, '''A preview image of all the layers you've added, in order.''')
 
         # Footer frame
         # self.footer = tk.Frame(self.root, bg=self.bg_color)
-        self.footer = tk.Frame(self, bg=self.bg_color)
-        self.footer.pack(fill="x", padx=10, pady=5)
-        self.footer.pack_propagate(True)
+        # self.footer = tk.Frame(self, bg=self.bg_color)
+        # self.footer.pack(fill="x", padx=10, pady=5)
+        # self.footer.pack_propagate(True)
 
-        self.update_preview_button = tk.Button(self.footer, text="Update Preview", command=self.update_preview, bg=self.button_bg, fg=self.fg_color)
-        self.update_preview_button.pack(side="left", padx=5, pady=5)
-        ToolTip(self.update_preview_button, "Update the preview image that contains all layers ordered as shown. (May take a while if you have a lot of images)\n\nIf the button is yellow, changes have been made, and the preview can be updated.", True)
+        # self.update_preview_button = tk.Button(self.footer, text="Update Preview", command=self.update_preview, bg=self.button_bg, fg=self.fg_color)
+        # self.update_preview_button.pack(side="left", padx=5, pady=5)
+        # ToolTip(self.update_preview_button, "Update the preview image that contains all layers ordered as shown. (May take a while if you have a lot of images)\n\nIf the button is yellow, changes have been made, and the preview can be updated.", True)
         
-        ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
 
         self.start_search_in_center = tk.BooleanVar()
-        start_search_in_center_checkbutton = tk.Checkbutton(self.footer, text="Start search in center", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
-        start_search_in_center_checkbutton.pack(side="left", padx=5, pady=5)
+        # start_search_in_center_checkbutton = tk.Checkbutton(self.footer, text="Start search in center", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
+        start_search_in_center_checkbutton = tk.Checkbutton(self.right_frame, text="Start search in center", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
+        # start_search_in_center_checkbutton.pack(side="left", padx=5, pady=5)
+        start_search_in_center_checkbutton.grid(padx=5, pady=5, row=4, column=0)
         start_search_in_center_checkbutton.select()
         ToolTip(start_search_in_center_checkbutton, "When searching the spritesheet, the program will look at each row starting in the middle of the image, rather than at the edge.\nIt will search outward in one direction before reaching the edge, at which point it will search in the other direction, before moving onto the next row.\nRecommended for sprite sheets that group poses in a vertical formation, as it makes the order that pose images are found in much more intuitive. Not recommended if \"Search right-to-left\" is enabled.", True)
         
         self.search_right_to_left = tk.BooleanVar()
-        search_right_to_left_checkbutton = tk.Checkbutton(self.footer, text="Search right-to-left", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
-        search_right_to_left_checkbutton.pack(side="left", padx=5, pady=5)
+        # search_right_to_left_checkbutton = tk.Checkbutton(self.footer, text="Search right-to-left", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
+        search_right_to_left_checkbutton = tk.Checkbutton(self.right_frame, text="Search right-to-left", bg=self.bg_color, fg=self.fg_color, selectcolor=self.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
+        # search_right_to_left_checkbutton.pack(side="left", padx=5, pady=5)
+        search_right_to_left_checkbutton.grid(padx=5, pady=5, row=5, column=0)
         ToolTip(search_right_to_left_checkbutton, "Search the spritesheet from right-to-left, instead of from left-to-right.\nRecommended if \"Start search in center\" is disabled, as most characters face right by default,\nand most sprite sheets show the rightmost sprites on the right side of the sheet, so the generated data will use the right-facing poses as the defaults.", True)
 
-        ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.right_frame, orient="vertical", style=self.separator_style).pack(fill="x", side="bottom", pady=5)
+
         # tk.Button(self.footer, text="Zoom In", command=lambda: self.change_zoom(1.1)).pack(side="right", padx=5)
         # tk.Button(self.footer, text="Zoom Out", command=lambda: self.change_zoom(0.9)).pack(side="right")
 
         self.padding_types = ["Show only always-visible pixels", "Show all theoretically-visible pixels", "None"]
 
-        padding_label = tk.Label(self.footer, text="Automatic padding type:", bg=self.bg_color, fg=self.fg_color)
-        padding_label.pack(side="left", padx=5, pady=5)
+        # padding_label = tk.Label(self.footer, text="Automatic padding type:", bg=self.bg_color, fg=self.fg_color)
+        padding_label = tk.Label(self.right_frame, text="Automatic padding type:", bg=self.bg_color, fg=self.fg_color)
+        # padding_label.pack(side="left", padx=5, pady=5)
+        padding_label.grid(padx=5, pady=5, row=6, column=0)
         ToolTip(padding_label, "- Show only always-visible pixels: Padding for pose images will increase to show how much space is visible in all instances of that pose image. (Recommended)\n- Show all theoretically-visible pixels: Same as above, but padding also contains space that is not visible in some pose boxes.\n- None: No extra automatic padding is applied. Recommended if using the \"Custom padding\" option.", True)
 
         self.padding_type_option = tk.StringVar(value=self.padding_types[0])
         # self.padding_type_option.set("Show only always-visible pixels")
 
-        padding_type_optionmenu = tk.OptionMenu(self.footer, self.padding_type_option, *self.padding_types)
+        # padding_type_optionmenu = tk.OptionMenu(self.footer, self.padding_type_option, *self.padding_types)
+        padding_type_optionmenu = tk.OptionMenu(self.right_frame, self.padding_type_option, *self.padding_types)
         padding_type_optionmenu.configure(bg=self.bg_color, fg=self.fg_color, activebackground=self.secondary_bg, activeforeground=self.fg_color, width=28, anchor="w", justify="left")
         padding_type_optionmenu["menu"].configure(bg=self.field_bg, fg=self.fg_color, activebackground=self.secondary_bg, activeforeground=self.fg_color)
-        padding_type_optionmenu.pack(side="left", padx=5, pady=5)
+        # padding_type_optionmenu.pack(side="left", padx=5, pady=5)
+        padding_type_optionmenu.grid(padx=5, pady=5, row=7, column=0)
         ToolTip(padding_type_optionmenu, "- Show only always-visible pixels: Padding for pose images will increase to show how much space is visible in all instances of that pose image. (Recommended)\n- Show all theoretically-visible pixels: Same as above, but padding also contains space that is not visible in some pose boxes.\n- None: No extra automatic padding is applied. Recommended if using the \"Custom padding\" option.", True)
 
         # custom_padding_label = tk.Label(self.footer, text="Custom padding amount:", bg=self.bg_color, fg=self.fg_color)
         # custom_padding_label.pack(side="left", padx=5, pady=5)
 
-        tk.Label(self.footer, text="Custom padding amount:", bg=self.bg_color, fg=self.fg_color).pack(side="left", padx=5, pady=5)
+        # tk.Label(self.footer, text="Custom padding amount:", bg=self.bg_color, fg=self.fg_color).pack(side="left", padx=5, pady=5)
+        tk.Label(self.right_frame, text="Custom padding amount:", bg=self.bg_color, fg=self.fg_color).grid(padx=5, pady=5, row=8, column=0)
 
         self.custom_padding = tk.IntVar()
         self.custom_padding.set(0)
 
-        custom_padding_entry = tk.Entry(self.footer, bg=self.field_bg, fg=self.fg_color, textvariable=self.custom_padding, width=8) # string values will mess everything up!
-        custom_padding_entry.pack(side="left", padx=5, pady=5)
+        # custom_padding_entry = tk.Entry(self.footer, bg=self.field_bg, fg=self.fg_color, textvariable=self.custom_padding, width=8) # string values will mess everything up!
+        custom_padding_entry = tk.Entry(self.right_frame, bg=self.field_bg, fg=self.fg_color, textvariable=self.custom_padding, width=8) # string values will mess everything up!
+        # custom_padding_entry.pack(side="left", padx=5, pady=5)
+        custom_padding_entry.grid(padx=5, pady=5, row=8, column=1)
         custom_padding_entry.bind("<FocusIn>", self.on_entry_FocusIn)
         custom_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         ToolTip(custom_padding_entry, "Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding, this will add the automatic and custom padding together.\n(Negative values are allowed, and will instead subtract from automatic padding without cutting off any of the pose images.)", True)
 
-        ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="left", padx=5)
+        # ttk.Separator(self.right_frame, orient="horizontal", style=self.separator_style).pack(fill="x", side="bottom", padx=5)
 
-        self.generate_button = tk.Button(self.footer, text="Generate...", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
-        self.generate_button.pack(side="right", padx=5, pady=5)
+        # self.generate_button = tk.Button(self.footer, text="Generate...", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
+        self.generate_button = tk.Button(self.right_frame, text="Generate...", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
+        # self.generate_button.pack(side="right", padx=5, pady=5)
+        self.generate_button.grid(padx=5, pady=5, row=9, column=1)
         ToolTip(self.generate_button, "Generate data! (May take a while)", True, True)
 
-        ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="right", padx=5)
+        # ttk.Separator(self.footer, orient="vertical", style=self.separator_style).pack(fill="y", side="right", padx=5)
         
-        export_layer_select_json_button = tk.Button(self.footer, bg=self.button_bg, fg=self.fg_color, text="Export...", command=self.export_layer_select_json)
-        export_layer_select_json_button.pack(side="right", padx=5, pady=5)
-        ToolTip(export_layer_select_json_button, "Export a .json file containing the layer information, so you don't have to fill out the layer info again.", True, True) # explain better. also, it IS possible to use an output .json, you just gotta be smart about it.
+        # export_layer_select_json_button = tk.Button(self.footer, bg=self.button_bg, fg=self.fg_color, text="Export...", command=self.export_layer_select_json)
+        # export_layer_select_json_button.pack(side="right", padx=5, pady=5)
+        # ToolTip(export_layer_select_json_button, "Export a .json file containing the layer information, so you don't have to fill out the layer info again.", True, True) # explain better. also, it IS possible to use an output .json, you just gotta be smart about it.
 
-        import_layer_select_json_button = tk.Button(self.footer, bg=self.button_bg, fg=self.fg_color, text="Import...", command=self.import_layer_select_json)
-        import_layer_select_json_button.pack(side="right", padx=5, pady=5)
-        ToolTip(import_layer_select_json_button, "Import a .json file containing the layer information.\n(DO NOT use a .json generated with the \"Generate...\" button!)", True, True) # explain better. also, it IS possible to use an output .json, you just gotta be smart about it.
+        # import_layer_select_json_button = tk.Button(self.footer, bg=self.button_bg, fg=self.fg_color, text="Import...", command=self.import_layer_select_json)
+        # import_layer_select_json_button.pack(side="right", padx=5, pady=5)
+        # ToolTip(import_layer_select_json_button, "Import a .json file containing the layer information.\n(DO NOT use a .json generated with the \"Generate...\" button!)", True, True) # explain better. also, it IS possible to use an output .json, you just gotta be smart about it.
 
 
 
@@ -207,7 +422,7 @@ class Menu_LayerSelect(tk.Frame):
 
     def on_mousewheel(self, event):
         delta = -1 * (event.delta // 120)
-        self.canvas.yview_scroll(delta, "units")
+        self.layer_canvas.yview_scroll(delta, "units")
 
     def on_entry_FocusIn(self, event):
         event.widget.configure(bg=self.secondary_bg)
