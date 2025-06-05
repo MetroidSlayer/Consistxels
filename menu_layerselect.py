@@ -889,7 +889,9 @@ class Menu_LayerSelect(tk.Frame):
         header = {
             "name": self.name_entry_input.get(),
             "consistxels_version": consistxels_version,
-            "paths_are_local": True # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
+            "paths_are_local": True, # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
+            "width": None, # get this figured out sooner probably?
+            "height": None # get this figured out sooner probably?
         }
 
         search_data = {

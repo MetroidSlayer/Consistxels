@@ -1,7 +1,12 @@
+# TODO 6/5/25: rotation and flips have the wrong amount of padding after export!!!!!!!!
+# You're gonna wanna look into the place in the old code where the limbs got their offsets - that SHOULD be where the issue is, the paddings aren't flipping/rotating.
+# Also, you'll want to make it so that, if a layer has no source_image, all exported search_images are just referred to as "{layer_name}_path" in export,
+# rather than "{layer_name}_search_image" or whatever
+
 from PIL import Image, ImageColor
 # import numpy as np
 from numpy import asarray
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import json
 import math
 from itertools import chain
@@ -25,7 +30,8 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
 
     update_progress(0, "Initializing...") # is Initializing the right word here?
 
-    header = input_data["header"]
+    input_header = input_data["header"]
+
     search_data = input_data["search_data"]
     search_type_data = input_data["search_type_data"]
     generation_data = input_data["generation_data"]
@@ -37,6 +43,11 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
 
     # output_pose_data = []
 
+    size = (0,0)
+    layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
+    with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
+        size = img.size
+
     match search_type_data["search_type"]:
         case "Border":
             pose_locations = search_border(search_data, search_type_data, input_layer_data, update_progress)
@@ -44,9 +55,9 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
         case "Spacing":
             # A bit clumsy, but it *should* work
             # Shouldn't NEED error detection, but might be good to put something here. i.e. if no layers w/ images are found. but might be better to put that above, in which case finding the img size can probably also move up
-            layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
-            with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
-                size = img.size
+            # layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
+            # with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
+            #     size = img.size
 
             pose_locations = search_spacing(search_data, search_type_data, size, update_progress)
         case "Preset":
@@ -68,7 +79,7 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
     update_progress(50, "Wrapping up; formatting layer data...")
 
     # save OUTPUT layer data, if appropriate checkboxes checked
-    output_layer_data = generate_layer_data(input_layer_data, output_folder_path, header["paths_are_local"])
+    output_layer_data = generate_layer_data(input_layer_data, output_folder_path, input_header["paths_are_local"])
     # for layer in input_layer_data:
     #     search_image_path = None
     #     source_image_path = None
@@ -100,8 +111,16 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
 
     update_progress(75, "Wrapping up; saving output to .json...")
 
+    output_header = {
+        "name": input_header["name"],
+        "consistxels_version": consistxels_version,
+        "paths_are_local": input_header["paths_are_local"],
+        "width": size[0],
+        "height": size[1]
+    }
+
     output_data = {
-        "header": header,
+        "header": output_header,
         "search_data": search_data,
         "search_type_data": search_type_data,
         "generation_data": generation_data,
@@ -110,7 +129,7 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
         "image_data": image_data
     }
 
-    json_filename = "consistxels_pose_output_" + header["name"] + ".json"
+    json_filename = "consistxels_pose_output_" + output_header["name"] + ".json"
 
     with open(output_folder_path + json_filename, 'w') as file:
         json.dump(output_data, file, indent=4)    
@@ -124,7 +143,8 @@ def generate_all(input_data, output_folder_path, progress_callback = None): #inp
     formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
     # messagebox to alert user
     update_progress(100, f"Complete! Time elapsed: {formatted_time_elapsed}") # add time to this
-
+    messagebox.showinfo("Complete!", f"Time elapsed: {formatted_time_elapsed}")
+    
 def search_border(search_data, search_type_data, layer_data, update_progress):
     # Determine which layer is the border
     border_layer = next(layer for layer in layer_data if layer.get("is_border"))
@@ -322,8 +342,8 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
         # Search through every layer for sprites
         # TODO: At some point, make this part its own function
         for layer_index, layer in enumerate(layer_data):
-            if pose_index == 41:
-                print(f"{layer_index} got inside loop")
+            # if pose_index == 41:
+                # print(f"{layer_index} got inside loop")
 
             if layer != None and layer_search_images[layer_index] != None and not layer["is_border"] and not layer["is_cosmetic_only"]:
 
@@ -332,8 +352,8 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                 curr_layer_name = layer["name"]
 
                 # print(curr_layer_name)
-                if pose_index == 41:
-                    print(f"{layer_index} ({curr_layer_name}) got past layer existence if")
+                # if pose_index == 41:
+                #     print(f"{layer_index} ({curr_layer_name}) got past layer existence if")
 
                 unbound_image = curr_layer_image.crop(pose_box) # the full image inside the pose box
 
@@ -342,8 +362,8 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                         
                 # getbbox() returns None if there's no sprite, so this is verifying that there's even a sprite in the first place
                 if bbox:
-                    if pose_index == 41:
-                        print(f"{layer_index} ({curr_layer_name}) got past bbox if")
+                    # if pose_index == 41:
+                    #     print(f"{layer_index} ({curr_layer_name}) got past bbox if")
 
                     # (probably delete this comment)
                     # store info implied by bounding box - i.e. offset. this is for formatting purposes in export, BUT ALSO for deciding maximum bounds for each limb
@@ -370,7 +390,8 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                         search_data["detect_flip_v_images"] or search_data["detect_flip_v_images"]):
                         # check against stored images - check w/ flip_h, flip_y, & rotate. so like 12 checks per limb :(
                         # for i in range(len(image_prep_data)): # maybe we DONT want this to have image_index as the index? it controls some loop control earlier
-                        for i, image_prep in enumerate(image_prep_data): # maybe we DONT want this to have image_index as the index? it controls some loop control earlier
+                        # for i, image_prep in enumerate(image_prep_data): # maybe we DONT want this to have image_index as the index? it controls some loop control earlier
+                        for image_prep in image_prep_data: # maybe we DONT want this to have image_index as the index? it controls some loop control earlier
                             # I would RATHER store the images, as I was doing before, but this is FINE...
                             # compare_to = curr_layer_image.crop((pose_box[0], pose_box[1], pose_box[2], pose_box[3])) # HOPEFULLY this math is good???
                             compare_to = layer_search_images[image_prep["original_layer_index"]].crop((
@@ -390,14 +411,15 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                             # if pose_index == 20: compare_to.show()
 
 
-                            image_index = i
+                            # image_index = i
                             if not is_unique:
                                 # if pose_index == 41 and curr_layer_name == "farleg":
                                 #     compare_to.show()
                                 break
+                            image_index += 1
 
-                    if pose_index == 41:
-                        print(f"{layer_index} ({curr_layer_name}) got past compare_images")
+                    # if pose_index == 41:
+                    #     print(f"{layer_index} ({curr_layer_name}) got past compare_images")
                     
                     # now, HOPEFULLY, image_index is still hangin' around. # UPDATE: it wasn't :(             
 
@@ -432,10 +454,11 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                     # left_padding, top_padding, right_padding, bottom_padding = bbox
 
                     
-                    if pose_index == 41:
-                        print(f"{layer_index} ({curr_layer_name}) got up to is_unique if ({is_unique})")
+                    # if pose_index == 41:
+                    #     print(f"{layer_index} ({curr_layer_name}) got up to is_unique if ({is_unique})")
 
                     if is_unique:
+                        # image_index += 1
                         # print(image_index)
 
                         # image_data.append({
@@ -513,13 +536,50 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
         #TODO: this. the one at the top, too
         update_progress(math.floor((pose_index / len(pose_locations) * 100)))
     
+    update_progress(100, "")
+
     # THIS is where we'll need to do a search through the limbs to change the offsets, unfortunately. good news is, we SHOULDN'T need to open the images again -
     # the necessary data SHOULD be stored in image_prep_data.
     for pose in pose_data:
         for limb in pose["limb_data"]:
             # padding is called "paddings" somewhere above, fix probably
-            padding = image_prep_data[limb["image_index"]]["padding"]
+            left_padding, top_padding, right_padding, bottom_padding = image_prep_data[limb["image_index"]]["padding"]
+            padding = [left_padding, top_padding, right_padding, bottom_padding]
+
+            if limb["flip_h"]:
+                pass
+                # print("gothere")
+
+                # temp = left_padding
+                # left_padding = right_padding
+                # right_padding = temp
+
+                padding = [right_padding, top_padding, left_padding, bottom_padding]
+
+                # padding = [left_padding, top_padding, right_padding, bottom_padding]
+                
+                # Rotate padding values counterclockwise by 90-degree steps
+                for _ in range(limb["rotation_amount"]):
+                    padding = [padding[1], padding[2], padding[3], padding[0]]
+            
+                # image_left_padding, image_top_padding, image_right_padding, image_bottom_padding = paddings
+            else: 
+                # padding = [left_padding, top_padding, right_padding, bottom_padding]
+
+                # Rotate padding values clockwise by 90-degree steps
+                for _ in range(limb["rotation_amount"]):
+                    padding = [padding[3], padding[0], padding[1], padding[2]]
+
+                # image_left_padding, image_top_padding, image_right_padding, image_bottom_padding = paddings
+
+            # limb["x_offset"] -= image_left_padding
+            # limb["y_offset"] -= image_top_padding
+
+            # image_prep_data[limb["image_index"]]["padding"] = (padding[0], padding[1], padding[2], padding[3])
+
             limb["x_offset"] -= padding[0]
+            # if limb["x_offset"] < -10:
+            #     print(pose["name"], limb["x_offset"], limb["y_offset"], limb["flip_h"], limb["rotation_amount"], limb["image_index"], padding)
             limb["y_offset"] -= padding[1]
             # LIKELY will not work until i figure out why not all images are getting exported
 
@@ -721,9 +781,7 @@ def generate_image_data(image_prep_data, layer_data, pose_data, update_progress)
     for image in layer_source_images:
         if image != None: image.close()
 
-
-    update_progress(100, "Images generated")
-
+    update_progress(100, f"Unique images found: {len(image_prep_data)}")
     
     # for i in range(len(image_prep_data)):
     return image_data, images
@@ -740,7 +798,11 @@ def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
         if layer["export_original_images"]:
 
             if layer["search_image_path"]:
-                search_image_path = f"{layer['name']}_search_image.png" if not layer["is_border"] else "border.png"
+                search_image_path = (
+                    (f"{layer['name']}_" + ("search" if layer["source_image_path"] else "layer") + "_image.png")
+                    if not layer["is_border"] else
+                    "border.png"
+                )
 
                 with Image.open(layer["search_image_path"]) as search_image:
                     search_image.save(output_folder_path + search_image_path)
