@@ -3,10 +3,13 @@ import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox, ttk
 # from PIL import Image, ImageTk, ImageOps
 from PIL import Image, ImageTk
-from generate import GenerateJSON
+# from generate import GenerateJSON, generate_all
+from generate import generate_all
 from tooltip import ToolTip
 
-from shared import on_global_click
+from shared import on_global_click, consistxels_version
+
+import threading
 
 import json
 
@@ -23,7 +26,7 @@ class Menu_LayerSelect(tk.Frame):
         self.field_bg = "#222222"
 
         # Track images and border
-        self.image_data = []  # List of dicts: {path, name, thumbnail, img_obj}
+        self.layer_data = []  # List of dicts: {path, name, thumbnail, img_obj}
         self.border_image = None
         self.border_path = None
         self.border_color = "#00007f" # in the future, could be taken from info stored from last generation
@@ -271,65 +274,90 @@ class Menu_LayerSelect(tk.Frame):
         ToolTip(pick_border_color_button, "Open a color picker and pick the color that will be interpreted as the border.") # would be better if it relied on detected border color!
 
         # Spacing subframe
+        # (This would all look a LOT better if it was gridded rather than packed. look into it)
+
+        # Grid frame
+        grid_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
+        grid_frame.pack(side="top", fill="x")
+
+        tk.Label(grid_frame, bg=self.bg_color, fg=self.fg_color, text="Grid:   Rows:").pack(side="left", padx=(10,5), pady=10)
+        
+        self.spacing_grid_rows = tk.StringVar()
+        self.spacing_grid_rows.set("0")
+        spacing_grid_rows_entry = tk.Entry(grid_frame, bg=self.field_bg, fg=self.fg_color, width=6, textvariable=self.spacing_grid_rows)
+        spacing_grid_rows_entry.pack(side="left", pady=10)
+        spacing_grid_rows_entry.bind("<FocusIn>", self.on_entry_FocusIn)
+        spacing_grid_rows_entry.bind("<FocusOut>", self.on_entry_FocusOut)
+        ToolTip(spacing_grid_rows_entry, "How many rows does the sprite sheet have?", False, True)
+
+        tk.Label(grid_frame, bg=self.bg_color, fg=self.fg_color, text="   Columns:").pack(side="left", padx=5, pady=10)
+
+        self.spacing_grid_columns = tk.StringVar()
+        self.spacing_grid_columns.set("0")
+        spacing_grid_columns_entry = tk.Entry(grid_frame, bg=self.field_bg, fg=self.fg_color, width=6, textvariable=self.spacing_grid_columns)
+        spacing_grid_columns_entry.pack(side="left", pady=10)
+        spacing_grid_columns_entry.bind("<FocusIn>", self.on_entry_FocusIn)
+        spacing_grid_columns_entry.bind("<FocusOut>", self.on_entry_FocusOut)
+        ToolTip(spacing_grid_columns_entry, "How many columns does the sprite sheet have?", False, True)
 
         # Outer padding
-        outer_padding_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
-        outer_padding_frame.pack(side="top", fill="x")
+        spacing_padding_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
+        spacing_padding_frame.pack(side="top", fill="x")
 
-        tk.Label(outer_padding_frame, bg=self.bg_color, fg=self.fg_color, text="Outer padding:").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(spacing_padding_frame, bg=self.bg_color, fg=self.fg_color, text="Padding:   Outer:").pack(side="left", padx=(10,5), pady=10)
 
         self.outer_padding = tk.StringVar()
         self.outer_padding.set("0")
-        outer_padding_entry = tk.Entry(outer_padding_frame, bg=self.field_bg, fg=self.fg_color, width=12, textvariable=self.outer_padding)
+        outer_padding_entry = tk.Entry(spacing_padding_frame, bg=self.field_bg, fg=self.fg_color, width=6, textvariable=self.outer_padding)
         outer_padding_entry.pack(side="left")
         outer_padding_entry.bind("<FocusIn>", self.on_entry_FocusIn)
         outer_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
-        ToolTip(outer_padding_entry, "How much space between the sprites and the edge of the sprite sheet?", False, True)
+        ToolTip(outer_padding_entry, "How much space between the sprites and the edge of the sprite sheet?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
 
-        tk.Label(outer_padding_frame, bg=self.bg_color, fg=self.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
+        # tk.Label(spacing_padding_frame, bg=self.bg_color, fg=self.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
 
         # Inner padding
-        inner_padding_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
-        inner_padding_frame.pack(side="top", fill="x")
+        # inner_padding_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
+        # inner_padding_frame.pack(side="top", fill="x")
 
-        tk.Label(inner_padding_frame, bg=self.bg_color, fg=self.fg_color, text="Inner padding:").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(spacing_padding_frame, bg=self.bg_color, fg=self.fg_color, text="px   Inner:").pack(side="left", padx=5, pady=10)
 
         self.inner_padding = tk.StringVar()
         self.inner_padding.set("0")
-        inner_padding_entry = tk.Entry(inner_padding_frame, bg=self.field_bg, fg=self.fg_color, width=12, textvariable=self.inner_padding)
+        inner_padding_entry = tk.Entry(spacing_padding_frame, bg=self.field_bg, fg=self.fg_color, width=6, textvariable=self.inner_padding)
         inner_padding_entry.pack(side="left", pady=10)
         inner_padding_entry.bind("<FocusIn>", self.on_entry_FocusIn)
         inner_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
-        ToolTip(inner_padding_entry, "How much extra padding around each sprite?", False, True)
+        ToolTip(inner_padding_entry, "How much extra padding around each sprite?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
 
-        inner_px_label = tk.Label(inner_padding_frame, bg=self.bg_color, fg=self.fg_color, text="px")
+        inner_px_label = tk.Label(spacing_padding_frame, bg=self.bg_color, fg=self.fg_color, text="px")
         inner_px_label.pack(side="left", padx=(5,10), pady=10)
 
-        # Spacing
-        spacing_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
-        spacing_frame.pack(side="top", fill="x")
+        # Separation
+        separation_frame = tk.Frame(search_spacing_subframe, bg=self.bg_color)
+        separation_frame.pack(side="top", fill="x")
 
-        tk.Label(spacing_frame, bg=self.bg_color, fg=self.fg_color, text="Spacing:   x").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(separation_frame, bg=self.bg_color, fg=self.fg_color, text="Separation:   x").pack(side="left", padx=(10,5), pady=10)
         
-        self.spacing_x = tk.StringVar()
-        self.spacing_x.set("0")
-        spacing_x_entry = tk.Entry(spacing_frame, bg=self.field_bg, fg=self.fg_color, width=12, textvariable=self.spacing_x)
-        spacing_x_entry.pack(side="left", pady=10)
-        spacing_x_entry.bind("<FocusIn>", self.on_entry_FocusIn)
-        spacing_x_entry.bind("<FocusOut>", self.on_entry_FocusOut)
-        ToolTip(spacing_x_entry, "How much horizontal space between each sprite?", False, True)
+        self.spacing_x_separation = tk.StringVar()
+        self.spacing_x_separation.set("0")
+        x_separation_entry = tk.Entry(separation_frame, bg=self.field_bg, fg=self.fg_color, width=6, textvariable=self.spacing_x_separation)
+        x_separation_entry.pack(side="left", pady=10)
+        x_separation_entry.bind("<FocusIn>", self.on_entry_FocusIn)
+        x_separation_entry.bind("<FocusOut>", self.on_entry_FocusOut)
+        ToolTip(x_separation_entry, "How much horizontal space between each sprite?", False, True)
 
-        tk.Label(spacing_frame, bg=self.bg_color, fg=self.fg_color, text="px   y").pack(side="left", padx=5, pady=10)
+        tk.Label(separation_frame, bg=self.bg_color, fg=self.fg_color, text="px   y").pack(side="left", padx=5, pady=10)
 
-        self.spacing_y = tk.StringVar()
-        self.spacing_y.set("0")
-        spacing_y_entry = tk.Entry(spacing_frame, bg=self.field_bg, fg=self.fg_color, width=12, textvariable=self.spacing_y)
-        spacing_y_entry.pack(side="left", pady=10)
-        spacing_y_entry.bind("<FocusIn>", self.on_entry_FocusIn)
-        spacing_y_entry.bind("<FocusOut>", self.on_entry_FocusOut)
-        ToolTip(spacing_y_entry, "How much vertical space between each sprite?", False, True)
+        self.spacing_y_separation = tk.StringVar()
+        self.spacing_y_separation.set("0")
+        y_separation_entry = tk.Entry(separation_frame, bg=self.field_bg, fg=self.fg_color, width=6, textvariable=self.spacing_y_separation)
+        y_separation_entry.pack(side="left", pady=10)
+        y_separation_entry.bind("<FocusIn>", self.on_entry_FocusIn)
+        y_separation_entry.bind("<FocusOut>", self.on_entry_FocusOut)
+        ToolTip(y_separation_entry, "How much vertical space between each sprite?", False, True)
 
-        tk.Label(spacing_frame, bg=self.bg_color, fg=self.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
+        tk.Label(separation_frame, bg=self.bg_color, fg=self.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
 
         # Preset Subframe
 
@@ -370,6 +398,29 @@ class Menu_LayerSelect(tk.Frame):
         search_right_to_left_checkbutton.pack(side="top", padx=5, pady=5)
         ToolTip(search_right_to_left_checkbutton, "Search the spritesheet from right-to-left, instead of from left-to-right.\nRecommended if \"Start search in center\" is disabled, as most characters face right by default,\nand most sprite sheets show the rightmost sprites on the right side of the sheet, so the generated data will use the right-facing poses as the defaults.")
 
+        # detect identical images 
+        # Check if poses use already-found pose images, so they can share the same pose image.\n(Highly recommended - this is kinda the whole point)
+        
+        # detect rotated images
+        # Check if poses use rotated versions of already-found pose images.
+
+        # detect horizontally mirrored images
+        # Check if poses use horizontally-flipped versions of already-found pose images.
+        
+        # detect vertically mirrored images
+        # Check if poses use vertically-flipped versions of already-found pose images.
+        # 
+        # (Automatically disabled when using both "detect rotated" and "detect hori. mirrored" to avoid redundancy;
+        # a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-flipped image.)
+
+        # Generation
+
+        # generate empty poses
+        # Determine whether pose data will be created for completely-empty pose boxes.
+
+        # export versions of layers with only unique pose images???
+        # (might be good to have this as a setting here. i think so, at least)
+
         self.padding_types = ["Show only always-visible pixels", "Show all theoretically-visible pixels", "None"]
 
         padding_label = tk.Label(search_options_frame, text="Automatic padding type:", bg=self.bg_color, fg=self.fg_color)
@@ -398,9 +449,16 @@ class Menu_LayerSelect(tk.Frame):
         custom_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         ToolTip(custom_padding_entry, "Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding, this will add the automatic and custom padding together.\n(Negative values are allowed, and will instead subtract from automatic padding without cutting off any of the pose images.)")
 
-        self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
-        self.generate_button.pack(side="bottom", padx=5, pady=5)
+        # self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
+        self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.TEST_generate_button_pressed, bg=self.button_bg, fg=self.fg_color)
+        self.generate_button.pack(side="top", padx=5, pady=5)
         ToolTip(self.generate_button, "Generate data! (May take a while)", True, True)
+
+        self.progress_label = tk.Label(search_options_frame, bg=self.bg_color, fg=self.fg_color, text="")
+        self.progress_label.pack(side="top", padx=10, fill="x", expand=True)
+
+        self.progress_bar = ttk.Progressbar(search_options_frame, orient="horizontal", maximum=100)
+        self.progress_bar.pack(padx=10, pady=10, side="top", fill="x", expand=True)
 
         # TODO TODO TODO: some weird stuff with scrolling. i think the preview canvas scrollbar still scrolls the layer canvas
 
@@ -492,8 +550,8 @@ class Menu_LayerSelect(tk.Frame):
 
             image = Image.open(path)
 
-            if len(self.image_data):
-                if self.image_data[0]["img"].size != image.size:
+            if len(self.layer_data):
+                if self.layer_data[0]["img"].size != image.size:
                     image.close()
                     messagebox.showwarning("Warning", "All images must be the same size")
                     break
@@ -506,7 +564,7 @@ class Menu_LayerSelect(tk.Frame):
             thumb = image.copy()
             thumb.thumbnail((64, 64))
             photo = ImageTk.PhotoImage(thumb)
-            self.image_data.append({"path": path, "name": name, "img": image, "thumb": photo, "alt_source": alt_source})
+            self.layer_data.append({"path": path, "name": name, "img": image, "thumb": photo, "alt_source": alt_source})
         
         self.redraw_image_entries()
         # self.update_preview()
@@ -522,8 +580,8 @@ class Menu_LayerSelect(tk.Frame):
 
             temp_border_image = Image.open(path)
 
-            if len(self.image_data):
-                if self.image_data[0]["img"].size != temp_border_image.size:
+            if len(self.layer_data):
+                if self.layer_data[0]["img"].size != temp_border_image.size:
                     temp_border_image.close()
                     messagebox.showwarning("Warning", "The border must be the same size as the images")
                     return
@@ -537,17 +595,17 @@ class Menu_LayerSelect(tk.Frame):
 
     def move_image(self, index, direction):
         new_index = index + direction
-        if 0 <= new_index < len(self.image_data):
-            self.image_data[index], self.image_data[new_index] = self.image_data[new_index], self.image_data[index]
+        if 0 <= new_index < len(self.layer_data):
+            self.layer_data[index], self.layer_data[new_index] = self.layer_data[new_index], self.layer_data[index]
             self.redraw_image_entries()
             # self.update_preview()
             self.update_preview_button.configure(bg="#ffff00", fg="#000000")
 
     def delete_image(self, index):
         # close image
-        self.image_data[index]["img"].close()
+        self.layer_data[index]["img"].close()
 
-        del self.image_data[index]
+        del self.layer_data[index]
         self.redraw_image_entries()
         # self.update_preview()
         self.update_preview_button.configure(bg="#ffff00", fg="#000000")
@@ -556,7 +614,7 @@ class Menu_LayerSelect(tk.Frame):
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
-        for i, data in enumerate(self.image_data):
+        for i, data in enumerate(self.layer_data):
             frame = tk.Frame(
                 self.scrollable_frame,
                 bg=self.secondary_bg,
@@ -610,7 +668,7 @@ class Menu_LayerSelect(tk.Frame):
     def add_alternate_image_source(self, index, widget):
         path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
         if path:
-            self.image_data[index]["alt_source"] = path
+            self.layer_data[index]["alt_source"] = path
             widget.configure(fg="#00f870")
 
     def update_preview(self):
@@ -634,7 +692,7 @@ class Menu_LayerSelect(tk.Frame):
 
         if self.border_image:
             paste_center(composite, self.border_image)
-        for item in reversed(self.image_data):
+        for item in reversed(self.layer_data):
             paste_center(composite, item["img"])
 
         self.preview_image = ImageTk.PhotoImage(composite)
@@ -666,7 +724,7 @@ class Menu_LayerSelect(tk.Frame):
 
             layer_data = []
 
-            for image in self.image_data:
+            for image in self.layer_data:
                 layer_data.append({"path": image["path"], "name": image["name"], "alt_source": image["alt_source"]})
 
             export = {"header": header, "layer_data": layer_data}
@@ -703,7 +761,7 @@ class Menu_LayerSelect(tk.Frame):
                 self.add_images(layer_data)
 
 
-            
+    
 
     def generate_output(self):
         # border image
@@ -714,7 +772,7 @@ class Menu_LayerSelect(tk.Frame):
 
         image_info = []
         duplicate_layer_name = False
-        for data in self.image_data:
+        for data in self.layer_data:
             if data["name"] in [image["name"] for image in image_info]:
                 duplicate_layer_name = True
                 break
@@ -738,7 +796,7 @@ class Menu_LayerSelect(tk.Frame):
             # raises error if not one of the types
             padding_type = self.padding_types.index(self.padding_type_option.get())
 
-            GenerateJSON(name, self.border_path, self.border_color, image_info, self.start_search_in_center.get(), self.search_right_to_left.get(), padding_type, self.custom_padding.get())
+            # GenerateJSON(name, self.border_path, self.border_color, image_info, self.start_search_in_center.get(), self.search_right_to_left.get(), padding_type, self.custom_padding.get())
             # NEED to do some sort of awaiting, then some sort of "Complete!" messagebox
         else:
             warning_output = ""
@@ -755,3 +813,172 @@ class Menu_LayerSelect(tk.Frame):
                 warning_output += "Ensure all layers have unique names"
 
             messagebox.showwarning("Wait!", warning_output)
+    
+    def TEST_generate_button_pressed(self):
+        pass
+
+        # warning stuff
+
+        def update_progress(new_value = None, progress_text = None):
+            if new_value != None:
+                self.progress_bar["value"] = new_value
+            else:
+                self.progress_bar["value"] = self.progress_bar["value"] # these FEEL unnecessary, but progress_label didnt work without one. idk
+
+            if progress_text != None:
+                self.progress_label.configure(text=progress_text)
+            else:
+                self.progress_label.configure(text=self.progress_label.cget("text"))
+
+        # test data
+        # TEMP_header = {
+        #     "name": "TEST",
+        #     "consistxels_version": "0.1",
+        #     # "time_to_generate": None, # MAYBE?
+        #     "paths_are_local": True
+        # }
+
+        # TEMP_layer_data = [
+        #     {"name": "closearm", "is_border": False, "is_cosmetic_only": True, "search_image_path": "closearm.png", "source_image_path": "closearm.png", "export_original_images": False},
+        #     {"name": "farleg", "is_border": False, "is_cosmetic_only": False, "search_image_path": None, "source_image_path": None, "export_original_images": True},
+        #     {"name": "border", "is_border": True, "is_cosmetic_only": True, "search_image_path": "border.png", "source_image_path": None, "export_original_images": True}
+        # ]
+
+        # TEMP_search_data = {
+        #     "start_search_in_center": True,
+        #     "search_right_to_left": False,
+        #     "detect_identical_images": True, # should we default the other searches to False if this is false? i dunno
+        #     "detect_rotated_images": True,
+        #     "detect_flip_h_images": True,
+        #     # "detect_flip_v_images": False # TECHNICALLY, we could just store this info in flip_h and rotated. DEFINITELY DOABLE. i'll think abt it
+        # }
+
+        # TEMP_search_type_data = {
+        #     "search_type": "Border",
+        #     # "border_layer_index": 2, # do we wanna do this? or do we wanna do a more automatic approach? probably the auto one
+        #     "border_color": "#00007f",
+        #     "spacing_rows": None,
+        #     "spacing_columns": None,
+        #     "spacing_outer_padding": None,
+        #     "spacing_inner_padding": None,
+        #     "spacing_x_separation": None,
+        #     "spacing_y_separation": None
+        # }
+
+        # TEMP_generation_data = {
+        #     "automatic_padding_type": "None",
+        #     "custom_padding_amount": 0,
+        #     "generate_empty_poses": False
+        #     # likely some other stuff eventually, i guess like palette stuff??? i dunno
+        # }
+
+        # TEMP_pose_data = [
+        #     {
+        #         "name": "pose_0_0", "x_position": 0, "y_position": 0,
+        #         "width": 0, "height": 0,
+        #         "limb_data":[
+        #             {
+        #                 "name": "closearm", "layer_index": 0,
+        #                 "x_offset": 0, "y_offset": 0, "image_index": 0,
+        #                 "rotation": 0, "flip_h": False, "flip_v": False
+        #             }
+        #         ]
+        #     }
+        # ]
+
+        header = {
+            "name": self.name_entry_input.get(),
+            "consistxels_version": consistxels_version,
+            "paths_are_local": True # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
+        }
+
+        search_data = {
+            "start_search_in_center": self.start_search_in_center.get(),
+            "search_right_to_left": self.search_right_to_left.get(),
+            "detect_identical_images": True, # TODO
+            "detect_rotated_images": True, # TODO
+            "detect_flip_h_images": True, # TODO
+            "detect_flip_v_images": False # TODO
+        }
+
+        search_type_data = {
+            "search_type": self.search_type_option.get(),
+            "border_color": self.border_color,
+            "spacing_rows": self.spacing_grid_rows.get(), # TODO: change so can only be int
+            "spacing_columns": self.spacing_grid_columns.get(), # TODO: change so can only be int
+            "spacing_outer_padding": self.outer_padding.get(), # TODO: change so can only be int
+            "spacing_inner_padding": self.inner_padding.get(), # TODO: change so can only be int
+            "spacing_x_separation": self.spacing_x_separation.get(), # TODO: change so can only be int
+            "spacing_y_separation": self.spacing_y_separation.get() # TODO: change so can only be int
+        }
+
+        generation_data = {
+            "automatic_padding_type": self.padding_type_option.get(), # TODO: change so can only be int
+            "custom_padding_amount": self.custom_padding.get(), # TODO: change so can only be int
+            "generate_empty_poses": False # TODO
+        }
+
+        # TODO: A LOT
+        layer_data = []
+        duplicate_layer_name = False
+        for layer in self.layer_data:
+            if layer["name"] in [image["name"] for image in layer_data]:
+                duplicate_layer_name = True
+                break
+            # layer_data.append({"path": layer["path"], "name": layer["name"], "alt_source": layer["alt_source"]})
+            layer_data.append({ # TODO TODO TODO
+                "name": layer["name"], "is_border": False, "is_cosmetic_only": False,
+                "search_image_path": layer["path"], "source_image_path": layer["alt_source"],
+                "export_original_images": True
+            })
+
+        if search_type_data["search_type"] == "Border": # TODO. can mostly just copy-and-paste this. still do want rigid control of the data in the border layer
+            layer_data.append({
+                "name": "border", "is_border": True, "is_cosmetic_only": True,
+                "search_image_path": self.border_path, "source_image_path": None,
+                "export_original_images": True
+                
+            })
+
+        pose_data = None
+        if self.search_type_option.get() == "Preset":
+            pass # TODO
+        
+        data = {
+            "header": header, "search_data": search_data, "search_type_data": search_type_data,
+            "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
+        }
+
+        # TEMP_data = {"header": TEMP_header, "search_data": TEMP_search_data, "search_type_data": TEMP_search_type_data, "generation_data": TEMP_generation_data, "layer_data": TEMP_layer_data}
+
+        # check for output folder in entry, when I get around to adding it
+        TEMP_output_folder_path = filedialog.askdirectory(title="Select an output folder")
+
+        if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and TEMP_output_folder_path:
+            
+
+            def TEST_generate_output():
+                # generate_all(TEMP_data, TEMP_output_folder_path, update_progress)
+                generate_all(data, TEMP_output_folder_path, update_progress)
+
+            # call the thingy!
+            threading.Thread(target=TEST_generate_output, daemon=True).start()
+        else:
+            warning_output = ""
+
+            # if self.border_path == None: warning_output += "Please add a border image"
+            if len(layer_data) <= 0:
+                if warning_output != "": warning_output += "\n"
+                warning_output += "Please add at least one layer"
+            if header["name"] == "":
+                if warning_output != "": warning_output += "\n"
+                warning_output += "Please enter a name for this sprite sheet"
+            if duplicate_layer_name:
+                if warning_output != "": warning_output += "\n"
+                warning_output += "Ensure all layers have unique names"
+            if not TEMP_output_folder_path:
+                if warning_output != "": warning_output += "\n"
+                warning_output += "You must select an output folder first"
+
+            messagebox.showwarning("Wait!", warning_output)
+

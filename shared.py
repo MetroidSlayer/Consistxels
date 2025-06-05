@@ -14,3 +14,5 @@ def on_global_click(event):
 # fg_color = "#ffffff"
 # secondary_bg = "#3a3a3a"
 # button_bg = "#444"
+
+consistxels_version = "0.1"
