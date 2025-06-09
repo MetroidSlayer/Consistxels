@@ -436,13 +436,21 @@ import sys
 import subprocess
 import json
 import threading
+import time
 
 def main():
     gui_process = subprocess.Popen(
-        [sys.executable, "gui.py"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        # [sys.executable, "gui.py"],
+        # stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        # creationflags=subprocess.DETACHED_PROCESS
+        # # creationflags=subprocess.CREATE_NEW_CONSOLE
+        [sys.executable, "-u", "gui.py"],
+        stdout=subprocess.PIPE,
+        stdin=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,  # for line-by-line reading
         creationflags=subprocess.DETACHED_PROCESS
-        # creationflags=subprocess.CREATE_NEW_CONSOLE
     )
 
     # generate_process = subprocess.Popen(
@@ -454,86 +462,150 @@ def main():
     #     # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.HIGH_PRIORITY_CLASS | subprocess.CREATE_BREAKAWAY_FROM_JOB,
     #     # env=env
     # )
+    # monitor_gui_thread = threading.Thread(target=monitor_gui, args=[gui_process], daemon=True)
+    # monitor_gui_thread.start()
 
-    threading.Thread(target=read_gui_stdout, args=[gui_process], daemon=True).start()
+    read_gui_stdout_thread = threading.Thread(target=read_gui_stdout, args=[gui_process], daemon=True)
+    read_gui_stdout_thread.start()
+
+    # monitor_gui_thread.join()
+    read_gui_stdout_thread.join()
+
+    print("Main: ending")
+
+    # cancel any current processes! (need a way to cancel generate process, i guess)
+
     # threading.Thread(target=read_process_stdout, args=[generate_process], daemon=True).start()
 
     # SO, it seems that the stuff like generate_all() (THIS one, not the one in generate.py) are not running because this process is closing early. Basically, we gotta keep
     # it open, and then we just gotta figure out how to wire it all together.
-    input("test")
+    # input("test")
 
-def generate_all():
+    # try:
+    #     while True:
+    #         # Check if the GUI subprocess is still running
+    #         retcode = gui_process.poll()
+    #         if retcode is not None:
+    #             print(f"Main: GUI exited with code {retcode}. Shutting down.")
+    #             break
+    #         time.sleep(1)
+    # except KeyboardInterrupt:
+    #     print("Main: Interrupted. Terminating GUI.")
+    #     gui_process.terminate()
+    #     # terminate generate subprocess too if necessary
+
+def generate_all(temp_json_filepath, gui_process):
+    # print("got to generate_all")
+
     generate_process = subprocess.Popen(
-        [sys.executable, "-u", "generate_worker.py"],
-        # stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        [sys.executable, "-u", "generate_worker.py", temp_json_filepath],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True,
-        creationflags=subprocess.CREATE_NEW_CONSOLE
-        # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        # creationflags=subprocess.CREATE_NEW_CONSOLE
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
         # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.HIGH_PRIORITY_CLASS | subprocess.CREATE_BREAKAWAY_FROM_JOB,
         # env=env
     )
 
-    threading.Thread(target=read_generate_stdout, args=[generate_process], daemon=True).start()
+    threading.Thread(target=read_generate_stdout, args=[generate_process, gui_process], daemon=True).start()
 
-def read_generate_stdout(process):
-    for line in process.stdout:
+# def monitor_gui(gui_proc):
+#     while True:
+#         if gui_proc.poll() is not None:
+#             print("Main: GUI has exited.")
+#             break
+#         time.sleep(1)
+
+def read_gui_stdout(gui_process):
+    for line in gui_process.stdout:
+        # print("gothere", line)
+        line = line.strip()
+        # print("gothere2", line)
+
+        try:
+            # print("gothere3", line)
+
+            data = json.loads(line)
+            type = data.get("type")
+            val = data.get("val")
+
+            # print("gothere4", type, val)
+                
+            # print(line)
+            match type:
+                case "generate":
+                    generate_all(val, gui_process)
+                    output_generate_progress(line, gui_process)
+                case "cancel":
+                    pass # TODO cancel
+                    # cancel_generate_process() # will need SOME way to store the generate process, methinks
+                case "error":
+                    # print(line)
+                    print(f"Error in gui\n{val}")
+                    return
+                case "done":
+                    print(line)
+                    return
+                case "print":
+                    print(val)
+                case _:
+                    print(line)
+
+        except json.JSONDecodeError:
+            print("Malformed output from gui to main:", line)
+
+def read_generate_stdout(generate_process, gui_process = None):
+    for line in generate_process.stdout:
         line = line.strip()
 
         try:
 
             data = json.loads(line)
-            status = data.get("status")
+            type = data.get("type")
             # header_text = data.get("header_text")
             info_text = data.get("info_text")
             # value = data.get("value")
-                
-            match status:
+            
+            match type:
                 case "update":
-                    print(line)
+                    # print(line)
+                    # in order to have pretty-much-full speed while tabbed out, have some kind of polling or whatever that prevents updates (SPECIFICALLY updates)
+                    # from being processed while the window is tabbed out. will be tough, might not even help much. OR have polling to only process new stuff every
+                    # few milliseconds, instead of instantly, y'know how it is
+                    output_generate_progress(line, gui_process)
                 case "error":
                     print(line)
+                    output_generate_progress(line, gui_process)
                     return
                 case "done":
                     print(line)
+                    output_generate_progress(line, gui_process)
                     return
                 case "print":
                     print(info_text)
                 case _:
                     print(line)
         except json.JSONDecodeError:
-            print("Malformed output:", line)
+            print("Malformed output from generate to main:", line)
 
-def read_gui_stdout(process):
-    for line in process.stdout:
-        line = line.strip()
-
-        if line == "start_generate_all":
-            print("gothere")
-            generate_all()
-
-        # try:
-
-        #     data = json.loads(line)
-        #     status = data.get("status")
-        #     # header_text = data.get("header_text")
-        #     info_text = data.get("info_text")
-        #     # value = data.get("value")
-                
-        #     match status:
-        #         case "update":
-        #             print(line)
-        #         case "error":
-        #             print(line)
-        #             return
-        #         case "done":
-        #             print(line)
-        #             return
-        #         case "print":
-        #             print(info_text)
-        #         case _:
-        #             print(line)
-        # except json.JSONDecodeError:
-        #     print("Malformed output:", line)
+def output_generate_progress(line, gui_process = None):
+    
+    if gui_process != None:
+        # print("got to gui_process.stdin.write(line)")
+        # print(line)
+        gui_process.stdin.write(line + "\n")
+        gui_process.stdin.flush()
+    else:
+        data = json.loads(line)
+        value = data.get("value")
+        header_text = data.get("header_text")
+        info_text = data.get("info_text")
+        
+        output_string = ""
+        if value: output_string += f"Progress: {value}%\t|\t"
+        if header_text: output_string += f"{header_text}\t|\t"
+        if info_text: output_string += f"{info_text}\t|"
+        print(output_string)
 
 if __name__ == "__main__":
     main()

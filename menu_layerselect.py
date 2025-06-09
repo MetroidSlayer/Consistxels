@@ -1109,11 +1109,11 @@ class Menu_LayerSelect(tk.Frame):
 
             # occasionally poll pipe for updates
             try:
-                self.generate_button.configure(state="disabled")
-                self.load_button.configure(state="disabled")
-                self.new_button.configure(state="disabled")
-                self.back_button.configure(state="disabled")
-                self.cancel_button.configure(state="normal")
+                # self.generate_button.configure(state="disabled")
+                # self.load_button.configure(state="disabled")
+                # self.new_button.configure(state="disabled")
+                # self.back_button.configure(state="disabled")
+                # self.cancel_button.configure(state="normal")
 
                 # self.after(100, lambda: self.check_pipe(parent_conn))
                 
@@ -1129,12 +1129,24 @@ class Menu_LayerSelect(tk.Frame):
                 # self.gen(data, TEMP_output_folder_path, self.update_progress)
                 # self.gen(data, TEMP_output_folder_path, None)
 
-                print("start_generate_all")
+                temp_json_data = {"data": data, "path": TEMP_output_folder_path}
+                # temp_json_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w')
+                # json.dump(temp_json_data, temp_json_file)
+
+                # # print(["generate", temp_json_file.name.replace('\\', '/')])
+                # print(json.dumps({"type": "generate", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
+                # temp_json_file.close()
+
+
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
+                    json.dump(temp_json_data, temp_json_file)
+                    print(json.dumps({"type": "generate", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
 
             except Exception as e:
                 pass
                 # self.cancel_process()
                 # print("exception starting thread:", e)
+                print(json.dumps({"type": "error", "val": e}), flush=True)
         else:
             warning_output = ""
 
@@ -1225,23 +1237,24 @@ class Menu_LayerSelect(tk.Frame):
     #         # print(self.winfo_toplevel().focus_get())
     #         # self.after(100, lambda: self.check_pipe(parent_conn))
     
-    def cancel_process(self, app_closing = False):
-        if not app_closing:
-            self.progress_header_label.configure(text="")
-            self.progress_info_label.configure(text="Cancelled")
-            self.process_ended()
+    def cancel_process(self):
+        print(json.dumps({"type": "cancel"}), flush=True)
+    #     if not app_closing:
+    #         self.progress_header_label.configure(text="")
+    #         self.progress_info_label.configure(text="Cancelled")
+    #         self.process_ended()
 
-        # will REALLY need to check this
-        if self.process != None:
-            if self.process.poll():
-                self.process.terminate()
-                # self.process.join()
-                self.process.stdout.close()
-                self.process.stderr.close()
+    #     # will REALLY need to check this
+    #     if self.process != None:
+    #         if self.process.poll():
+    #             self.process.terminate()
+    #             # self.process.join()
+    #             self.process.stdout.close()
+    #             self.process.stderr.close()
 
-            # self.process = None
-            if self.process.poll():
-                raise Exception
+    #         # self.process = None
+    #         if self.process.poll():
+    #             raise Exception
 
         # if self.gen_proc != None:
         #     if self.gen_proc.is_alive():
@@ -1277,7 +1290,14 @@ class Menu_LayerSelect(tk.Frame):
         #     self.progress_bar["value"] = 0
         #     self.progress_info_label.configure(text="")
     
-    def process_ended(self):
+    def generate_begin(self):
+        self.generate_button.configure(state="disabled")
+        self.load_button.configure(state="disabled")
+        self.new_button.configure(state="disabled")
+        self.back_button.configure(state="disabled")
+        self.cancel_button.configure(state="normal")
+
+    def generate_end(self):
         self.generate_button.configure(state="normal")
         self.load_button.configure(state="normal")
         self.new_button.configure(state="normal")
@@ -1317,131 +1337,131 @@ class Menu_LayerSelect(tk.Frame):
     #     self.after(1000 if self.winfo_toplevel().focus_get() == None else 100, self.poll_queue)
 
 
-    def start_process(self, data, path):
-        # print("got to self.start_process()")
-        self.generate_button.configure(state="disabled")
-        self.load_button.configure(state="disabled")
-        self.new_button.configure(state="disabled")
-        self.back_button.configure(state="disabled")
-        self.cancel_button.configure(state="normal")
+    # def start_process(self, data, path):
+    #     # print("got to self.start_process()")
+    #     self.generate_button.configure(state="disabled")
+    #     self.load_button.configure(state="disabled")
+    #     self.new_button.configure(state="disabled")
+    #     self.back_button.configure(state="disabled")
+    #     self.cancel_button.configure(state="normal")
 
-        self.update_progress(0, "", "Initializing...")
+    #     self.update_progress(0, "", "Initializing...")
 
-        temp_json_data = {"data": data, "path": path}
-        # print("temp_json_data initialized")
-        temp_json_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w')
-        # print("temp_json_file initialized")
-        json.dump(temp_json_data, temp_json_file)
-        # print("temp_json_data dumped into temp_json_file")
-        temp_json_file.close()
-        # print("temp_json_file closed")
+    #     temp_json_data = {"data": data, "path": path}
+    #     # print("temp_json_data initialized")
+    #     temp_json_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w')
+    #     # print("temp_json_file initialized")
+    #     json.dump(temp_json_data, temp_json_file)
+    #     # print("temp_json_data dumped into temp_json_file")
+    #     temp_json_file.close()
+    #     # print("temp_json_file closed")
 
-        env = os.environ.copy()
-        env["PYTHONUNBUFFERED"] = "1"
+    #     env = os.environ.copy()
+    #     env["PYTHONUNBUFFERED"] = "1"
 
-        self.process = subprocess.Popen(
-            [sys.executable, "-u", "generate_worker.py", temp_json_file.name],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-            # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.HIGH_PRIORITY_CLASS | subprocess.CREATE_BREAKAWAY_FROM_JOB,
-            env=env
-        )
-        # print("self.process created")
+    #     self.process = subprocess.Popen(
+    #         [sys.executable, "-u", "generate_worker.py", temp_json_file.name],
+    #         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    #         # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+    #         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.HIGH_PRIORITY_CLASS | subprocess.CREATE_BREAKAWAY_FROM_JOB,
+    #         env=env
+    #     )
+    #     # print("self.process created")
 
-        self.most_recent_line = None
+    #     self.most_recent_line = None
 
-        threading.Thread(target=self.read_process_stdout, daemon=True).start()
-        threading.Thread(target=self.check_most_recent_line, daemon=True).start()
-        # print("read_process_stdout started")
+    #     threading.Thread(target=self.read_process_stdout, daemon=True).start()
+    #     threading.Thread(target=self.check_most_recent_line, daemon=True).start()
+    #     # print("read_process_stdout started")
 
+    # #     # self.after(100, self.read_process_stdout)
+
+    # def read_process_stdout(self):
+    #     # print("got to self.read_process_stdout()")
+
+    #     # latest_line = None
+    #     # for line in self.process.stdout:
+    #     #     latest_line = line
+        
+    #     # latest_line = latest_line.strip()
+
+    #     # try:
+    #     #     data = json.loads(line)
+                
+    #     #     if self.winfo_toplevel().focus_get() != None:
+    #     #         status = data.get("status")
+    #     #         value = data.get("value")
+    #     #         header_text = data.get("header_text")
+    #     #         info_text = data.get("info_text")
+
+    #     #         # Update the GUI in the main thread
+    #     #         self.after(0, self.update_progress, value, header_text, info_text)
+
+    #     #     match status:
+    #     #         case "update":
+    #     #             pass
+    #     #         case "error":
+    #     #             messagebox.showerror(header_text, info_text)
+    #     #             # self.process_ended()
+    #     #             self.cancel_process(True)
+    #     #             self.process_ended()
+    #     #             # raise Exception
+    #     #         case "done":
+    #     #             messagebox.showinfo(header_text, info_text)
+    #     #             # self.process_ended()
+    #     #             self.cancel_process(True)
+    #     #             self.process_ended()
+    #     #             return
+    #     # except json.JSONDecodeError:
+    #     #     print("Malformed output:", line)
+        
     #     # self.after(100, self.read_process_stdout)
 
-    def read_process_stdout(self):
-        # print("got to self.read_process_stdout()")
-
-        # latest_line = None
-        # for line in self.process.stdout:
-        #     latest_line = line
-        
-        # latest_line = latest_line.strip()
-
-        # try:
-        #     data = json.loads(line)
-                
-        #     if self.winfo_toplevel().focus_get() != None:
-        #         status = data.get("status")
-        #         value = data.get("value")
-        #         header_text = data.get("header_text")
-        #         info_text = data.get("info_text")
-
-        #         # Update the GUI in the main thread
-        #         self.after(0, self.update_progress, value, header_text, info_text)
-
-        #     match status:
-        #         case "update":
-        #             pass
-        #         case "error":
-        #             messagebox.showerror(header_text, info_text)
-        #             # self.process_ended()
-        #             self.cancel_process(True)
-        #             self.process_ended()
-        #             # raise Exception
-        #         case "done":
-        #             messagebox.showinfo(header_text, info_text)
-        #             # self.process_ended()
-        #             self.cancel_process(True)
-        #             self.process_ended()
-        #             return
-        # except json.JSONDecodeError:
-        #     print("Malformed output:", line)
-        
-        # self.after(100, self.read_process_stdout)
-
-        for line in self.process.stdout:
-            line = line.strip()
-            self.most_recent_line = line
+    #     for line in self.process.stdout:
+    #         line = line.strip()
+    #         self.most_recent_line = line
             
-            # time.sleep(0.05)
+    #         # time.sleep(0.05)
     
-    def check_most_recent_line(self):
-        if self.most_recent_line:
-            try:
-                # line = self.process_output_buffer[-1]
-                line = self.most_recent_line
+    # def check_most_recent_line(self):
+    #     if self.most_recent_line:
+    #         try:
+    #             # line = self.process_output_buffer[-1]
+    #             line = self.most_recent_line
 
-                data = json.loads(line)
-                status = data.get("status")
-                header_text = data.get("header_text")
-                info_text = data.get("info_text")
-                value = data.get("value")
+    #             data = json.loads(line)
+    #             status = data.get("status")
+    #             header_text = data.get("header_text")
+    #             info_text = data.get("info_text")
+    #             value = data.get("value")
                 
-                match status:
-                    case "update":
-                        if self.winfo_toplevel().focus_get() != None:
-                            # Update the GUI in the main thread
-                            self.after(0, self.update_progress, value, header_text, info_text)
-                    case "error":
-                        self.process_ended()
-                        self.after(0, self.update_progress, value, header_text, info_text)
-                        messagebox.showerror(header_text, info_text)
-                        # self.process_ended()
-                        self.cancel_process(True)
-                        # raise Exception
-                        return
-                    case "done":
-                        self.process_ended()
-                        self.after(0, self.update_progress, value, header_text, info_text)
-                        messagebox.showinfo(header_text, info_text)
-                        # self.process_ended()
-                        self.cancel_process(True)
-                        return
-                    case "print":
-                        print(info_text)
-            except json.JSONDecodeError:
-                print("Malformed output:", line)
+    #             match status:
+    #                 case "update":
+    #                     if self.winfo_toplevel().focus_get() != None:
+    #                         # Update the GUI in the main thread
+    #                         self.after(0, self.update_progress, value, header_text, info_text)
+    #                 case "error":
+    #                     self.process_ended()
+    #                     self.after(0, self.update_progress, value, header_text, info_text)
+    #                     messagebox.showerror(header_text, info_text)
+    #                     # self.process_ended()
+    #                     self.cancel_process(True)
+    #                     # raise Exception
+    #                     return
+    #                 case "done":
+    #                     self.process_ended()
+    #                     self.after(0, self.update_progress, value, header_text, info_text)
+    #                     messagebox.showinfo(header_text, info_text)
+    #                     # self.process_ended()
+    #                     self.cancel_process(True)
+    #                     return
+    #                 case "print":
+    #                     print(info_text)
+    #         except json.JSONDecodeError:
+    #             print("Malformed output:", line)
 
-        # print("gothere")
-        self.after(100, self.check_most_recent_line)
+    #     # print("gothere")
+    #     self.after(100, self.check_most_recent_line)
     
     def update_progress(self, value, header_text, info_text):
         self.progress_bar["value"] = value

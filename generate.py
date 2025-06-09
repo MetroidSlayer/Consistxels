@@ -30,7 +30,7 @@ consistxels_version = "0.1"
 # def update_progress(progress_callback = None, new_value = None, progress_text = None):
 # def update_progress(progress_callback = None, value = None, header_text = None, info_text = None):
 # def update_progress(conn = None, new_value = None, section_text = None, progress_text = None):
-def update_progress(status="update", value = None, header_text = None, info_text = None):
+def update_progress(type="update", value = None, header_text = None, info_text = None):
     # update = {"value": value, "header_text": header_text, "info_text": info_text}
     # print(json.dumps(update), flush=True)
 
@@ -44,7 +44,7 @@ def update_progress(status="update", value = None, header_text = None, info_text
 
     # p = psutil.Process(os.getpid())
     # update = {"status": status, "value": value, "header_text": header_text, "info_text": info_text, "priority": p.nice()}
-    update = {"status": status, "value": value, "header_text": header_text, "info_text": info_text}
+    update = {"type": type, "value": value, "header_text": header_text, "info_text": info_text}
     print(json.dumps(update), flush=True)
 
 # Generate and save a full .json output file, and save all generated pose images
@@ -53,8 +53,8 @@ def update_progress(status="update", value = None, header_text = None, info_text
 def generate_all(input_data, output_folder_path): #input_data is already in proper structure for consistxels .json
     # output_folder_path += "/" # Adding it now, 'cause otherwise we'd just add it literally every time we use it
     try:
-        p = psutil.Process(os.getpid())
-        p.nice(psutil.HIGH_PRIORITY_CLASS)  # On Windows, boost priority
+        # p = psutil.Process(os.getpid())
+        # p.nice(psutil.HIGH_PRIORITY_CLASS)  # On Windows, boost priority
 
 
         output_dir = os.path.abspath(output_folder_path)
