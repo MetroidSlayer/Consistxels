@@ -1,116 +1,246 @@
 from PIL import Image, ImageColor
-from tkinter import messagebox
+# from tkinter import messagebox
 from itertools import chain
 from datetime import datetime
 import json
 import math
 
-from shared import consistxels_version
+import os
+# import time
+import psutil
+
+# from shared import consistxels_version
+
+consistxels_version = "0.1"
+
+# import time
+
+# def generate(pipe_conn):
+#     for i in range(5):
+#         msg = {"progress": i + 1}
+#         pipe_conn.send(msg)
+#         time.sleep(0.5)  # Simulate work
+
+#     pipe_conn.send({"status": "done"})
+#     ack = pipe_conn.recv()  # Wait for ack before exiting
+#     if ack == "ack":
+#         pipe_conn.close()
 
 # Made so that all functions here CAN be used with a progress bar, but don't NEED one to work
-def update_progress(progress_callback = None, new_value = None, progress_text = None):
-    if progress_callback != None:
-        progress_callback(new_value, progress_text)
+# def update_progress(progress_callback = None, new_value = None, progress_text = None):
+# def update_progress(progress_callback = None, value = None, header_text = None, info_text = None):
+# def update_progress(conn = None, new_value = None, section_text = None, progress_text = None):
+def update_progress(status="update", value = None, header_text = None, info_text = None):
+    # update = {"value": value, "header_text": header_text, "info_text": info_text}
+    # print(json.dumps(update), flush=True)
+
+
+    # if progress_callback != None:
+    #     progress_callback(value, header_text, info_text)
+
+    # might want to do some exception stuff!
+    # if conn != None:
+    #     conn.send(("update", new_value, section_text, progress_text))
+
+    # p = psutil.Process(os.getpid())
+    # update = {"status": status, "value": value, "header_text": header_text, "info_text": info_text, "priority": p.nice()}
+    update = {"status": status, "value": value, "header_text": header_text, "info_text": info_text}
+    print(json.dumps(update), flush=True)
 
 # Generate and save a full .json output file, and save all generated pose images
-def generate_all(input_data, output_folder_path, progress_callback = None): #input_data is already in proper structure for consistxels .json
-    output_folder_path += "/" # Adding it now, 'cause otherwise we'd just add it literally every time we use it
+# def generate_all(input_data, output_folder_path, progress_callback = None): #input_data is already in proper structure for consistxels .json
+# def generate_all(input_data, output_folder_path, conn = None): #input_data is already in proper structure for consistxels .json
+def generate_all(input_data, output_folder_path): #input_data is already in proper structure for consistxels .json
+    # output_folder_path += "/" # Adding it now, 'cause otherwise we'd just add it literally every time we use it
+    try:
+        p = psutil.Process(os.getpid())
+        p.nice(psutil.HIGH_PRIORITY_CLASS)  # On Windows, boost priority
 
-    start_time = datetime.now() # Time taken to generate is tracked and shown at the end
 
-    update_progress(progress_callback, 0, "Initializing...") # is Initializing the right word here?
+        output_dir = os.path.abspath(output_folder_path)
+        os.makedirs(output_dir, exist_ok=True)
 
-    # Variable declaration
+        # print(input_data, output_folder_path)
 
-    # Taken from input, but updated versions are used in the output
-    input_header = input_data["header"]
-    input_layer_data = input_data["layer_data"]
-    input_pose_data = input_data["pose_data"]
+        # search and source layer images should be opened HERE, or perhaps not here but in main thread. transfers should happen w/ everything in bytes.
 
-    # Also taken from input, but simply used in output as they are, with no modification
-    search_data = input_data["search_data"]
-    search_type_data = input_data["search_type_data"]
-    generation_data = input_data["generation_data"]
+        start_time = datetime.now() # Time taken to generate is tracked and shown at the end
 
-    # Size is used in a few places, especially when generating full output in menu_loadjson, so it's calculated and stored in the header.
-    # TODO: Throw exception if size is still (0,0) after that. Or I guess if either height or width is still 0, neither should be after all
-    size = (0,0)
-    layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
-    with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
-        size = img.size
+        # update_progress(progress_callback, 0, "Initializing...") # is Initializing the right word here?
+        # update_progress(conn, 0, "", "Initializing...") # is Initializing the right word here?
+        # update_progress(conn, 0, "", "Initializing...") # is Initializing the right word here?
+        update_progress("update", 0, "", "Initializing...") # is Initializing the right word here?
+        # update_progress(progress_callback, 0, "", "Initializing...") # is Initializing the right word here?
 
-    # Match the search type
-    match search_type_data["search_type"]:
-        case "Border":
-            pose_locations = search_border(search_data, search_type_data, input_layer_data, progress_callback)
-        case "Spacing":
-            pose_locations = search_spacing(search_data, search_type_data, size, progress_callback) # TODO: Test
-        case "Preset":
-            pose_locations = input_pose_data # TODO: Test
-        case _:
-            pass # TODO: throw exception: invalid search type
+        # Variable declaration
 
-    # Output pose data. Also output some image data; I would have liked to separate them, but they're so conceptually intertwined that I don't think it's possible
-    output_pose_data, image_prep_data = generate_pose_data(pose_locations, input_layer_data, search_data, generation_data, progress_callback)
+        # Taken from input, but updated versions are used in the output
+        input_header = input_data["header"]
+        input_layer_data = input_data["layer_data"]
+        input_pose_data = input_data["pose_data"]
 
-    # Using the pose and image_prep data, generate the final output image_data as well as the actual images
-    image_data, images = generate_image_data(image_prep_data, input_layer_data, output_pose_data, progress_callback)
+        # Also taken from input, but simply used in output as they are, with no modification
+        search_data = input_data["search_data"]
+        search_type_data = input_data["search_type_data"]
+        generation_data = input_data["generation_data"]
 
-    update_progress(progress_callback, 25, "Wrapping up; saving images...")
-    
-    # TODO: May want to think of better way to do this. Definitely works for now, though
-    for i in range(len(image_data)):
-        images[i].save(output_folder_path + image_data[i]["path"])
+        # Size is used in a few places, especially when generating full output in menu_loadjson, so it's calculated and stored in the header.
+        # TODO: Throw exception if size is still (0,0) after that. Or I guess if either height or width is still 0, neither should be after all
+        size = (0,0)
+        layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
+        with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
+            size = img.size
 
-    update_progress(progress_callback, 50, "Wrapping up; formatting layer data...")
+        # Match the search type
+        match search_type_data["search_type"]:
+            case "Border":
+                # pose_locations = search_border(search_data, search_type_data, input_layer_data, progress_callback)
+                # pose_locations = search_border(search_data, search_type_data, input_layer_data, conn)
+                pose_locations = search_border(search_data, search_type_data, input_layer_data)
+            case "Spacing":
+                # pose_locations = search_spacing(search_data, search_type_data, size, progress_callback) # TODO: Test
+                # pose_locations = search_spacing(search_data, search_type_data, size, conn) # TODO: Test
+                pose_locations = search_spacing(search_data, search_type_data, size) # TODO: Test
+            case "Preset":
+                pose_locations = input_pose_data # TODO: Test
+            case _:
+                pass # TODO: throw exception: invalid search type
 
-    # Save OUTPUT layer data, useful if any layers are cosmetic-only or a border
-    output_layer_data = generate_layer_data(input_layer_data, output_folder_path, input_header["paths_are_local"])
+        # Output pose data. Also output some image data; I would have liked to separate them, but they're so conceptually intertwined that I don't think it's possible
+        # output_pose_data, image_prep_data = generate_pose_data(pose_locations, input_layer_data, search_data, generation_data, progress_callback)
+        # output_pose_data, image_prep_data = generate_pose_data(pose_locations, input_layer_data, search_data, generation_data, conn)
+        output_pose_data, image_prep_data = generate_pose_data(pose_locations, input_layer_data, search_data, generation_data)
 
-    update_progress(progress_callback, 75, "Wrapping up; saving output to .json...")
+        # Using the pose and image_prep data, generate the final output image_data as well as the actual images
+        # image_data, images = generate_image_data(image_prep_data, input_layer_data, output_pose_data, progress_callback)
+        # try:
+        # image_data, images = generate_image_data(image_prep_data, input_layer_data, output_pose_data, conn)
+        image_data, images = generate_image_data(image_prep_data, input_layer_data, output_pose_data)
+        # except:
+        #     print("exception")
+        #     return
 
-    # Structure output
-    output_header = {
-        "name": input_header["name"],
-        "consistxels_version": consistxels_version,
-        "paths_are_local": input_header["paths_are_local"],
-        "width": size[0],
-        "height": size[1]
-    }
+        # print("gothere")
 
-    output_data = {
-        "header": output_header,
-        "search_data": search_data,
-        "search_type_data": search_type_data,
-        "generation_data": generation_data,
-        "layer_data": output_layer_data,
-        "pose_data": output_pose_data,
-        "image_data": image_data
-    }
+        # update_progress(progress_callback, 25, "Wrapping up; saving images...")
+        # update_progress(conn, 25, "Wrapping up; saving images...")
+        # update_progress(conn, 100, "", "Wrapping up...")
+        update_progress("update", 100, "", "Wrapping up...")
+        # update_progress(progress_callback, 100, "", "Wrapping up...")
+        
+        # TODO: May want to think of better way to do this. Definitely works for now, though
+        for i in range(len(images)):
+            # print("saving image", i)
+            # images[i].save(output_folder_path + image_data[i]["path"])
 
-    json_filename = "consistxels_pose_output_" + output_header["name"] + ".json"
+            image_path = os.path.join(output_dir, image_data[i]["path"])
+            images[i].save(image_path)
 
-    with open(output_folder_path + json_filename, 'w') as file:
-        json.dump(output_data, file, indent=4)    
+        # print("images saved")
 
-    # Calculate and format time elapsed
-    end_time = datetime.now()
-    time_elapsed = end_time - start_time
-    time_elapsed_seconds = int(time_elapsed.total_seconds())
-    hours = time_elapsed_seconds // 3600
-    minutes = (time_elapsed_seconds % 3600) // 60
-    seconds = time_elapsed_seconds % 60
-    formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
-    
-    # It's a *tad* redundant to have both update_progress and messagebox.showinfo, but I'd like to both display in the window *and* send an OS alert to the user
-    # in case they tabbed out while waiting.
-    update_progress(progress_callback, 100, f"Complete! Time elapsed: {formatted_time_elapsed}")
-    messagebox.showinfo("Complete!", f"Time elapsed: {formatted_time_elapsed}")
+        # update_progress(progress_callback, 50, "Wrapping up; formatting layer data...")
+        # update_progress(conn, 50, "Wrapping up; formatting layer data...")
+
+        # Save OUTPUT layer data, useful if any layers are cosmetic-only or a border
+        # print("saving layers")
+        # output_layer_data = generate_layer_data(input_layer_data, output_folder_path, input_header["paths_are_local"])
+        output_layer_data, search_images, source_images = generate_layer_data(input_layer_data, output_dir, input_header["paths_are_local"])
+
+        for i in range(len(search_images)):
+            # print("saving image", i)
+            # images[i].save(output_folder_path + image_data[i]["path"])
+            if search_images[i]:
+                
+                image_path = output_layer_data[i]["search_image_path"]
+                if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["search_image_path"])
+                
+                search_images[i].save(image_path)
+
+        for i in range(len(source_images)):
+            # print("saving image", i)
+            # images[i].save(output_folder_path + image_data[i]["path"])
+            if source_images[i]:
+                
+                image_path = output_layer_data[i]["source_image_path"]
+                if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["source_image_path"])
+                
+                source_images[i].save(image_path)
+
+        # update_progress(progress_callback, 75, "Wrapping up; saving output to .json...")
+        # update_progress(conn, 75, "Wrapping up; saving output to .json...")
+
+        # Structure output
+        output_header = {
+            "name": input_header["name"],
+            "consistxels_version": consistxels_version,
+            "paths_are_local": input_header["paths_are_local"],
+            "width": size[0],
+            "height": size[1]
+        }
+
+        output_data = {
+            "header": output_header,
+            "search_data": search_data,
+            "search_type_data": search_type_data,
+            "generation_data": generation_data,
+            "layer_data": output_layer_data,
+            "pose_data": output_pose_data,
+            "image_data": image_data
+        }
+
+        json_filename = "consistxels_pose_output_" + output_header["name"] + ".json"
+        json_path = os.path.join(output_dir, json_filename)
+
+        # with open(output_folder_path + json_filename, 'w') as file:
+        with open(json_path, 'w') as file:
+            json.dump(output_data, file, indent=4)
+            # print("saving json")
+
+        # Calculate and format time elapsed
+        # print("getting endtime")
+        end_time = datetime.now()
+        time_elapsed = end_time - start_time
+        time_elapsed_seconds = int(time_elapsed.total_seconds())
+        hours = time_elapsed_seconds // 3600
+        minutes = (time_elapsed_seconds % 3600) // 60
+        seconds = time_elapsed_seconds % 60
+        formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
+        # print("time elapsed formatted")
+        
+        # It's a *tad* redundant to have both update_progress and messagebox.showinfo, but I'd like to both display in the window *and* send an OS alert to the user
+        # in case they tabbed out while waiting.
+        # update_progress(progress_callback, 100, f"Complete! Time elapsed: {formatted_time_elapsed}")
+        # print("updating progress one last time")
+        # update_progress(conn, 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
+        update_progress("done", 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
+        # update_progress(progress_callback, 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
+        # messagebox.showinfo("Complete!", f"Time elapsed: {formatted_time_elapsed}")
+
+        # if conn != None:
+        #     print("sending done through pipe")
+        #     conn.send(["done", 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}"])
+        #     # time.sleep(0.05)
+
+        #     while True:
+        #         if conn.poll(0.1):  # Check every 100ms
+        #             msg = conn.recv()
+        #             if msg == "ack":
+        #                 break
+            
+        #     conn.close()
+    except Exception as e:
+        # if conn != None:
+        #     conn.send(("error", str(e)))
+        # maybe throw another exception? or at least tell user what's going on. might need to be an else for the if conn != None
+        update_progress("error", 0, "An error occured", e)
+        # update_progress(progress_callback, 0, "An error occured", e)
 
 # Gets passed layer_data and finds the border; uses said border to find and return pose locations.
 # Could DEFINITELY just pass ONE layer - just the border, we don't need any other layers necessarily.
 # TODO: Make work for irregular pose box sizes, maybe as an option?
-def search_border(search_data, search_type_data, layer_data, progress_callback = None):
+# def search_border(search_data, search_type_data, layer_data, progress_callback = None):
+# def search_border(search_data, search_type_data, layer_data, conn = None):
+def search_border(search_data, search_type_data, layer_data):
     # Determine which layer is the border
     border_layer = next(layer for layer in layer_data if layer.get("is_border"))
     # TODO: throw exception if border_layer == None
@@ -122,7 +252,7 @@ def search_border(search_data, search_type_data, layer_data, progress_callback =
         # print(width, height)
 
         curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
-        update_progress(progress_callback, 0, f"Searching border image for valid pose boxes... (Pose boxes found: 0)")
+        # update_progress(conn, 0, f"Searching border image for valid pose boxes... (Pose boxes found: 0)")
 
         # Get color that will be treated as border edge (formatted for Image library, and made opaque)
         # TODO: test if values that already have alpha can make it here, and stop 'em. probably throw error too
@@ -145,33 +275,33 @@ def search_border(search_data, search_type_data, layer_data, progress_callback =
                 endborder_y = -1
 
                 if pixel == border_color_rgb: # i.e. if the current pixel is part of a pose box border:
-                    # if the current pixel is in the shape of a top-left corner
-                    # (works regardless of whether searching right-to-left or left-to-right)
+                    # If the current pixel is in the shape of a top-left corner
+                    # (Works regardless of whether searching right-to-left or left-to-right)
                     if border_image.getpixel([x + 1, y]) == border_color_rgb \
                     and border_image.getpixel([x, y + 1]) == border_color_rgb \
                     and not border_image.getpixel([x + 1, y + 1]) == border_color_rgb:
                         
-                        for x2 in range(x + 1, width): # iterate all the way to the right. if no border is found, it's not a pose box after all.
+                        for x2 in range(x + 1, width): # Iterate all the way to the right. if no border is found, it's not a pose box after all.
                             if border_image.getpixel([x2, y + 1]) == border_color_rgb:
 
-                                endborder_x = x2 # set x position of bottom-right corner
-                                break # no need to keep looking
+                                endborder_x = x2 # Set x position of bottom-right corner
+                                break # No need to keep looking
                         
-                        if endborder_x != -1: # if a border has been found, it's likely a pose box.
+                        if endborder_x != -1: # If a border has been found, it's likely a pose box.
                             
-                            for y2 in range(y + 1, height): # look for the bottom right of the pose box.
+                            for y2 in range(y + 1, height): # Look for the bottom right of the pose box.
                                 
-                                pixel2 = border_image.getpixel([endborder_x, y2]) # pixel with which to find bottom-right of pose box
+                                pixel2 = border_image.getpixel([endborder_x, y2]) # Pixel with which to find bottom-right of pose box
 
-                                if pixel2 != border_color_rgb: break # if a non-border pixel's ever found, it's not a pose box.
+                                if pixel2 != border_color_rgb: break # If a non-border pixel's ever found, it's not a pose box.
                                 
-                                # if the current pixel2 is in the shape of a bottom-right corner
+                                # If the current pixel2 is in the shape of a bottom-right corner
                                 if border_image.getpixel([endborder_x - 1, y2]) == border_color_rgb \
                                 and border_image.getpixel([endborder_x, y2 - 1]) == border_color_rgb \
                                 and not border_image.getpixel([endborder_x - 1, y2 - 1]) == border_color_rgb: #pose box found!
 
-                                    endborder_y = y2 # set y position of bottom-right corner
-                                    break # no need to keep looking
+                                    endborder_y = y2 # Set y position of bottom-right corner
+                                    break # No need to keep looking
             
                     # i.e. if there's a valid bottom-right corner (which guarantees, for our purposes, that there really is a pose box)
                     if endborder_x >= 0 and endborder_y >= 0:
@@ -179,8 +309,10 @@ def search_border(search_data, search_type_data, layer_data, progress_callback =
                         # x and y coordinate are moved right and down 1, so that they're INSIDE the pose box, rather than on its border
                         found_pose_x = x + 1
                         found_pose_y = y + 1
-                        found_pose_width = endborder_x - x # Was subtracting 1 from these, but that caused issues... but NOT subtracting 1 caused
-                        found_pose_height = endborder_y - y# OTHER issues later. Added subtraction later. Maybe need to think of re-adding them here?
+                        # found_pose_width = endborder_x - x # Was subtracting 1 from these, but that caused issues... but NOT subtracting 1 caused
+                        # found_pose_height = endborder_y - y# OTHER issues later. Added subtraction later. Maybe need to think of re-adding them here?
+                        found_pose_width = endborder_x - x - 1# Was subtracting 1 from these, but that caused issues... but NOT subtracting 1 caused
+                        found_pose_height = endborder_y - y - 1# OTHER issues later. Added subtraction later. Maybe need to think of re-adding them here?
 
                         # Pose location appended as object, to fit with formatting of other search types (pose locations are essentially the same
                         # structure as .json pose_data, just with less info)
@@ -192,27 +324,32 @@ def search_border(search_data, search_type_data, layer_data, progress_callback =
                         })
 
                         # Update progress text
-                        update_progress(progress_callback, None, f"Searching border image for valid pose boxes... (Pose boxes found: {len(pose_locations)})")
+                        # update_progress(conn, None, f"Searching border image for valid pose boxes... (Pose boxes found: {len(pose_locations)})")
             
             # For updating progress bar. To prevent being called constantly, does a little math
             new_percent = math.floor((y / (height - 2)) * 100)
             if new_percent > curr_percent:
                 curr_percent = new_percent
-                update_progress(progress_callback, new_percent)
+                # update_progress(conn, new_percent, "Searching border image for valid pose boxes...", f"(Pose boxes found: {len(pose_locations)})")
+                update_progress("update", new_percent, "Searching border image for valid pose boxes...", f"(Pose boxes found: {len(pose_locations)})")
+                # update_progress(progress_callback, new_percent, "Searching border image for valid pose boxes...", f"(Pose boxes found: {len(pose_locations)})")
     
-    update_progress(progress_callback, 100, f"Border search complete! (Pose boxes found: {len(pose_locations)})")
+    # update_progress(conn, 100, f"Border search complete! (Pose boxes found: {len(pose_locations)})")
 
     # List of pose objects is returned
     return pose_locations
 
 # Get a list of pose locations from the provided search_data and size
-def search_spacing(search_data, search_type_data, size, progress_callback = None):
+# def search_spacing(search_data, search_type_data, size, progress_callback = None):
+# def search_spacing(search_data, search_type_data, size, conn = None):
+def search_spacing(search_data, search_type_data, size):
     # Prepare variables
     rows = search_type_data["spacing_rows"]
     columns = search_type_data["spacing_columns"]
     total_poses = rows * columns # For showing progress
     
-    update_progress(progress_callback, 0, f"Preparing pose locations... (0/{total_poses})") # Update progress
+    curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
+    # update_progress(conn, 0, f"Preparing pose locations... (0/{total_poses})") # Update progress
 
     # Variable declaration
     outer_padding = search_type_data["spacing_outer_padding"]
@@ -245,13 +382,23 @@ def search_spacing(search_data, search_type_data, size, progress_callback = None
                 "width": sprite_width, "height": sprite_height
             })
             
-            update_progress(progress_callback, math.floor((len(pose_locations) / total_poses) * 100), f"Preparing pose locations... ({len(pose_locations)}/{total_poses})")
+            # For updating progress bar. To prevent being called constantly, does a little math
+            new_percent = math.floor((len(pose_locations) / total_poses) * 100)
+            if new_percent > curr_percent:
+                curr_percent = new_percent
+                # update_progress(conn, new_percent, "Preparing pose locations...", f"({len(pose_locations)}/{total_poses})")
+                update_progress("update", new_percent, "Preparing pose locations...", f"({len(pose_locations)}/{total_poses})")
+                # update_progress(progress_callback, new_percent, "Preparing pose locations...", f"({len(pose_locations)}/{total_poses})")
     
-    update_progress(progress_callback, 100, f"Pose locations prepared! ({len(pose_locations)}/{len(pose_locations)})")
+    # update_progress(conn, 100, f"Pose locations prepared! ({len(pose_locations)}/{len(pose_locations)})")
     return pose_locations
 
-def generate_pose_data(pose_locations, layer_data, search_data, generation_data, progress_callback = None):
-    update_progress(progress_callback, 0, "Unique images found: 0")
+# Generate all-new pose data, as well as data necessary to generate images for that pose data.
+# Returns pose_data and image_prep_data.
+# def generate_pose_data(pose_locations, layer_data, search_data, generation_data, progress_callback = None):
+# def generate_pose_data(pose_locations, layer_data, search_data, generation_data, conn = None):
+def generate_pose_data(pose_locations, layer_data, search_data, generation_data):
+    # update_progress(conn, 0, "Unique images found: 0")
 
     # stores image padding. indexes will match final image data
     # format: [(left_padding, top_padding, right_padding, bottom_padding)]
@@ -273,6 +420,8 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
             layer_search_images.append(None)
     
     pose_data = []
+    
+    curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
 
     # Search through already-discovered poses
     for pose_index, pose_location in enumerate(pose_locations):
@@ -280,8 +429,10 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
         pose_box = (
             pose_location["x_position"],
             pose_location["y_position"],
-            pose_location["x_position"] + pose_location["width"] - 1,
-            pose_location["y_position"] + pose_location["height"] - 1
+            # pose_location["x_position"] + pose_location["width"] - 1,
+            # pose_location["y_position"] + pose_location["height"] - 1
+            pose_location["x_position"] + pose_location["width"],
+            pose_location["y_position"] + pose_location["height"]
         )
 
         # Each pose in pose_data will have its own limb_data array
@@ -293,6 +444,8 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
             # i.e. if there's actually something we want to search here
             if layer != None and layer_search_images[layer_index] != None and not layer["is_border"] and not layer["is_cosmetic_only"]:
                 # We already opened the layer images provided, so that we don't have to open and close them every time
+
+                # update_progress("print", info_text=str(pose_index) + " " + str(layer_index))
 
                 # Get the full image inside the pose box for this layer. "Unbound" because it still has empty space at the edges
                 unbound_image = layer_search_images[layer_index].crop(pose_box)
@@ -325,8 +478,10 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                             compare_to = layer_search_images[image_prep["original_layer_index"]].crop((
                                 image_prep["original_pose_location"]["x_position"],
                                 image_prep["original_pose_location"]["y_position"],
-                                image_prep["original_pose_location"]["width"] + image_prep["original_pose_location"]["x_position"] - 1,
-                                image_prep["original_pose_location"]["height"] + image_prep["original_pose_location"]["y_position"] - 1
+                                # image_prep["original_pose_location"]["width"] + image_prep["original_pose_location"]["x_position"] - 1,
+                                # image_prep["original_pose_location"]["height"] + image_prep["original_pose_location"]["y_position"] - 1
+                                image_prep["original_pose_location"]["width"] + image_prep["original_pose_location"]["x_position"],
+                                image_prep["original_pose_location"]["height"] + image_prep["original_pose_location"]["y_position"]
                             ))
                             compare_to = compare_to.crop(compare_to.getbbox()) # Crop to bbox
 
@@ -371,7 +526,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                         })
 
                         # Update the pose number, so that the user knows something is actually happening
-                        update_progress(progress_callback, None, f"Unique images found: {len(image_prep_data)}")
+                        # update_progress(conn, None, f"Unique images found: {len(image_prep_data)}")
 
                     # If automatic padding is selected, EVERY pose that uses a given pose image must have their offsets adjusted to accomodate paddings that
                     # aren't even originally from their pose. In other words, padding is specific to individual pose images, but we want to make it universal instead.
@@ -431,10 +586,15 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
                 "limb_data": limb_data
             })
         
-        # Should do the curr_percent thing here too
-        update_progress(progress_callback, math.floor((pose_index / len(pose_locations) * 100)))
+            new_percent = math.floor((pose_index / len(pose_locations)) * 100)
+            if new_percent > curr_percent:
+                curr_percent = new_percent
+                # update_progress(conn, new_percent, f"Poses searched: {pose_index}/{len(pose_locations)}", f"Unique images found: {len(image_prep_data)}")
+                update_progress("update", new_percent, f"Poses searched: {pose_index}/{len(pose_locations)}", f"Unique images found: {len(image_prep_data)}")
+                # update_progress(progress_callback, new_percent, f"Poses searched: {pose_index}/{len(pose_locations)}", f"Unique images found: {len(image_prep_data)}")
+        # update_progress(progress_callback, math.floor((pose_index / len(pose_locations) * 100)))
     
-    update_progress(progress_callback, 100, f"Unique images found: {len(image_prep_data)}")
+    # update_progress(conn, 100, f"Unique images found: {len(image_prep_data)}")
 
     # THIS is where we'll need to do a search through the limbs to change the offsets. It feels inefficient to not do it earlier, but it can't be helped.
     # (Doesn't need to happen if there's no auto padding.)
@@ -492,8 +652,10 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data,
     return pose_data, image_prep_data
 
 # Generate the image data that will be exported alongside the .json, as well as the actual images that will be saved 
-def generate_image_data(image_prep_data, layer_data, pose_data, progress_callback = None): # image_data = [] is kinda clumsy
-    update_progress(progress_callback, 0, "Generating images...")
+# def generate_image_data(image_prep_data, layer_data, pose_data, progress_callback = None): # image_data = [] is kinda clumsy
+# def generate_image_data(image_prep_data, layer_data, pose_data, conn = None): # image_data = [] is kinda clumsy
+def generate_image_data(image_prep_data, layer_data, pose_data): # image_data = [] is kinda clumsy
+    # update_progress(conn, 0, "Generating images...")
     
     # Variable declaration
     images = []
@@ -504,6 +666,8 @@ def generate_image_data(image_prep_data, layer_data, pose_data, progress_callbac
     # Used for filenames (though I guess if the filenames already exist, this isn't good? Will want to possibly think of reworking this some more
     # once I want to be able to update pose images for existing generated .jsons) Ok yeah TODO TODO TODO
     number_of_characters = len(str(len(image_prep_data)))
+
+    curr_percent = 0
 
     # Store copies of layer images so we don't have to worry about opening and closing them later
     for i, layer in enumerate(layer_data):
@@ -530,6 +694,9 @@ def generate_image_data(image_prep_data, layer_data, pose_data, progress_callbac
     # image_data = []
     for i, image_prep in enumerate(image_prep_data):
         # print("gothere")
+
+        # if not i % 5: print(i, " got to image gen loop start")
+
         padding = image_prep["padding"]
         layer_index = image_prep["original_layer_index"]
         original_pose_location = image_prep["original_pose_location"]
@@ -540,8 +707,10 @@ def generate_image_data(image_prep_data, layer_data, pose_data, progress_callbac
         pose_box = (
             original_pose_location["x_position"],
             original_pose_location["y_position"],
-            original_pose_location["width"] + original_pose_location["x_position"] - 1,
-            original_pose_location["height"] + original_pose_location["y_position"] - 1
+            # original_pose_location["width"] + original_pose_location["x_position"] - 1,
+            # original_pose_location["height"] + original_pose_location["y_position"] - 1
+            original_pose_location["width"] + original_pose_location["x_position"],
+            original_pose_location["height"] + original_pose_location["y_position"]
         )
 
         # # Get the search image, and the bound search image.
@@ -578,6 +747,9 @@ def generate_image_data(image_prep_data, layer_data, pose_data, progress_callbac
         # images.append(padded_image)
 
         images.append(generate_image_from_layers(layer_search_images[layer_index], layer_source_images[layer_index], pose_box, padding))
+
+        
+        # if not i % 5: print(i, " got past images.append")
         
         # img = (generate_image_from_layers(layer_search_images[layer_index], layer_source_images[layer_index], pose_box, padding))
         # if img == None:
@@ -595,6 +767,8 @@ def generate_image_data(image_prep_data, layer_data, pose_data, progress_callbac
             if pose["x_position"] == original_pose_location["x_position"] and pose["y_position"] == original_pose_location["y_position"]:
                 break
         
+        # if not i % 5: print(i, " got past original_pose_index loop")
+        
         # If there's already appropriate image data, use that instead. We'll probably want to split generate_image_data into a few different functions for
         # the different possibilities, honestly. I dunno.
         image_data.append({
@@ -603,10 +777,23 @@ def generate_image_data(image_prep_data, layer_data, pose_data, progress_callbac
             "original_layer_index": image_prep["original_layer_index"]
         })
 
-        update_progress(progress_callback, math.floor((len(images) / len(image_prep_data) * 100)), "Generating images...")
+        
+        # if not i % 5: print(i, " got past image_data.append")
 
-    update_progress(progress_callback, 100, f"Images generated: {len(image_prep_data)}")
+        # update_progress(conn, , "Generating images...")
+        new_percent = math.floor((len(images) / len(image_prep_data)) * 100)
+        if new_percent > curr_percent:
+            curr_percent = new_percent
+            # update_progress(conn, new_percent, "Generating images..." + f"({len(images)})")
+            update_progress("update", new_percent, "Generating images..." + f"({len(images)})")
+            # update_progress(progress_callback, new_percent, "Generating images..." + f"({len(images)})")
+
+        
+        # if not i % 5: print(i, " got to end of image gen loop")
+
+    # update_progress(conn, 100, f"Images generated: {len(image_prep_data)}")
     
+    # print("got to generate_image_data return")
     return image_data, images
 
 def generate_image_from_layers(original_layer_image, source_layer_image, pose_box, padding):
@@ -642,6 +829,8 @@ def generate_image(input_image, size, offset):
 
 def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
     output_layer_data = []
+    search_images = []
+    source_images = []
     
     for layer in input_layer_data:
         search_image_path = None
@@ -657,23 +846,33 @@ def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
                 )
 
                 with Image.open(layer["search_image_path"]) as search_image:
-                    search_image.save(output_folder_path + search_image_path)
+                    # search_image.save(output_folder_path + search_image_path)
+                    search_images.append(search_image.copy())
 
-                if not paths_are_local: search_image_path = output_folder_path + search_image_path
+                # if not paths_are_local: search_image_path = output_folder_path + search_image_path
+                # if not paths_are_local: search_image_path = output_folder_path + "/" + search_image_path
+                if not paths_are_local: search_image_path = os.path.join(output_folder_path, search_image_path)
+            else:
+                search_images.append(None)
             if layer["source_image_path"]:
                 source_image_path = f"{layer['name']}_source_image.png"
 
                 with Image.open(layer["source_image_path"]) as source_image:
-                    source_image.save(output_folder_path + source_image_path)
+                    # source_image.save(output_folder_path + source_image_path)
+                    source_images.append(source_image.copy())
 
-                if not paths_are_local: source_image_path = output_folder_path + source_image_path
+                # if not paths_are_local: source_image_path = output_folder_path + source_image_path
+                # if not paths_are_local: source_image_path = output_folder_path + "/" + source_image_path
+                if not paths_are_local: source_image_path = os.path.join(output_folder_path, source_image_path)
+            else:
+                source_images.append(None)
 
         output_layer_data.append({
             "name": layer["name"], "is_border": layer["is_border"], "is_cosmetic_only": layer["is_cosmetic_only"],
             "search_image_path": search_image_path, "source_image_path": source_image_path
         })
 
-    return output_layer_data
+    return output_layer_data, search_images, source_images
 
 # Return vals: is_unique, is_flippped, rotation_amount
 def compare_images(image:Image, compare_to:Image, detect_identical_images = True, detect_rotated_images = True, detect_flip_h_images = True, detect_flip_v_images = False):
@@ -1465,3 +1664,55 @@ def get_x_range(start = 0, end = 10, start_search_in_center = False, search_righ
             return range(start, end + edge_offset) # Will iterate righward from leftmost edge
         else:
             return range(end + edge_offset - 1, start - 1, -1) # Will iterate leftward from rightmost edge
+
+# # import time
+# # import sys
+
+# # def heavy_task():
+# #     total_steps = 20
+# #     for i in range(total_steps):
+# #         # Simulate CPU-heavy work (replace with your Pillow code)
+# #         time.sleep(0.5)
+# #         progress = int((i + 1) / total_steps * 100)
+# #         print(progress)
+# #         sys.stdout.flush()  # Important: flush so parent can read immediately
+
+# # if __name__ == "__main__":
+# #     heavy_task()
+
+# # generate.py
+# import math
+# import sys
+# import time
+
+# def is_prime(n):
+#     if n < 2:
+#         return False
+#     for i in range(2, int(math.sqrt(n)) + 1):
+#         if n % i == 0:
+#             return False
+#     return True
+
+# def heavy_cpu_task():
+#     max_number = 4000000  # Adjust this to make it more/less intense
+#     found = 0
+#     last_report = 0
+
+#     for i in range(2, max_number):
+#         if is_prime(i):
+#             found += 1
+#         # Print progress every 5%
+#         progress = int(i / max_number * 100)
+#         if progress != last_report and progress % 5 == 0:
+#             print(progress)
+#             sys.stdout.flush()
+#             last_report = progress
+
+#     print("100")  # Ensure it ends at 100%
+#     sys.stdout.flush()
+
+# if __name__ == "__main__":
+#     # start = time.time()
+#     heavy_cpu_task()
+#     # end = time.time()
+#     # print(f"Elapsed: {end - start:.2f}s", file=sys.stderr)

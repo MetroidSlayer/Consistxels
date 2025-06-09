@@ -1,10 +1,12 @@
 import os
+# import io, os
 import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox, ttk
 # from PIL import Image, ImageTk, ImageOps
 from PIL import Image, ImageTk
 # from generate import GenerateJSON, generate_all
-from generate import generate_all
+# from generate import generate_all
+# from generate import generate_all, generate
 from tooltip import ToolTip
 
 from shared import on_global_click, consistxels_version
@@ -13,9 +15,28 @@ import threading
 
 import json
 
+# from listener import pipe_listener
+
+import time
+
+# import io, os
+# from concurrent.futures import ProcessPoolExecutor
+# from queue import Queue
+
+# from multiprocessing import Process, Pipe
+# from multiprocessing import Process, Queue, Pipe
+
+import sys
+import subprocess
+
+
+import tempfile
+
 class Menu_LayerSelect(tk.Frame):
     def __init__(self, master, show_frame_callback):
         super().__init__(master)
+
+        # self.gen = gen
 
         # in the future, should be taken from some style file
         self.bg_color = "#2e2e2e"
@@ -33,6 +54,14 @@ class Menu_LayerSelect(tk.Frame):
 
         # self.root.configure(bg=self.bg_color)
         self.configure(bg=self.bg_color)
+
+        # self.queue = Queue()
+        # self.executor = ProcessPoolExecutor()
+
+        # TODO TEMP GET RID OF
+        # self.gen_proc = None
+        # self.listener_proc= None
+        self.process = None
 
         self.setup_ui(show_frame_callback)
 
@@ -55,21 +84,21 @@ class Menu_LayerSelect(tk.Frame):
         ToolTip(save_folder_button, "Save the selected search options, layer data, and layer images to a specified folder.\nThis avoids the problem with the 'Save .json' option, and the folder can be\ntransferred to other devices without issue.\n(It's recommended that you choose a new, EMPTY folder, so as to not clutter up your files!)")
         
         # Load button
-        load_button = tk.Button(self.header, text="📁 Load", bg=self.button_bg, fg=self.fg_color, command=self.import_layer_select_json)
-        load_button.pack(padx=(0,10), pady=10, side="left")
-        ToolTip(load_button, "Load a .json file and restore previous search options and layer data.\n(Works with both of the previous 'Save' options, as well as generated pose data output.)")
+        self.load_button = tk.Button(self.header, text="📁 Load", bg=self.button_bg, fg=self.fg_color, command=self.import_layer_select_json)
+        self.load_button.pack(padx=(0,10), pady=10, side="left")
+        ToolTip(self.load_button, "Load a .json file and restore previous search options and layer data.\n(Works with both of the previous 'Save' options, as well as generated pose data output.)")
 
         # New button
-        new_button = tk.Button(self.header, text="➕ New", bg=self.button_bg, fg=self.fg_color)
-        new_button.pack(padx=(0,10), pady=10, side="left")
-        ToolTip(new_button, "Reset all options, delete all layers, and start from scratch.")
+        self.new_button = tk.Button(self.header, text="➕ New", bg=self.button_bg, fg=self.fg_color)
+        self.new_button.pack(padx=(0,10), pady=10, side="left")
+        ToolTip(self.new_button, "Reset all options, delete all layers, and start from scratch.")
 
         # Header right:
 
         # Back button
-        back_button = tk.Button(self.header, text="Back to Main Menu", bg=self.button_bg, fg=self.fg_color, command=lambda: show_frame_callback("Main"))
-        back_button.pack(side="right", padx=10, pady=10)
-        ToolTip(back_button, "...Come on, this one is self explanatory.", False, True, 2000)
+        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=self.button_bg, fg=self.fg_color, command=lambda: show_frame_callback("Main"))
+        self.back_button.pack(side="right", padx=10, pady=10)
+        ToolTip(self.back_button, "...Come on, this one is self explanatory.", False, True, 2000)
 
         # Main frame
         self.main_frame = tk.Frame(self, bg=self.bg_color)
@@ -449,16 +478,48 @@ class Menu_LayerSelect(tk.Frame):
         custom_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         ToolTip(custom_padding_entry, "Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding, this will add the automatic and custom padding together.\n(Negative values are allowed, and will instead subtract from automatic padding without cutting off any of the pose images.)")
 
+        generate_frame = tk.Frame(self.right_frame, bg=self.bg_color, highlightthickness=1, highlightbackground=self.secondary_fg)
+        generate_frame.pack(side="bottom", fill="both", expand=True)
+
+        generate_options_frame = tk.Frame(generate_frame, bg=self.bg_color)
+        generate_options_frame.pack(side="top")
+
+        # checkboxes and entries and such
+
+        generate_buttons_frame = tk.Frame(generate_frame, bg=self.bg_color)
+        generate_buttons_frame.pack(side="left")
+
         # self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.generate_output, bg=self.button_bg, fg=self.fg_color)
-        self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.TEST_generate_button_pressed, bg=self.button_bg, fg=self.fg_color)
-        self.generate_button.pack(side="top", padx=5, pady=5)
+        # self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.TEST_generate_button_pressed, bg=self.button_bg, fg=self.fg_color)
+        self.generate_button = tk.Button(generate_buttons_frame, text="Generate Pose Data...", command=self.TEST_generate_button_pressed, bg=self.button_bg, fg=self.fg_color)
+        self.generate_button.pack(side="top", padx=10, pady=10)
+        # self.generate_button.grid(padx=10, pady=10, row=0, column=0)
         ToolTip(self.generate_button, "Generate data! (May take a while)", True, True)
 
-        self.progress_label = tk.Label(search_options_frame, bg=self.bg_color, fg=self.fg_color, text="")
-        self.progress_label.pack(side="top", padx=10, fill="x", expand=True)
+        # for safety i guess
+        self.generate_process = None
 
-        self.progress_bar = ttk.Progressbar(search_options_frame, orient="horizontal", maximum=100)
-        self.progress_bar.pack(padx=10, pady=10, side="top", fill="x", expand=True)
+        # disable if no process!!!
+        self.cancel_button = tk.Button(generate_buttons_frame, text="Cancel", command=self.cancel_process, fg="#dd5555", bg=self.button_bg, state="disabled")
+        self.cancel_button.pack(side="top", padx=10, pady=(0,10), fill="x")
+        # self.cancel_button.grid(padx=10, pady=(0,10), row=1, column=0)
+        # TODO add tooltip
+
+        generate_progress_frame = tk.Frame(generate_frame, bg=self.bg_color)
+        generate_progress_frame.pack(side="left", fill="x", expand=True)
+
+        self.progress_header_label = tk.Label(generate_progress_frame, bg=self.bg_color, fg=self.fg_color)
+        self.progress_header_label.pack(side="top", padx=(0,10), pady=(10,0), fill="x", expand=True)
+
+        # self.progress_label = tk.Label(search_options_frame, bg=self.bg_color, fg=self.fg_color, text="")
+        self.progress_info_label = tk.Label(generate_progress_frame, bg=self.bg_color, fg=self.fg_color)
+        self.progress_info_label.pack(side="top", padx=(0,10), pady=(0,5), fill="x", expand=True)
+        # self.progress_label.grid(padx=10, pady=10, row=0, column=1, columnspan=2)
+
+        # self.progress_bar = ttk.Progressbar(search_options_frame, orient="horizontal", maximum=100)
+        self.progress_bar = ttk.Progressbar(generate_progress_frame, orient="horizontal", maximum=100)
+        self.progress_bar.pack(padx=(0,10), pady=(0,10), side="top", fill="x", expand=True)
+        # self.progress_label.grid(padx=10, pady=10, row=1, column=1, columnspan=2)
 
         # TODO TODO TODO: some weird stuff with scrolling. i think the preview canvas scrollbar still scrolls the layer canvas
 
@@ -814,21 +875,89 @@ class Menu_LayerSelect(tk.Frame):
 
             messagebox.showwarning("Wait!", warning_output)
     
+    def compile_data_into_dict(self):
+        header = {
+            "name": self.name_entry_input.get(),
+            "consistxels_version": consistxels_version,
+            "paths_are_local": True, # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
+            "width": None, # get this figured out sooner probably?
+            "height": None # get this figured out sooner probably?
+        }
+
+        search_data = {
+            "start_search_in_center": self.start_search_in_center.get(),
+            "search_right_to_left": self.search_right_to_left.get(),
+            "detect_identical_images": True, # TODO
+            "detect_rotated_images": True, # TODO
+            "detect_flip_h_images": True, # TODO
+            "detect_flip_v_images": False # TODO
+        }
+
+        search_type_data = {
+            "search_type": self.search_type_option.get(),
+            "border_color": self.border_color,
+            "spacing_rows": self.spacing_grid_rows.get(), # TODO: change so can only be int
+            "spacing_columns": self.spacing_grid_columns.get(), # TODO: change so can only be int
+            "spacing_outer_padding": self.outer_padding.get(), # TODO: change so can only be int
+            "spacing_inner_padding": self.inner_padding.get(), # TODO: change so can only be int
+            "spacing_x_separation": self.spacing_x_separation.get(), # TODO: change so can only be int
+            "spacing_y_separation": self.spacing_y_separation.get() # TODO: change so can only be int
+        }
+
+        generation_data = {
+            "automatic_padding_type": self.padding_type_option.get(), # TODO: change so can only be int
+            "custom_padding_amount": self.custom_padding.get(), # TODO: change so can only be int
+            "generate_empty_poses": False # TODO
+        }
+
+        # TODO: A LOT
+        layer_data = []
+        duplicate_layer_name = False
+        for layer in self.layer_data:
+            if layer["name"] in [image["name"] for image in layer_data]:
+                duplicate_layer_name = True
+                break
+            # layer_data.append({"path": layer["path"], "name": layer["name"], "alt_source": layer["alt_source"]})
+            layer_data.append({ # TODO TODO TODO
+                "name": layer["name"], "is_border": False, "is_cosmetic_only": False,
+                "search_image_path": layer["path"], "source_image_path": layer["alt_source"],
+                "export_original_images": True
+            })
+
+        if search_type_data["search_type"] == "Border": # TODO. can mostly just copy-and-paste this. still do want rigid control of the data in the border layer
+            layer_data.append({
+                "name": "border", "is_border": True, "is_cosmetic_only": True,
+                "search_image_path": self.border_path, "source_image_path": None,
+                "export_original_images": True
+                
+            })
+
+        pose_data = None
+        if self.search_type_option.get() == "Preset":
+            pass # TODO
+        
+        data = {
+            "header": header, "search_data": search_data, "search_type_data": search_type_data,
+            "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
+        }
+        
+        return data
+
     def TEST_generate_button_pressed(self):
         pass
 
         # warning stuff
 
-        def update_progress(new_value = None, progress_text = None):
-            if new_value != None:
-                self.progress_bar["value"] = new_value
-            else:
-                self.progress_bar["value"] = self.progress_bar["value"] # these FEEL unnecessary, but progress_label didnt work without one. idk
+        # def update_progress(new_value = None, progress_text = None):
+        #     if new_value != None:
+        #         self.progress_bar["value"] = new_value
+        #     else:
+        #         self.progress_bar["value"] = self.progress_bar["value"] # these FEEL unnecessary, but progress_label didnt work without one. idk
 
-            if progress_text != None:
-                self.progress_label.configure(text=progress_text)
-            else:
-                self.progress_label.configure(text=self.progress_label.cget("text"))
+        #     if progress_text != None:
+        #         self.progress_label.configure(text=progress_text)
+        #     else:
+        #         self.progress_label.configure(text=self.progress_label.cget("text"))
 
         # test data
         # TEMP_header = {
@@ -957,14 +1086,55 @@ class Menu_LayerSelect(tk.Frame):
         TEMP_output_folder_path = filedialog.askdirectory(title="Select an output folder")
 
         if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and TEMP_output_folder_path:
-            
+            # disable start button, enable cancel button
 
-            def TEST_generate_output():
+            # def TEST_generate_output():
                 # generate_all(TEMP_data, TEMP_output_folder_path, update_progress)
-                generate_all(data, TEMP_output_folder_path, update_progress)
+                # generate_all(data, TEMP_output_folder_path, lambda new_value, progress_text: self.after(0, update_progress, new_value, progress_text))
+                # generate_all(data, TEMP_output_folder_path, None)
 
             # call the thingy!
-            threading.Thread(target=TEST_generate_output, daemon=True).start()
+            # threading.Thread(target=TEST_generate_output, daemon=True).start()
+
+            # when everything's complete, convert bytes to images, save 'em, re-enable gui
+
+            # parent_conn, child_conn = Pipe(False)
+            # self.parent_conn, self.child_conn = Pipe()
+            # self.generate_process = Process(target=generate_all, args=(data, TEMP_output_folder_path, self.child_conn))
+            # self.generate_process.start()
+
+            # self.gui_queue, self.gen_proc, self.listener_proc = 
+            # self.start_processes(data, TEMP_output_folder_path)
+            # self.poll_queue()
+
+            # occasionally poll pipe for updates
+            try:
+                self.generate_button.configure(state="disabled")
+                self.load_button.configure(state="disabled")
+                self.new_button.configure(state="disabled")
+                self.back_button.configure(state="disabled")
+                self.cancel_button.configure(state="normal")
+
+                # self.after(100, lambda: self.check_pipe(parent_conn))
+                
+                # threading.Thread(target=self.after, args=(100, lambda: self.check_pipe(parent_conn)), daemon=True).start()
+                # threading.Thread(target=self.check_pipe, args=[self.parent_conn], daemon=True).start()
+
+                # gui_queue, gen_proc, listener_proc = start_processes()
+                # self.start_processes()
+
+
+                # self.start_process(data, TEMP_output_folder_path)
+
+                # self.gen(data, TEMP_output_folder_path, self.update_progress)
+                # self.gen(data, TEMP_output_folder_path, None)
+
+                print("start_generate_all")
+
+            except Exception as e:
+                pass
+                # self.cancel_process()
+                # print("exception starting thread:", e)
         else:
             warning_output = ""
 
@@ -984,3 +1154,296 @@ class Menu_LayerSelect(tk.Frame):
 
             messagebox.showwarning("Wait!", warning_output)
 
+    # # I DONT GET IT
+    # def check_queue(self):
+    #     while not self.queue.empty():
+    #         result = self.queue.get()
+    #         if result == "DONE":
+    #             pass
+    #             # end_generation() function or something
+    #             return
+            
+
+    #         # update progressbar here
+
+    #         # save results
+        
+    #     self.after(100, self.check_queue)
+
+    # def check_pipe_thread(self):
+    #     while True:
+    #         if self.parent_conn.poll():
+    #             msg = self.parent_conn.recv()
+    #             self.after(0, lambda m=msg: self.handle_message(m))
+    #         time.sleep(0.05)
+
+    # def check_pipe(self, parent_conn):
+    #     while True:
+    #         latest_message = None
+    #         try:
+    #             while parent_conn.poll(): # drain the pipe
+    #                 try:
+    #                     latest_message = parent_conn.recv()
+    #                 except EOFError:
+    #                     break
+    #         except (OSError, EOFError):
+    #             # Pipe is already closed — do nothing, stop polling
+
+    #             # latest_message = "done" # a bit clumsy, presumably, because it doesn't actually KNOW that it's done
+
+    #             raise Exception
+    #             # return
+
+    #         if latest_message != None:
+    #             if latest_message[0] == "done":
+    #                 # show that process is complete
+    #                 self.progress_bar["value"] = latest_message[1]
+    #                 self.progress_header_label.configure(text=latest_message[2])
+    #                 self.progress_info_label.configure(text=latest_message[3])
+
+    #                 messagebox.showinfo(latest_message[2], latest_message[3])
+
+    #                 parent_conn.send("ack")
+                    
+    #                 self.generate_process = None
+
+    #                 self.process_ended()
+    #                 return
+    #             elif latest_message[0] == "update":
+    #                 # if self.winfo_toplevel().focus_get() != None:
+    #                     self.progress_bar["value"] = latest_message[1]
+    #                     self.progress_header_label.configure(text=latest_message[2])
+    #                     self.progress_info_label.configure(text=latest_message[3])
+    #             elif latest_message[0] == "error":
+    #                 print("error:", latest_message[1])
+    #                 self.process_ended()
+    #                 return
+    #             else: print("unhandled message:", latest_message)
+                
+    #         time.sleep(0.1)
+    #         # self.after(1000 if self.winfo_toplevel().focus_get() != None else 100, lambda: self.check_pipe(parent_conn))
+    #         # print(self.winfo_toplevel().focus_get())
+    #         # self.after(100, lambda: self.check_pipe(parent_conn))
+    
+    def cancel_process(self, app_closing = False):
+        if not app_closing:
+            self.progress_header_label.configure(text="")
+            self.progress_info_label.configure(text="Cancelled")
+            self.process_ended()
+
+        # will REALLY need to check this
+        if self.process != None:
+            if self.process.poll():
+                self.process.terminate()
+                # self.process.join()
+                self.process.stdout.close()
+                self.process.stderr.close()
+
+            # self.process = None
+            if self.process.poll():
+                raise Exception
+
+        # if self.gen_proc != None:
+        #     if self.gen_proc.is_alive():
+        #         self.gen_proc.terminate()
+        #         self.gen_proc.join()
+        #     self.gen_proc = None
+
+        # if self.listener_proc != None:
+        #     if self.listener_proc.is_alive():
+        #         self.listener_proc.terminate()
+        #         self.listener_proc.join()
+
+        #     self.listener_proc = None
+        
+
+
+        # if self.generate_process != None:
+
+        #     if self.generate_process.is_alive():
+        #         self.generate_process.terminate()
+        #         self.generate_process.join()
+
+        #         if not app_closing: self.progress_header_label.configure(text="Cancelled")
+        #     else:
+        #         if not app_closing: self.progress_header_label.configure(text="Process already terminated")
+            
+        #     if not app_closing: self.generate_process = None
+        # else:
+        #     pass # maybe throw error. or maybe not? idk
+
+        # if not app_closing:
+        #     self.process_ended()
+        #     self.progress_bar["value"] = 0
+        #     self.progress_info_label.configure(text="")
+    
+    def process_ended(self):
+        self.generate_button.configure(state="normal")
+        self.load_button.configure(state="normal")
+        self.new_button.configure(state="normal")
+        self.back_button.configure(state="normal")
+        self.cancel_button.configure(state="disabled")
+
+
+    # def start_processes(self, data, TEMP_output_folder_path):
+    #     parent_conn, child_conn = Pipe()
+    #     self.gui_queue = Queue()
+
+    #     # gen_proc = Process(target=generate, args=(child_conn,))
+    #     self.gen_proc = Process(target=generate_all, args=(data, TEMP_output_folder_path, child_conn))
+    #     self.listener_proc = Process(target=pipe_listener, args=(parent_conn, self.gui_queue))
+
+    #     self.gen_proc.start()
+    #     self.listener_proc.start()
+
+        # return gen_proc, listener_proc
+
+    # def poll_queue(self):
+    #     if self.winfo_toplevel().focus_get() != None:
+    #         while not self.gui_queue.empty():
+    #             msg = self.gui_queue.get()
+    #             if msg[0] == "update":
+    #                 self.progress_bar["value"] = msg[1]
+    #                 self.progress_header_label.configure(text=msg[2])
+    #                 self.progress_info_label.configure(text=msg[3])
+    #             elif msg[0] == "done":
+    #                 self.progress_bar["value"] = msg[1]
+    #                 self.progress_header_label.configure(text=msg[2])
+    #                 self.progress_info_label.configure(text=msg[3])
+
+    #                 self.process_ended()
+    #                 return
+
+    #     self.after(1000 if self.winfo_toplevel().focus_get() == None else 100, self.poll_queue)
+
+
+    def start_process(self, data, path):
+        # print("got to self.start_process()")
+        self.generate_button.configure(state="disabled")
+        self.load_button.configure(state="disabled")
+        self.new_button.configure(state="disabled")
+        self.back_button.configure(state="disabled")
+        self.cancel_button.configure(state="normal")
+
+        self.update_progress(0, "", "Initializing...")
+
+        temp_json_data = {"data": data, "path": path}
+        # print("temp_json_data initialized")
+        temp_json_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode='w')
+        # print("temp_json_file initialized")
+        json.dump(temp_json_data, temp_json_file)
+        # print("temp_json_data dumped into temp_json_file")
+        temp_json_file.close()
+        # print("temp_json_file closed")
+
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+
+        self.process = subprocess.Popen(
+            [sys.executable, "-u", "generate_worker.py", temp_json_file.name],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            # creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS | subprocess.HIGH_PRIORITY_CLASS | subprocess.CREATE_BREAKAWAY_FROM_JOB,
+            env=env
+        )
+        # print("self.process created")
+
+        self.most_recent_line = None
+
+        threading.Thread(target=self.read_process_stdout, daemon=True).start()
+        threading.Thread(target=self.check_most_recent_line, daemon=True).start()
+        # print("read_process_stdout started")
+
+    #     # self.after(100, self.read_process_stdout)
+
+    def read_process_stdout(self):
+        # print("got to self.read_process_stdout()")
+
+        # latest_line = None
+        # for line in self.process.stdout:
+        #     latest_line = line
+        
+        # latest_line = latest_line.strip()
+
+        # try:
+        #     data = json.loads(line)
+                
+        #     if self.winfo_toplevel().focus_get() != None:
+        #         status = data.get("status")
+        #         value = data.get("value")
+        #         header_text = data.get("header_text")
+        #         info_text = data.get("info_text")
+
+        #         # Update the GUI in the main thread
+        #         self.after(0, self.update_progress, value, header_text, info_text)
+
+        #     match status:
+        #         case "update":
+        #             pass
+        #         case "error":
+        #             messagebox.showerror(header_text, info_text)
+        #             # self.process_ended()
+        #             self.cancel_process(True)
+        #             self.process_ended()
+        #             # raise Exception
+        #         case "done":
+        #             messagebox.showinfo(header_text, info_text)
+        #             # self.process_ended()
+        #             self.cancel_process(True)
+        #             self.process_ended()
+        #             return
+        # except json.JSONDecodeError:
+        #     print("Malformed output:", line)
+        
+        # self.after(100, self.read_process_stdout)
+
+        for line in self.process.stdout:
+            line = line.strip()
+            self.most_recent_line = line
+            
+            # time.sleep(0.05)
+    
+    def check_most_recent_line(self):
+        if self.most_recent_line:
+            try:
+                # line = self.process_output_buffer[-1]
+                line = self.most_recent_line
+
+                data = json.loads(line)
+                status = data.get("status")
+                header_text = data.get("header_text")
+                info_text = data.get("info_text")
+                value = data.get("value")
+                
+                match status:
+                    case "update":
+                        if self.winfo_toplevel().focus_get() != None:
+                            # Update the GUI in the main thread
+                            self.after(0, self.update_progress, value, header_text, info_text)
+                    case "error":
+                        self.process_ended()
+                        self.after(0, self.update_progress, value, header_text, info_text)
+                        messagebox.showerror(header_text, info_text)
+                        # self.process_ended()
+                        self.cancel_process(True)
+                        # raise Exception
+                        return
+                    case "done":
+                        self.process_ended()
+                        self.after(0, self.update_progress, value, header_text, info_text)
+                        messagebox.showinfo(header_text, info_text)
+                        # self.process_ended()
+                        self.cancel_process(True)
+                        return
+                    case "print":
+                        print(info_text)
+            except json.JSONDecodeError:
+                print("Malformed output:", line)
+
+        # print("gothere")
+        self.after(100, self.check_most_recent_line)
+    
+    def update_progress(self, value, header_text, info_text):
+        self.progress_bar["value"] = value
+        self.progress_header_label.configure(text=header_text)
+        self.progress_info_label.configure(text=info_text)
