@@ -6,25 +6,14 @@ from menu_mainmenu import Menu_MainMenu
 from menu_layerselect import Menu_LayerSelect
 from menu_loadjson import Menu_LoadJson
 
-from shared import on_global_click
-# import shared
-
-# from generate import get_x_range
-# from generate import generate_all
-
-# import threading
-
-# import json
-# import sys
-# import tempfile
-# import subprocess
-# import multiprocessing
+# from shared import on_global_click
+import gui_shared
 
 import sys
 import json
 from tkinter import messagebox
 import threading
-
+# import time
 
 class ConsistxelsApp(tk.Frame):
     def __init__(self, root):
@@ -34,21 +23,15 @@ class ConsistxelsApp(tk.Frame):
         root.title("Consistxels")
 
         # Set window attributes
-        root.geometry("1680x768")         # window size
+        root.geometry("1680x768")        # window size
         root.configure(bg = '#303030') # bg color
 
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
-
-        self.bg_color = "#2e2e2e"
-        self.fg_color = "#ffffff"
-        self.secondary_bg = "#3a3a3a"
-        self.button_bg = "#444"
         
-        root.configure(bg=self.bg_color)
-                
+        root.configure(bg=gui_shared.bg_color)
 
-        root.bind_all("<Button-1>", on_global_click, add="+")
+        root.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
         # root.bind_class("Canvas", "<Button-1>", on_global_click, add="+")
 
         self.frames = {
@@ -72,108 +55,61 @@ class ConsistxelsApp(tk.Frame):
     def update_progress(self, value, header_text, info_text):
         self.frames["LayerSelect"].update_progress(value, header_text, info_text)
 
-    # def generate_begin(self):
-        
-
     def on_close(self, root):
         # ask if want to save if curr frame has modified work
-
-        # self.frames["LayerSelect"].cancel_process(True)
 
         root.destroy()
     
     
     def handle_input(self):
-        # print(json.dumps({"type": "print", "val": "gothere"}), flush=True)
         while True:
             try:
+                # something to iterate through all lines, if the sleep stuff is there at the bottom of the function
                 line = sys.stdin.readline()
                 
-                # print(json.dumps({"type": "print", "val": line}), flush=True)
                 if line:
-                    # print(json.dumps({"type": "print", "val": "gothere2"}), flush=True)
                     line = line.strip()
-                    # print(json.dumps({"type": "print", "val": "gothere3"}), flush=True)
 
                     try:
-                        # print(json.dumps({"type": "print", "val": "gothere4"}), flush=True)
                         data = json.loads(line)
                         type = data.get("type")
                         value = data.get("value")
                         header_text = data.get("header_text")
                         info_text = data.get("info_text")
-                        # print(json.dumps({"type": "print", "val": "gothere5"}), flush=True)
-
-                        # print(line)                
+                        
                         match type:
-                            case "generate":
-                                # print(json.dumps({"type": "print", "val": "gothere6"}), flush=True)
-                                self.frames["LayerSelect"].generate_begin()
-                                # print(json.dumps({"type": "print", "val": "gothere7"}), flush=True)
+                            case "generate_pose_data": # could theoretically do this stuff when a generate button is pressed, but this acts as a sort of acknowledgement, i think?
+                                self.frames["LayerSelect"].generate_began()
                                 self.update_progress(0, "", "Initializing...")
-                                # print(json.dumps({"type": "print", "val": "gothere8"}), flush=True)
+                            case "generate_layer_image":
+                                pass
+                            case "generate_all_layer_images":
+                                pass
+                            case "generate_sheet_image":
+                                pass
+                            case "generate_updated_pose_images":
+                                pass
                             case "update":
                                 if self.winfo_toplevel().focus_get() != None:
                                     self.update_progress(value, header_text, info_text)
                             case "error":
-                                self.frames["LayerSelect"].generate_end()
+                                self.frames["LayerSelect"].generate_ended()
                                 self.update_progress(0, "", "Error")
                                 messagebox.showerror("Error", line)
-                                # return
                             case "done":
-                                self.frames["LayerSelect"].generate_end()
+                                self.frames["LayerSelect"].generate_ended()
                                 self.update_progress(value, header_text, info_text)
                                 messagebox.showinfo(header_text, info_text)
-                                # self.update_progress(0, "", "Initializing...")
-                                # return
+                            case "cancel":
+                                self.frames["LayerSelect"].generate_ended()
+                                self.update_progress(None, "", "Cancelled")
                             # case _:
                             #     print(line, flush=True)
                     except json.JSONDecodeError:
-                        # print(("Malformed output to generate stdin:", line), flush=True)
                         print(json.dumps({"type": "error", "val": ("Malformed output to generate stdin:", line)}), flush=True)
                         
             except Exception as e:
                 print(json.dumps({"type": "error", "val": f"Exception in gui handle_input: {e}\nLine that caused exception: {line}"}), flush=True)
-                # break
-
-
-
-        # # print(json.dumps({"type": "print", "val": "gothere"}), flush=True)
-        # for line in sys.stdin:
-        #     # print(json.dumps({"type": "print", "val": "gothere2"}), flush=True)
-        #     # print(json.dumps({"type": "print", "val": line}), flush=True)
-        #     line = line.strip()
-        #     # print(json.dumps({"type": "print", "val": line}), flush=True)
-        #     # print(json.dumps({"type": "print", "val": ""}), flush=True)
-
-        #     try:
-
-        #         data = json.loads(line)
-        #         type = data.get("type")
-        #         value = data.get("value")
-        #         header_text = data.get("header_text")
-        #         info_text = data.get("info_text")
-
-        #         # print(line)                
-        #         match type:
-        #             case "generate":
-        #                 self.frames[1].generate_begin()
-        #                 self.update_progress(0, "", "Initializing...")
-        #             case "update":
-        #                 self.update_progress(value, header_text, info_text)
-        #             case "error":
-        #                 self.frames[1].generate_end()
-        #                 messagebox.showerror("Error", line)
-        #                 return
-        #             case "done":
-        #                 self.frames[1].generate_end()
-        #                 messagebox.showinfo(header_text, info_text)
-        #                 return
-        #             case _:
-        #                 print(line, flush=True)
-        #     except json.JSONDecodeError:
-        #         # print(("Malformed output to generate stdin:", line), flush=True)
-        #         print(json.dumps({"type": "error", "val": ("Malformed output to generate stdin:", line)}), flush=True)
 
 def main():
     root = tk.Tk()
