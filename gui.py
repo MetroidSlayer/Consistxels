@@ -23,7 +23,7 @@ class ConsistxelsApp(tk.Frame):
         root.title("Consistxels")
 
         # Set window attributes
-        root.geometry("1680x768")        # window size
+        root.geometry("1680x864")        # window size
         root.configure(bg = '#303030') # bg color
 
         self.container = tk.Frame(self)
