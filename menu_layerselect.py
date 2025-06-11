@@ -45,7 +45,7 @@ class Menu_LayerSelect(tk.Frame):
         # Header left:
 
         # Save button
-        save_json_button = tk.Button(self.header, text="💾 Save .json", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layer_select_json)
+        save_json_button = tk.Button(self.header, text="💾 Save .json", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layerselect_json)
         save_json_button.pack(padx=10, pady=10, side="left")
         ToolTip(save_json_button,"""
 Save the selected search options and layer data to a .json file for later use.
@@ -54,7 +54,7 @@ direct paths to layer images that are specific to this device.
         """.strip())
 
         # Save folder button (NOT sure if i CAN save to a .zip.)
-        save_folder_button = tk.Button(self.header, text="💾 Save all to folder", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layer_select_json)
+        save_folder_button = tk.Button(self.header, text="💾 Save all to folder", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layerselect_all)
         save_folder_button.pack(padx=(0,10), pady=10, side="left")
         ToolTip(save_folder_button, """
 Save the selected search options, layer data, and layer images to a specified folder.
@@ -65,7 +65,7 @@ transferred to other devices without issue.
         """.strip())
         
         # Load button
-        self.load_button = tk.Button(self.header, text="📁 Load", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.import_layer_select_json)
+        self.load_button = tk.Button(self.header, text="📁 Load", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.import_layerselect_json)
         self.load_button.pack(padx=(0,10), pady=10, side="left")
         ToolTip(self.load_button, """
 Load a .json file and restore previous search options and layer data.
@@ -112,7 +112,8 @@ Load a .json file and restore previous search options and layer data.
         self.right_frame.pack(side="right", fill="y", padx=10)
         self.right_frame.pack_propagate(False)
 
-        paned_window.add(self.left_frame, minsize=360, stretch="never")
+        # paned_window.add(self.left_frame, minsize=386, stretch="never")
+        paned_window.add(self.left_frame, minsize=417, stretch="never")
         paned_window.add(self.center_frame, minsize=0, stretch="always")
         paned_window.add(self.right_frame, minsize=400, stretch="never")
         
@@ -127,8 +128,16 @@ Load a .json file and restore previous search options and layer data.
         layer_main_frame.pack(side="top", fill="both", expand=True)
 
         # Actual layer menu
-        self.layer_canvas = tk.Canvas(layer_main_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+        layer_canvas_frame = tk.Frame(layer_main_frame, bg=gui_shared.bg_color, width=0)
+        # layer_canvas_frame.pack(side="left", fill="both", expand=True)
+        layer_canvas_frame.pack(side="left", fill="both", expand=True, pady=5) # TODO instead of this, find way to add +5 pady to top and bottom layer cards. not high priority
+
+        # self.layer_canvas = tk.Canvas(layer_main_frame, bg=gui_shared.bg_color, )
+        self.layer_canvas = tk.Canvas(layer_canvas_frame, bg=gui_shared.bg_color, highlightthickness=0, width=0)
+
         self.layer_scrollbar = tk.Scrollbar(layer_main_frame, orient="vertical", command=self.layer_canvas.yview)
+        self.layer_scrollbar.pack(side="left", fill="y", padx=(2,0), pady=0)
+
         self.scrollable_frame = tk.Frame(self.layer_canvas, bg=gui_shared.bg_color)
 
         # Bind scrolling
@@ -140,16 +149,19 @@ Load a .json file and restore previous search options and layer data.
 
         def resize_layer_scrollable_frame(_ = None):
             self.left_frame.update()
-            print({"type":"print", "val":self.scrollable_frame.cget('width')})
+            # print({"type":"print", "val":self.scrollable_frame.cget('width')})
             
-            self.scrollable_frame.configure(width = self.left_frame.winfo_width()-20)
+            self.scrollable_frame.configure(width = layer_canvas_frame.winfo_width())
             # self.layer_canvas.configure(width = self.scrollable_frame.cget('width'))
             # self.layer_canvas.configure(width = self.left_frame.winfo_width()-20)
 
-            print({"type":"print", "val":self.scrollable_frame.cget('width')})
+            # print({"type":"print", "val":self.scrollable_frame.cget('width')})
             # print("gothere")
 
-            self.redraw_layer_cards()
+            # self.redraw_layer_cards()
+
+            for i in range(len(self.layer_data)):
+                self.update_layer_card_width(i)
         
         # def resize_layer_canvas(_ = None):
         #     self.left_frame.update()
@@ -163,7 +175,7 @@ Load a .json file and restore previous search options and layer data.
 
         self.layer_canvas.pack(side="left", fill="both", expand=True)
         # self.layer_canvas.pack(side="left", fill="y")
-        self.layer_scrollbar.pack(side="left", fill="y")
+        # self.layer_scrollbar.pack(side="right", fill="y")
 
         # # Mousewheel scrolling
         # self.layer_canvas.bind_all("<MouseWheel>", self.on_mousewheel) # don't do bind ALL, just stuff inside layer_canvas, or maybe inside left_frame
@@ -298,7 +310,11 @@ a lot of images.
                 self.add_border_layer()
             else:
                 # does not work for some reason. i do not understand python
-                self.delete_layer(i for i, layer in enumerate(self.layer_data) if layer["is_border"])
+                # print(i for i, layer in enumerate(self.layer_data) if layer["is_border"])
+                # self.delete_layer(i for i, layer in enumerate(self.layer_data) if layer["is_border"])
+
+                border_index = next((i for i, layer in enumerate(self.layer_data) if layer["is_border"]), None)
+                if border_index != None: self.delete_layer(border_index)
 
         search_type_option_selected("Border")
 
@@ -363,8 +379,8 @@ a lot of images.
 
         tk.Label(spacing_grid_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Grid:   Rows:").pack(side="left", padx=(10,5), pady=10)
         
-        self.spacing_grid_rows = tk.StringVar()
-        self.spacing_grid_rows.set("0")
+        self.spacing_rows = tk.StringVar()
+        self.spacing_rows.set("0")
 
         # spacing_grid_rows_entry = tk.Entry(grid_frame, bg=gui_shared.field_bg, fg=gui_shared.fg_color, width=6, textvariable=self.spacing_grid_rows)
         # spacing_grid_rows_entry.pack(side="left", pady=10)
@@ -372,13 +388,13 @@ a lot of images.
         # spacing_grid_rows_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(spacing_grid_rows_entry, "How many rows does the sprite sheet have?", False, True)
         add_widget(
-            tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_grid_rows}, {'text':"How many rows does the sprite sheet have?"}
+            tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_rows}, {'text':"How many rows does the sprite sheet have?"}
         ).pack(side="left", pady=10)
 
         tk.Label(spacing_grid_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="   Columns:").pack(side="left", padx=5, pady=10)
 
-        self.spacing_grid_columns = tk.StringVar()
-        self.spacing_grid_columns.set("0")
+        self.spacing_columns = tk.StringVar()
+        self.spacing_columns.set("0")
 
         # spacing_grid_columns_entry = tk.Entry(spacing_grid_frame, bg=gui_shared.field_bg, fg=gui_shared.fg_color, width=6, textvariable=self.spacing_grid_columns)
         # spacing_grid_columns_entry.pack(side="left", pady=10)
@@ -386,7 +402,7 @@ a lot of images.
         # spacing_grid_columns_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(spacing_grid_columns_entry, "How many columns does the sprite sheet have?", False, True)
         add_widget(
-            tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_grid_columns}, {'text':"How many columns does the sprite sheet have?"}
+            tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_columns}, {'text':"How many columns does the sprite sheet have?"}
         ).pack(side="left", pady=10)
 
         # Outer padding
@@ -395,8 +411,8 @@ a lot of images.
 
         tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Padding:   Outer:").pack(side="left", padx=(10,5), pady=10)
 
-        self.outer_padding = tk.StringVar()
-        self.outer_padding.set("0")
+        self.spacing_outer_padding = tk.StringVar()
+        self.spacing_outer_padding.set("0")
 
         # outer_padding_entry = tk.Entry(spacing_padding_frame, bg=gui_shared.field_bg, fg=gui_shared.fg_color, width=6, textvariable=self.outer_padding)
         # outer_padding_entry.pack(side="left")
@@ -404,7 +420,7 @@ a lot of images.
         # outer_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(outer_padding_entry, "How much space between the sprites and the edge of the sprite sheet?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
         add_widget(
-            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.outer_padding}, {'text':"""
+            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_outer_padding}, {'text':"""
 How much space between the sprites and the edge of the sprite sheet?
 
 (NOT to be confused with the automatic and custom padding - outer and inner are for the input
@@ -420,15 +436,15 @@ layer images, automatic and custom are for the output pose images)
 
         tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px   Inner:").pack(side="left", padx=5, pady=10)
 
-        self.inner_padding = tk.StringVar()
-        self.inner_padding.set("0")
+        self.spacing_inner_padding = tk.StringVar()
+        self.spacing_inner_padding.set("0")
         # inner_padding_entry = tk.Entry(spacing_padding_frame, bg=gui_shared.field_bg, fg=gui_shared.fg_color, width=6, textvariable=self.inner_padding)
         # inner_padding_entry.pack(side="left", pady=10)
         # inner_padding_entry.bind("<FocusIn>", self.on_entry_FocusIn)
         # inner_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(inner_padding_entry, "How much extra padding around each sprite?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
         add_widget(
-            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.inner_padding}, {'text':"""
+            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_inner_padding}, {'text':"""
 How much extra padding around each sprite?
 
 (NOT to be confused with the automatic and custom padding - outer and inner are for the input
@@ -601,9 +617,9 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
         padding_label.pack(side="top", padx=10, pady=10)
         # ToolTip(padding_label, "- Show only always-visible pixels: Padding for pose images will increase to show how much space is visible in all instances of that pose image. (Recommended)\n\n- Show all theoretically-visible pixels: Same as above, but padding also contains space that is not visible in some pose boxes.\n\n- None: No extra automatic padding is applied. Recommended if using the \"Custom padding\" option.")
 
-        self.padding_type_option = tk.StringVar(value=self.padding_types[0])
+        self.automatic_padding_type_option = tk.StringVar(value=self.padding_types[0])
         
-        padding_type_optionmenu = tk.OptionMenu(search_options_frame, self.padding_type_option, *self.padding_types)
+        padding_type_optionmenu = tk.OptionMenu(search_options_frame, self.automatic_padding_type_option, *self.padding_types)
         padding_type_optionmenu.configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.bg_color, activeforeground=gui_shared.fg_color, width=28, anchor="w", justify="left", highlightthickness=1, highlightbackground=gui_shared.secondary_fg, bd=0, relief="flat")
         padding_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color)
         padding_type_optionmenu.pack(side="top", padx=10, pady=10)
@@ -622,8 +638,8 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
 
         tk.Label(custom_padding_frame, text="Custom padding amount:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
-        self.custom_padding = tk.StringVar()
-        self.custom_padding.set("0")
+        self.custom_padding_amount = tk.StringVar()
+        self.custom_padding_amount.set("0")
         # self.custom_padding = tk.IntVar()
         # self.custom_padding.set(0)
         # custom_padding_entry = tk.Entry(custom_padding_frame, bg=gui_shared.field_bg, fg=gui_shared.fg_color, textvariable=self.custom_padding, width=8) # string values will mess everything up!
@@ -632,7 +648,7 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
         # custom_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(custom_padding_entry, "Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding, this will add the automatic and custom padding together.\n(Negative values are allowed, and will instead subtract from automatic padding without cutting off any of the pose images.)")
         add_widget(
-            tk.Entry, custom_padding_frame, {'width':6, 'textvariable':self.spacing_y_separation}, {'text':"""
+            tk.Entry, custom_padding_frame, {'width':6, 'textvariable':self.custom_padding_amount}, {'text':"""
 Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding,
 this will add the automatic and custom padding together.
 
@@ -806,7 +822,7 @@ existing data, go for it.)
             self.layer_data.append(blank_layer)
             # self.layer_thumbnails.append(None)
 
-        self.redraw_layer_cards()
+        self.redraw_all_layer_cards()
 
     def add_image_layers(self, data = None, add_to_top = True):
         # paths = filedialog.askopenfilenames(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
@@ -820,15 +836,17 @@ existing data, go for it.)
             data = []
             for path in paths:
                 # data.append({"path": search_image_path, "name": os.path.splitext(os.path.basename(search_image_path))[0], "alt_source": None})
-                data.append({"name": os.path.splitext(os.path.basename(search_image_path))[0], "search_image_path": path})
+                data.append({"name": os.path.splitext(os.path.basename(path))[0], "search_image_path": path})
         # else:
         #     paths = []
         #     for d in data:
         #         # paths.append(d["path"])
         #         pass
-        
+        image_size = None
+
         # for i, path in enumerate(paths):
-        for d in data:
+        # for d in data:
+        for d in (reversed(data) if add_to_top else data):
         # for i in (range(data) if add_to_top else range(data, -1, -1)):
 
 
@@ -841,6 +859,7 @@ existing data, go for it.)
             is_cosmetic_only = d.get("is_cosmetic_only")
             search_image_path = d.get("search_image_path")
             source_image_path = d.get("source_image_path")
+            export_layer_images = d.get("export_layer_images")
 
             # name = data[i].get("name")
             # is_border = data[i].get("is_border")
@@ -849,19 +868,39 @@ existing data, go for it.)
             # source_image_path = data[i].get("source_image_path")
 
             # image = Image.open(search_image_path)
-            with Image.open(search_image_path) as image:
-                thumb = image.copy()
+            # with Image.open(search_image_path) as image:
+            #     thumb = image.copy()
 
-            if len(self.layer_data):
-                if self.layer_data[0]["img"].size != thumb.size:
-                    image.close()
-                    messagebox.showwarning("Warning", "All images must be the same size")
+            if search_image_path: # TODO TODO TODO think of way to add this to card function versions of adding images. this is an important check!
+                with Image.open(search_image_path) as search_image:
+                    search_image_size = search_image.size
+
+                if image_size == None:
+                    image_size = search_image_size
+                elif image_size != search_image_size:
+                    messagebox.showwarning("Warning!", "All images must be the same size")
                     break
-            if self.border_image != None:
-                if self.border_image.size != thumb.size:
-                    image.close()
-                    messagebox.showwarning("Warning", "All images must be the same size as the border")
+
+            if source_image_path:
+                with Image.open(source_image_path) as source_image:
+                    source_image_size = source_image.size
+
+                if image_size == None:
+                    image_size = source_image_size
+                elif image_size != source_image_size:
+                    messagebox.showwarning("Warning!", "All images must be the same size")
                     break
+
+            # if len(self.layer_data):
+            #     if self.layer_data[0]["img"].size != thumb.size:
+            #         image.close()
+            #         messagebox.showwarning("Warning", "All images must be the same size")
+            #         break
+            # if self.border_image != None:
+            #     if self.border_image.size != thumb.size:
+            #         image.close()
+            #         messagebox.showwarning("Warning", "All images must be the same size as the border")
+            #         break
 
             # might want to move thumbnail stuff to redraw_image_entries(), but then we'll have to reopen the images and everything... not actually that bad i think
             # thumb.thumbnail((64, 64))
@@ -869,10 +908,11 @@ existing data, go for it.)
             
             new_layer = {
                 "name": name,
-                "is_border": is_border != None,
-                "is_cosmetic_only": is_cosmetic_only != None,
                 "search_image_path": search_image_path,
-                "source_image_path": source_image_path
+                "source_image_path": source_image_path,
+                "is_border": is_border == True,
+                "is_cosmetic_only": is_cosmetic_only == True,
+                "export_layer_images": export_layer_images == True
             }
 
             if add_to_top:
@@ -886,15 +926,30 @@ existing data, go for it.)
 
         
         
-        self.redraw_layer_cards()
+        self.redraw_all_layer_cards()
         # self.update_preview()
         # self.update_preview_button.configure(bg="#ffff00", fg="#000000")
         self.set_preview_button(True)
 
-    def get_layer_thumbnail(self, layer_index):
-        if self.layer_data[layer_index].get("search_image_path"):
-            with Image.open(self.layer_data[layer_index].get("search_image_path")) as image:
-                return image.thumbnail((64, 64))
+    # def get_layer_thumbnail(self, layer_index):
+    def create_layer_thumbnail(self, layer_index):
+        try:
+            if self.layer_data[layer_index].get("search_image_path"):
+                with Image.open(self.layer_data[layer_index].get("search_image_path")) as image:
+                    # image.show()
+                    # image.copy().thumbnail((64,64)).show()
+                    # return image.copy().thumbnail((64, 64))
+
+                    thumbnail = image.copy()
+                thumbnail.thumbnail((64,64))
+
+                # self.layer_data[layer_index].update({"thumbnail":thumbnail})
+                self.layer_data[layer_index].update({"thumbnail":ImageTk.PhotoImage(thumbnail)})
+
+                # return ImageTk.PhotoImage(thumbnail)
+        except Exception as e:
+            # print("invalid border image:",e)
+            self.layer_data[layer_index].update({"thumbnail":None})
 
     def add_border_layer(self):
         self.layer_data.append({
@@ -906,7 +961,7 @@ existing data, go for it.)
         })
         # self.layer_thumbnails.append(None)
 
-        self.redraw_layer_cards()
+        self.redraw_all_layer_cards()
         # scroll all the way down?
 
 
@@ -942,328 +997,252 @@ existing data, go for it.)
             self.layer_data[index], self.layer_data[new_index] = self.layer_data[new_index], self.layer_data[index]
             # self.layer_thumbnails[index], self.layer_thumbnails[new_index] = self.layer_thumbnails[new_index], self.layer_thumbnails[index]
 
-            self.redraw_layer_cards()
+            # self.redraw_layer_cards()
+            
+            self.redraw_layer_card(index)
+            self.redraw_layer_card(new_index)
+
             # self.update_preview()
             # self.update_preview_button.configure(bg="#ffff00", fg="#000000")
             self.set_preview_button(True)
 
-    def delete_layer(self, index):
-        # close image
-        # self.layer_data[index]["img"].close()
+    def delete_layer(self, layer_index):
+        had_search_image = self.layer_data[layer_index].get("search_image_path") != None
 
-        del self.layer_data[index]
-        # del self.layer_thumbnails[index]
-        self.redraw_layer_cards()
-        # self.update_preview()
-        # self.update_preview_button.configure(bg="#ffff00", fg="#000000")
-        self.set_preview_button(True)
+        del self.layer_data[layer_index]
+
+        # could theoretically just do all layer cards *after* the deleted index, but also .redraw_all_layer_cards() has the necessary delete functionality
+        self.redraw_all_layer_cards()
+
+        if had_search_image: self.set_preview_button(True) # probably only set this if HAD a search image
 
     def redraw_layer_card(self, layer_index):
-        pass
-
-    def redraw_layer_cards(self):
-        # # tk.Frame(self.scrollable_frame, height=100, width=0).pack(side="top", fill="x", expand=True, padx=10)
-        # for widget in self.scrollable_frame.winfo_children():
-        #     widget.destroy()
-
-        # temp = tk.Frame(self.scrollable_frame, height=100, width=self.scrollable_frame.cget('width') - 10)
-        # temp.pack(side="top", fill="x", expand=True, padx=10)
-        # temp.update()
-        # print({"bozo":temp.winfo_width()})
-    
-    
-    # def TEMPredraw_layer_cards(self):
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
-
-        for i, data in enumerate(self.layer_data):
-            is_border = data.get("is_border") == True
-            is_cosmetic_only = data.get("is_cosmetic_only") == True
-
-            # name_entry = None
-            # search_entry = None
-            # source_entry = None
-
-            # card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, relief=tk.RIDGE, bd=2, padx=5, pady=5)
-            # card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, relief=tk.RIDGE, bd=2)
+        # If card frame doesn't exist, create a new one. If it does, might as well use the existing one so we don't have to worry about re-ordering everything.
+        card_frame = None
+        if layer_index >= len(self.scrollable_frame.winfo_children()):
             card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-            # card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg, width=(self.scrollable_frame.winfo_width() - 20))
-            # card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg, width=1000)
-            # card_frame.pack(fill="x", anchor="w", pady=2, padx=(10, 0))
-            # card_frame.pack(fill="x", expand=True, pady=2, padx=10)
-            card_frame.pack(side="top", fill="x", expand=True, pady=2, padx=10)
-            # card_frame.pack(fill="x", pady=2, padx=10)
-            # card_frame.pack(pady=2, padx=10)
-            # frame.pack_propagate(True)
+            # card_frame.pack(side="top", fill="x", expand=True, pady=2, padx=10)
+            card_frame.pack(side="top", fill="x", expand=True, pady=5, padx=10)
+        else:
+            card_frame = self.scrollable_frame.winfo_children()[layer_index]
+            card_frame.configure(width=0)
+            card_frame.pack_propagate(True)
 
-            # card_height = 0
+            # Destroy all existing widgets.
+            for widget in card_frame.winfo_children():
+                widget.destroy()
+        
+        # Get this layer's data, for convenience
+        data = self.layer_data[layer_index]
 
-            content_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg)
-            content_frame.pack(side="left", fill="both", expand=True)
+        # Lots of things are formatted differently based on chosen settings 
+        is_border = data.get("is_border") == True
+        is_cosmetic_only = data.get("is_cosmetic_only") == True
 
-            content_top_frame = tk.Frame(content_frame, bg=gui_shared.secondary_bg)
-            content_top_frame.pack(side="top", fill="both", expand=True)
+        # Contains everything but the buttons on the right
+        content_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg)
+        content_frame.pack(side="left", fill="both", expand=True)
 
-            content_left_frame = tk.Frame(content_top_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg, width=80)
-            content_left_frame.pack(side="left", fill="y")
+        # Contains thumbnail, layer num, and entries
+        content_top_frame = tk.Frame(content_frame, bg=gui_shared.secondary_bg)
+        content_top_frame.pack(side="top", fill="both", expand=True)
 
-            # tk.Label(card_frame, text=f"Layer {i+1}", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).grid(row=0, column=1, sticky="w")
-            # tk.Label(content_left_frame, text=("Border" if is_border else f"Layer {i+1}"), bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="top", fill="x", padx=10, pady=(10,0))
-            tk.Label(content_left_frame, text=f"Layer {i+1}", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="top", fill="x", padx=10, pady=(10,0))
+        # Contains thumbnail and layer num
+        content_left_frame = tk.Frame(content_top_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg, width=80)
+        content_left_frame.pack(side="left", fill="y")
 
-            # img_label = tk.Label(frame, image=data["thumb"], bg=gui_shared.secondary_bg)
+        tk.Label(content_left_frame, text=f"Layer {layer_index+1}", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="top", fill="x", padx=10, pady=(10,0))
 
-            # image thumbnails nonfunctional because indexes are misaligned because not every layer will have a thumbnail since some can be empty
-            # img_label = tk.Label(frame, image=self.layer_thumbnails[i], bg=gui_shared.secondary_bg)
-            # img_label.grid(row=0, column=0, rowspan=2, padx=5)
+        if data.get("search_image_path") and not ("thumbnail" in data): # If a thumbnail could exist and does not, create it
+            self.create_layer_thumbnail(layer_index)
 
-            tk.Label(content_left_frame, self.get_layer_thumbnail(i), bg=gui_shared.field_bg).pack(side="top", fill="both", expand=True, padx=10, pady=10)
+        # Place thumbnail. (I eventually want a checkerboard background for better visibility, but I don't know if it would actually help since the imgs are so small)
+        tk.Label(content_left_frame, image=data.get("thumbnail"), bg=gui_shared.field_bg).pack(side="top", fill="both", expand=True, padx=10, pady=10)
+        # thumbnail_label = tk.Label(content_left_frame, image=data.get("thumbnail"), bg=gui_shared.field_bg)
+        # thumbnail_label.pack_propagate(False)
+        # thumbnail_label.configure(height=thumbnail_label.winfo_width())
+        # thumbnail_label.pack(side="top", fill="both", expand=True, padx=10, pady=10)
 
-            content_right_frame = tk.Frame(content_top_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-            content_right_frame.pack(side="right", fill="both", expand=True)
+        # Contains the entries, plus their respective buttons and labels
+        content_right_frame = tk.Frame(content_top_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+        content_right_frame.pack(side="right", fill="both", expand=True)
 
-            # if not is_border:
-            name_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
-            name_frame.pack(side="top", fill="x", padx=10, pady=(10,0))
-            # name_frame.pack_propagate(False)
+        # Separate frame for name label & entry, for formatting's sake
+        name_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
+        name_frame.pack(side="top", fill="x", padx=10, pady=(10,0))
 
-                # tk.Label(card_frame, text="Name:", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).grid(row=1, column=1, sticky="e")
-            tk.Label(name_frame, text=("Border" if is_border else "Name:"), bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(0,5))
-                # name_entry = tk.Entry(frame, width=15, bg=gui_shared.field_bg, fg=gui_shared.fg_color)
-                # name_entry.bind("<FocusIn>", self.on_entry_FocusIn, add="+")
-                # name_entry.bind("<FocusOut>", self.on_entry_FocusOut, add="+")
-                # name_entry.grid(row=1, column=2, sticky="w")
+        tk.Label(name_frame, text=("Border" if is_border else "Name:"), bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(0,5))
 
-            if not is_border:
-                # name_entry = add_widget(tk.Entry, card_frame, {'width':15}, {'text':"Enter this layer's name."})
-                name_entry = add_widget(tk.Entry, name_frame, {'width':0}, {'text':"Enter this layer's name."})
-                # name_entry.grid(row=1, column=2, sticky='w')
-                name_entry.pack(side="left", fill="x", expand=True)
-                # name_entry.pack_propagate(False)
-
-                # name_entry.insert(0, data["name"])
-                if data.get("name"):
-                    name_entry.insert(0, data.get("name"))
-
-                # MIGHT be a good idea to have variables for this stuff, but like................ too much work maybe.
-                def save_name(e, entry=data, entry_widget=name_entry):
-                    # entry["name"] = entry_widget.get()
-                    # entry["name"] = entry_widget.get()
-
-                    entry.update({"name":entry_widget.get()})
-
-                # def save_name(_):
-                #     data["name"] = name_entry.get()
-
-                name_entry.bind("<FocusOut>", save_name, add="+")
-
-                # card_height += 32
-
-
-            search_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
-            search_frame.pack(side="top", fill="x", padx=10, pady=((10,0) if is_border else 0))
-            # search_frame.pack_propagate(False)
-
-            tk.Label(
-                search_frame, text=("Image:" if is_border or is_cosmetic_only else "Search img:"), bg=gui_shared.secondary_bg, fg=gui_shared.fg_color
-            ).pack(side="left", padx=(0,5))
-
-            # search_entry_frame = tk.Frame(search_frame, bg=gui_shared.bg_color)
-            # search_entry_frame.pack(side="left", fill="x")
-
-            search_entry = add_widget(tk.Entry, search_frame, {'width':1}, {'text':"Enter the path to this layer's image, which will be searched for poses."})
-            # search_entry = add_widget(tk.Entry, search_entry_frame, {'width':1}, {'text':"Enter the path to this layer's image, which will be searched for poses."})
-            search_entry.pack(side="left", fill="x", expand=True)
-            # search_entry.pack_propagate(False)
-            # search_entry.insert(0, data["search_image_path"])
-            if data.get("search_image_path"):
-                search_entry.insert(0, data.get("search_image_path"))
-
-            # def save_search_image(e = None):
-            #     data["search_image_path"] = search_entry.get()
-            def save_search_image(e = None, entry=data, entry_widget=search_entry):
-                # entry["search_image_path"] = entry_widget.get()
-
-                entry.update({"search_image_path":entry_widget.get()})
-
-                self.redraw_layer_cards()
-                self.set_preview_button(True)
-
-            search_entry.bind("<FocusOut>", save_search_image, add="+")
-
-            # def pick_search_image():
-            #     search_entry.delete(0, tk.END)
-            #     search_entry.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
-            #     save_search_image()
-            def pick_search_image(entry=data, entry_widget=search_entry):
-                # entry["name"] = entry_widget.get()
-                entry_widget.delete(0, tk.END)
-                entry_widget.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
-                save_search_image(entry=entry, entry_widget=entry_widget)
+        if not is_border:
+            # Uses custom function that styles widget automatically, and also adds some binds that are tedious to do manually
+            name_entry = add_widget(tk.Entry, name_frame, {'width':1}, {'text':"Enter this layer's name."})
+            name_entry.pack(side="left", fill="x", expand=True)
             
-            search_button = tk.Button(search_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_search_image)
-            search_button.pack(side="left", padx=(10,0), pady=((0 if is_border else 10),(10 if (is_cosmetic_only and not is_border) else 0)))
+            if data.get("name"): # If a name already exists, use it
+                name_entry.insert(0, data.get("name"))
+
+            def save_name(e, entry=data, entry_widget=name_entry): # Uses parameters rather than relying on normal variables, which usually only apply to latest layer
+                entry.update({"name":entry_widget.get()})
+
+            # It might be easier to use, say, a tk.StringVar(), but this feels better because layers can be created and destroyed dynamically & I don't wanna worry
+            # about updating a bunch of lists of variables and stuff
+            name_entry.bind("<FocusOut>", save_name, add="+")
+
+        # Separate frame for search image label, entry, and button
+        search_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
+        search_frame.pack(side="top", fill="x", padx=10, pady=((10,0) if is_border else 0))
+
+        tk.Label(
+            search_frame, text=("Image:" if is_border or is_cosmetic_only else "Search img:"), bg=gui_shared.secondary_bg, fg=gui_shared.fg_color
+        ).pack(side="left", padx=(0,5))
+
+        search_entry = add_widget(tk.Entry, search_frame, {'width':1}, {'text':"Enter the path to this layer's image, which will be searched for poses."})
+        search_entry.pack(side="left", fill="x", expand=True)
+        
+        if data.get("search_image_path"):
+            search_entry.insert(0, data.get("search_image_path"))
+
+        def save_search_image(e = None, entry=data, entry_widget=search_entry, i=layer_index):
+            entry.update({"search_image_path":entry_widget.get()})
             
-            if not is_border and not is_cosmetic_only:
-                # card_height += 32
-                source_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
-                source_frame.pack(side="top", fill="x", padx=10)
-                # source_frame.pack_propagate(False)
+            self.create_layer_thumbnail(i) # Force a thumbnail update
+            self.redraw_layer_card(i) # Only need to redraw THIS card
 
-                tk.Label(source_frame, text="Source img:", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(0,5))
+            self.set_preview_button(True)
 
-                source_entry = add_widget(tk.Entry, source_frame, {'width':1}, {'text':"""
+        search_entry.bind("<FocusOut>", save_search_image, add="+")
+
+        def pick_search_image(entry=data, entry_widget=search_entry):
+            entry_widget.delete(0, tk.END)
+            entry_widget.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
+            save_search_image(entry=entry, entry_widget=entry_widget)
+            
+        search_button = tk.Button(search_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_search_image)
+        search_button.pack(side="left", padx=(10,0), pady=((0 if is_border else 10),(10 if (is_cosmetic_only and not is_border) else 0)))
+            
+        if not is_border and not is_cosmetic_only:
+            source_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
+            source_frame.pack(side="top", fill="x", padx=10)
+
+            tk.Label(source_frame, text="Source img:", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(0,5))
+
+            source_entry = add_widget(tk.Entry, source_frame, {'width':1}, {'text':"""
 (OPTIONAL!) The search image is used to find identical copies, but the source image is used for the
 actual image output. If no source image is selected, the search image will be used instead.
 
 (Just leave this empty if you're not sure.)""".strip()})
-                source_entry.pack(side="left", fill="x", expand=True)
-                # source_entry.pack_propagate(False)
-                # source_entry.insert(0, data["source_image_path"])
-                if data.get("source_image_path"):
-                    source_entry.insert(0, data.get("source_image_path"))
+            source_entry.pack(side="left", fill="x", expand=True)
+            
+            if data.get("source_image_path"):
+                source_entry.insert(0, data.get("source_image_path"))
 
-                # def save_source_image(e = None):
-                #     data["source_image_path"] = source_entry.get()
-                def save_source_image(e = None, entry=data, entry_widget=source_entry):
-                    # entry["source_image_path"] = entry_widget.get()
-                    entry.update({"source_image_path":entry_widget.get()})
+            def save_source_image(e = None, entry=data, entry_widget=source_entry):
+                entry.update({"source_image_path":entry_widget.get()})
 
+            source_entry.bind("<FocusOut>", save_source_image, add="+")
 
-                source_entry.bind("<FocusOut>", save_source_image, add="+")
-
-                # def pick_source_image():
-                #     source_entry.delete(0, tk.END)
-                #     source_entry.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
-                #     save_source_image()
-                def pick_source_image(entry=data, entry_widget=source_entry):
-                    # entry["name"] = entry_widget.get()
-                    entry_widget.delete(0, tk.END)
-                    entry_widget.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
-                    save_source_image(entry=entry, entry_widget=entry_widget)
+            def pick_source_image(entry=data, entry_widget=source_entry):
+                entry_widget.delete(0, tk.END)
+                entry_widget.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
+                save_source_image(entry=entry, entry_widget=entry_widget)
                 
-                source_button = tk.Button(source_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_source_image)
-                source_button.pack(side="left", padx=(10,0), pady=(0,10))
+            source_button = tk.Button(source_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_source_image)
+            source_button.pack(side="left", padx=(10,0), pady=(0,10))
 
             
-            right_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-            right_frame.pack(side="right", fill="y")
+        right_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+        right_frame.pack(side="right", fill="y")
 
+        if not is_border:
+            x_button = tk.Button(right_frame, width=2, text="X", fg=gui_shared.danger_fg, command=lambda idx=layer_index: self.delete_layer(idx), bg=gui_shared.button_bg)
+            x_button.pack(side="top", padx=10, pady=(10,0))
+            ToolTip(x_button, f"Delete layer {layer_index+1}")
 
-            # alt_source_button = tk.Button(card_frame, text="@", bg=gui_shared.button_bg, fg=("#00f870" if data["alt_source"] else gui_shared.fg_color))
-            # # alt_source_button.grid(row=0, column=3, rowspan=2, padx=5)
-            # alt_source_button.grid(row=0, column=3, padx=5)
-            # alt_source_button.configure(command=lambda idx=i, widget=alt_source_button: self.add_alternate_image_source(idx, widget))
-            # ToolTip(alt_source_button, "Add an alternate image that will be used as the source for exported pose images.\n\nThe main image is the one being searched, and by default, the source for\npose images as well. Adding an alternate image makes it so replacing one large sheet's poses with\nanother's is easier, and you don't have to manually copy-paste everything.\n\n(Just leave this alone if you're not sure.)")
+        down_button = tk.Button(right_frame, width=2, text="↓", command=lambda idx=layer_index: self.move_image(idx, 1), bg=gui_shared.button_bg, fg=gui_shared.fg_color)
 
-            if not is_border:
-                # x_button = tk.Button(card_frame, text="X", fg="red", command=lambda idx=i: self.delete_layer(idx), bg=gui_shared.button_bg)
-                x_button = tk.Button(right_frame, width=2, text="X", fg=gui_shared.danger_fg, command=lambda idx=i: self.delete_layer(idx), bg=gui_shared.button_bg)
-                # x_button.grid(row=0, column=3, rowspan=2, padx=5)
-                # x_button.grid(row=1, column=3, padx=5)
-                x_button.pack(side="top", padx=10, pady=(10,0))
-                ToolTip(x_button, f"Delete layer {i+1}")
+        down_button.pack(side="bottom", padx=10, pady=(0,10))
+        ToolTip(down_button, "Reorder " + ("border" if is_border else f"layer {layer_index+1}") + " downwards")
 
-            # down_button = tk.Button(card_frame, text="↓", command=lambda idx=i: self.move_image(idx, 1), bg=gui_shared.button_bg, fg=gui_shared.fg_color)
-            down_button = tk.Button(right_frame, width=2, text="↓", command=lambda idx=i: self.move_image(idx, 1), bg=gui_shared.button_bg, fg=gui_shared.fg_color)
-            # down_button.grid(row=1, column=4, padx=5)
-            down_button.pack(side="bottom", padx=10, pady=(0,10))
-            ToolTip(down_button, "Reorder " + ("border" if is_border else f"layer {i+1}") + " downwards")
+        up_button = tk.Button(right_frame, width=2, text="↑", command=lambda idx=layer_index: self.move_image(idx, -1), bg=gui_shared.button_bg, fg=gui_shared.fg_color)
+        up_button.pack(side="bottom", padx=10, pady=(10,0))
+        ToolTip(up_button, "Reorder " + ("border" if is_border else f"layer {layer_index+1}") + " upwards")
 
-            # up_button = tk.Button(card_frame, text="↑", command=lambda idx=i: self.move_image(idx, -1), bg=gui_shared.button_bg, fg=gui_shared.fg_color)
-            up_button = tk.Button(right_frame, width=2, text="↑", command=lambda idx=i: self.move_image(idx, -1), bg=gui_shared.button_bg, fg=gui_shared.fg_color)
-            # up_button.grid(row=0, column=4)
-            up_button.pack(side="bottom", padx=10, pady=(10,0))
-            ToolTip(up_button, "Reorder " + ("border" if is_border else f"layer {i+1}") + " upwards")
+        if not is_border:
+            footer = tk.Frame(content_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+            footer.pack(side="bottom", fill="both")
 
-            if not is_border:
-                # card_height += 32
-                footer = tk.Frame(content_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-                footer.pack(side="bottom", fill="both")
+            cosmetic_checkbutton = tk.Checkbutton(footer, text="Cosmetic only", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False)
+            cosmetic_checkbutton.pack(side="left", padx=10, pady=5)
+            if is_cosmetic_only: cosmetic_checkbutton.select()
+            ToolTip(cosmetic_checkbutton, "If selected, this layer will not be searched for pose images. Instead, the provided image will be exported alongside the pose images.")
 
-                cosmetic_checkbutton = tk.Checkbutton(footer, text="Cosmetic only", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False)
-                cosmetic_checkbutton.pack(side="left", padx=10, pady=5)
-                if is_cosmetic_only: cosmetic_checkbutton.select()
-                ToolTip(cosmetic_checkbutton, "If selected, this layer will not be searched for pose images. Instead, the provided image will be exported alongside the pose images.")
+            def save_cosmetic_check(entry=data, cosmetic=is_cosmetic_only, i=layer_index):
+                entry.update({"is_cosmetic_only": not cosmetic})
 
-                # def save_cosmetic_check():
-                def save_cosmetic_check(entry=data, cosmetic=is_cosmetic_only):
-                    # data["is_cosmetic_only"] = cosmetic_checkbutton.cget("indicatoron")
-                    # data["is_cosmetic_only"] = not is_cosmetic_only # QUITE nervous about this; it's not really reliable, right?
-                    # entry["is_cosmetic_only"] = not cosmetic # QUITE nervous about this; it's not really reliable, right?
-
-                    entry.update({"is_cosmetic_only": not cosmetic})
-
-
-                    self.redraw_layer_cards() # change to just ONE image entry, when we get around to it
+                # self.redraw_layer_cards() # change to just ONE image entry, when we get around to it
+                self.redraw_layer_card(i) # change to just ONE image entry, when we get around to it
                 
-                cosmetic_checkbutton.configure(command=save_cosmetic_check)
+            cosmetic_checkbutton.configure(command=save_cosmetic_check)
 
-                # if not is_cosmetic_only:
-                if is_cosmetic_only:
-                    data.update({"export_layer_images":True})
+            if is_cosmetic_only:
+                data.update({"export_layer_images":True})
                 
-                export_checkbutton = tk.Checkbutton(footer, text="Export copies", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, state="disabled" if is_cosmetic_only else "normal")
-                export_checkbutton.pack(side="left", padx=(0,10), pady=5)
-                if data.get("export_layer_images"): export_checkbutton.select()
-                ToolTip(export_checkbutton, "If selected, copies of the search and source image will be provided in addition to pose images.")
+            export_checkbutton = tk.Checkbutton(footer, text="Export copies", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, state="disabled" if is_cosmetic_only else "normal")
+            export_checkbutton.pack(side="left", padx=(0,10), pady=5)
+            if data.get("export_layer_images"): export_checkbutton.select()
+            ToolTip(export_checkbutton, "If selected, copies of the search and source image will be provided in addition to pose images.")
 
-                    # def save_export_check():
-                def save_export_check(entry=data):
-                        # data["export_layer_images"] = export_checkbutton.cget()
-                        # data["export_layer_images"] = not data["export_layer_images"]
-                        # entry["export_layer_images"] = not entry["export_layer_images"]
-                    entry.update({"export_layer_images": entry.get("export_layer_images") != True})
-                        # self.redraw_image_entries() # change to just ONE image entry, when we get around to it
-                    
-                export_checkbutton.configure(command=save_export_check)
-                # else:
-                #     data["export_layer_images"] = True
-            else:
-                data["is_cosmetic_only"] = True
-                data["export_layer_images"] = True
+            def save_export_check(entry=data):
+                entry.update({"export_layer_images": entry.get("export_layer_images") != True})
+                
+            export_checkbutton.configure(command=save_export_check)
+        else:
+            data["is_cosmetic_only"] = True
+            data["export_layer_images"] = True
             
-            # card_frame.configure(height=card_height)
+        # card_frame.update()
+        # # content_right_frame.update()
+        # card_height = card_frame.winfo_height() # DEFINITELY put these in their own function - NO REASON to have this ONLY happen when cards are recreated entirely, we can just change width of existing cards without recreating them
+        # # content_right_frame_width = content_right_frame.winfo_width()
+        # card_frame.pack_propagate(False)
+        # # content_right_frame.pack_propagate(False)
+        # card_frame.configure(width=self.scrollable_frame.cget('width') - 18, height=card_height) # need to calibrate width such that padding and scrollbar is kept in mind. COULD definitely do something like the height, and only .pack() stuff with card_frame as master at the very end? but you'd need to do smth like, "save the width, then after everything's packed you can save the height and THEN turn off pack_propagate"
+        # # content_right_frame.configure(width=content_right_frame_width)
+        # card_frame.update()
+        # # content_right_frame.update()
+
+        self.update_layer_card_width(layer_index)
+
+        gui_shared.bind_event_to_all_children(card_frame, "<MouseWheel>", self.on_left_frame_mousewheel)
+        gui_shared.bind_event_to_all_children(card_frame, "<Button-1>", gui_shared.on_global_click)
+
+    def redraw_all_layer_cards(self):
+        for widget in self.scrollable_frame.winfo_children():
+            widget.destroy()
+
+        for i in range(len(self.layer_data)):
+            self.redraw_layer_card(i)
+
+    def update_layer_card_width(self, layer_index):
+        # card_frame = None
+        if layer_index >= len(self.scrollable_frame.winfo_children()):
+            # card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+            # card_frame.pack(side="top", fill="x", expand=True, pady=2, padx=10)
+            return # idk PROBABLY raise exception? idk!!!
+        else:
+            # get card
+            card_frame = self.scrollable_frame.winfo_children()[layer_index]
+
+            # reset card size to what it wants to be automatically
+            card_frame.configure(width=0)
+            card_frame.pack_propagate(True)
             card_frame.update()
-            content_right_frame.update()
-            card_height = card_frame.winfo_height() # DEFINITELY put these in their own function - NO REASON to have this ONLY happen when cards are recreated entirely, we can just change width of existing cards without recreating them
-            content_right_frame_width = content_right_frame.winfo_width()
-            card_frame.pack_propagate(False)
-            content_right_frame.pack_propagate(False)
+            
+            card_height = card_frame.winfo_height() # get automatically-sized height
+            card_frame.pack_propagate(False) # stop using automatic size
             card_frame.configure(width=self.scrollable_frame.cget('width') - 18, height=card_height) # need to calibrate width such that padding and scrollbar is kept in mind. COULD definitely do something like the height, and only .pack() stuff with card_frame as master at the very end? but you'd need to do smth like, "save the width, then after everything's packed you can save the height and THEN turn off pack_propagate"
-            content_right_frame.configure(width=content_right_frame_width)
             card_frame.update()
-            content_right_frame.update()
 
-            # if search_entry != None:
-            #     search_entry.update()
-            #     search_entry.configure(width=search_entry.winfo_width())
-            #     search_entry.update()
-            #     # search_entry.configure(width=search_entry.winfo_width() - search_button.winfo_width() - 10)
-            #     # width = search_entry.winfo_width()
-            #     # search_entry.configure(width=0)
-            #     # search_entry.place(width=width)
-            
-            # if source_entry != None:
-            #     source_entry.update()
-            #     source_entry.configure(width=source_entry.winfo_width())
-            #     source_entry.update()
-            #     # source_entry.configure(width=source_entry.winfo_width() - source_button.winfo_width() - 10)
-            #     # width = source_entry.winfo_width()
-            #     # source_entry.configure(width=0)
-            #     # source_entry.place(width=width)
-
-            gui_shared.bind_event_to_all_children(card_frame, "<MouseWheel>", self.on_left_frame_mousewheel)
-            gui_shared.bind_event_to_all_children(card_frame, "<Button-1>", gui_shared.on_global_click)
-
-        
-        # self.scrollable_frame.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
-
-    # def add_alternate_image_source(self, index, widget):
-    #     path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
-    #     if path:
-    #         self.layer_data[index]["alt_source"] = path
-    #         widget.configure(fg="#00f870")
 
     def set_preview_button(self, can_update = True):
         # new_config = ({'bg':gui_shared.warning_bg, 'fg':gui_shared.warning_fg} if can_update else {'bg':gui_shared.button_bg, 'fg':gui_shared.fg_color})
@@ -1293,10 +1272,12 @@ actual image output. If no source image is selected, the search image will be us
             offset = ((width - new_size[0]) // 2, (height - new_size[1]) // 2)
             base.paste(resized, offset, resized if resized.mode == 'RGBA' else None)
 
-        if self.border_image:
-            paste_center(composite, self.border_image)
-        for item in reversed(self.layer_data):
-            paste_center(composite, item["img"])
+        # if self.border_image:
+        #     paste_center(composite, self.border_image)
+        for layer in reversed(self.layer_data):
+            if layer.get("search_image_path"):
+                with Image.open(layer["search_image_path"]) as image:
+                    paste_center(composite, image)
 
         self.preview_image = ImageTk.PhotoImage(composite)
         self.preview_canvas.delete("all")
@@ -1306,64 +1287,296 @@ actual image output. If no source image is selected, the search image will be us
     #     self.zoom_level *= factor
     #     self.update_preview()
 
-    def export_layer_select_json(self):
-        name = self.name_entry_input.get()
-        if not name:
-            name = "unnamed_sprite_sheet"
+    def format_layer_json(self, paths_are_local = False):
+        # name = self.name_entry_input.get()
+        # if not name:
+            # name = "unnamed_sprite_sheet"
+        name = self.name_entry_input.get() or "unnamed_sprite_sheet"
 
-        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("Json File", "*.json")], initialfile="consistxels_" + name + "_layers.json")
-        if path:
+        header = {
+            "name": name,
+            "consistxels_version": consistxels_version,
+            "paths_are_local": paths_are_local,
+            # "width": None,
+            # "height": None
+        }
 
-            header = {
-                # "name": self.name_entry_input.get(),
-                "name": name,
+        search_data = {
+            "start_search_in_center": self.start_search_in_center.get(),
+            "search_right_to_left": self.search_right_to_left.get(),
+            "detect_identical_images": self.detect_identical_images.get(),
+            "detect_rotated_images": self.detect_rotated_images.get(),
+            "detect_flip_h_images": self.detect_flip_h_images.get(),
+            "detect_flip_v_images": self.detect_flip_v_images.get()
+        }
+
+        search_type = self.search_type_option.get()
+
+        search_type_data = {
+            "search_type": search_type
+        }
+
+        if search_type == "Border":
+            search_type_data.update({
                 "border_color": self.border_color,
-                "border_path": self.border_path,
-                "start_search_in_center": self.start_search_in_center.get(),
-                "search_right_to_left": self.search_right_to_left.get(),
-                "automatic_padding_type": self.padding_types.index(self.padding_type_option.get()),
-                "custom_padding_amount": self.custom_padding.get()
-            }
+                "spacing_rows": None,
+                "spacing_columns": None,
+                "spacing_outer_padding": None,
+                "spacing_inner_padding": None,
+                "spacing_x_separation": None,
+                "spacing_y_separation": None
+            })
+        elif search_type == "Spacing":
+            # try: # NO, use try/except in relevant functions so they can stop or continue accordingly
+            search_type_data.update({
+                "border_color": None,
+                "spacing_rows": int(self.spacing_rows.get()),
+                "spacing_columns": int(self.spacing_columns.get()),
+                "spacing_outer_padding": int(self.spacing_outer_padding.get()),
+                "spacing_inner_padding": int(self.spacing_inner_padding.get()),
+                "spacing_x_separation": int(self.spacing_x_separation.get()),
+                "spacing_y_separation": int(self.spacing_y_separation.get())
+            })
+            # except:
+            #     pass
+        # elif padding, save pose data!
+        
+        generation_data = {
+            "automatic_padding_type": self.automatic_padding_type_option.get(),
+            "custom_padding_amount": int(self.custom_padding_amount.get()),
+            "generate_empty_poses": self.generate_empty_poses.get()
+        }
 
-            layer_data = []
+        layer_data = []
+        for layer in self.layer_data:
+            search_image_path = layer.get("search_image_path")
+            if search_image_path and paths_are_local: search_image_path = (
+                f"{layer.get('name') or 'unnamed_layer'}{'' if (layer.get('is_border') or layer.get('is_cosmetic_only')) else '_search'}_image.png"
+            )
+            elif search_image_path == "": search_image_path = None
 
-            # for image in self.layer_data:
-            #     layer_data.append({"path": image["path"], "name": image["name"], "alt_source": image["alt_source"]})
+            source_image_path = layer.get("source_image_path")
+            if source_image_path and paths_are_local: source_image_path = f"{layer.get('name') or 'unnamed_layer'}_source_image.png"
+            elif source_image_path == "": source_image_path = None
 
-            export = {"header": header, "layer_data": layer_data}
+            layer_data.append({
+                "name": layer.get("name"),
+                "search_image_path": search_image_path,
+                "source_image_path": source_image_path,
+                "is_border": layer.get("is_border") == True,
+                "is_cosmetic_only": layer.get("is_cosmetic_only") == True,
+                "export_layer_images": layer.get("export_layer_images") == True
+            })
+        
+        formatted_data = {
+            "header": header,
+            "search_data": search_data,
+            "search_type_data": search_type_data,
+            "generation_data": generation_data,
+            "layer_data": layer_data,
+        }
 
+        # if search_type == padding, add pose data
+
+        if not paths_are_local:
+            output_folder_path = self.output_folder_path.get()
+            if output_folder_path and output_folder_path != "":
+                formatted_data.update({"output_folder_path":output_folder_path})
+
+        return formatted_data
+
+    def export_layerselect_all(self):
+        try:
+            formatted_data = self.format_layer_json(True)
+        except ValueError:
+            messagebox.showwarning("Warning!", "Please ensure all text input boxes are filled out correctly.\nIf a number is required, don't enter anything else.")
+            return
+        except Exception as e:
+            messagebox.showerror("Error", e)
+            return
+
+        path = filedialog.askdirectory(title="Choose a folder to save to (preferably empty)")
+        if path:
+            layer_data = formatted_data["layer_data"]
+            for i in range(len(layer_data)):
+                if self.layer_data[i].get("search_image_path"):
+                    with Image.open(self.layer_data[i].get("search_image_path")) as search_image:
+                        search_image.save(os.path.join(path, layer_data[i]["search_image_path"]))
+                
+                if self.layer_data[i].get("source_image_path"):
+                    with Image.open(self.layer_data[i].get("source_image_path")) as source_image:
+                        source_image.save(os.path.join(path, layer_data[i]["source_image_path"]))
+            
+            json_path = os.path.join(path, f"consistxels_layerselect_{formatted_data['header']['name']}.json")
+            with open(json_path, 'w') as file:
+                json.dump(formatted_data, file, indent=4)
+            
+            messagebox.showinfo("Success!", f".json file and all layer images exported")
+
+    def export_layerselect_json(self):
+        # name = self.name_entry_input.get()
+        # if not name:
+        #     name = "unnamed_sprite_sheet"
+        try:
+            formatted_data = self.format_layer_json(False)
+        except ValueError:
+            messagebox.showwarning("Warning!", "Please ensure all text input boxes are filled out correctly.\nIf a number is required, don't enter anything else.")
+            return
+        except Exception as e:
+            messagebox.showerror("Error", e)
+            return
+
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("Json File", "*.json")], initialfile=f"consistxels_layerselect_{formatted_data['header']['name']}.json")
+        if path:
             with open(path, 'w') as file:
-                json.dump(export, file, indent=4)
+                json.dump(formatted_data, file, indent=4)
+            
+            messagebox.showinfo("Success!", f"{os.path.basename(path)} exported")
 
-    def import_layer_select_json(self):
+            # header = {
+            #     # "name": self.name_entry_input.get(),
+            #     "name": name,
+            #     "border_color": self.border_color,
+            #     "border_path": self.border_path,
+            #     "start_search_in_center": self.start_search_in_center.get(),
+            #     "search_right_to_left": self.search_right_to_left.get(),
+            #     "automatic_padding_type": self.padding_types.index(self.automatic_padding_type_option.get()),
+            #     "custom_padding_amount": self.custom_padding_amount.get()
+            # }
+
+            # layer_data = []
+
+            # # for image in self.layer_data:
+            # #     layer_data.append({"path": image["path"], "name": image["name"], "alt_source": image["alt_source"]})
+
+            # export = {"header": header, "layer_data": layer_data}
+
+            # with open(path, 'w') as file:
+            #     json.dump(export, file, indent=4)
+
+    # Import a valid .json file.
+    def import_layerselect_json(self):
         path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
         if path:
             with open(path) as json_file:
                 json_data = json.load(json_file)
-                # header = json_data["header"]
+                
+            try:
                 header = json_data.get("header")
-                # layer_data = json_data["layer_data"]
+                search_data = json_data.get("search_data")
+                search_type_data = json_data.get("search_type_data")
+                generation_data = json_data.get("generation_data")
                 layer_data = json_data.get("layer_data")
+                pose_data = json_data.get("pose_data")
+                output_folder_path = json_data.get("output_folder_path")
 
+                # header
                 self.name_entry_input.set(header["name"])
 
-                self.update_border_color(self.format_color_string(header["border_color"]))
+                # in the future, if things are different between versions, do such checks and changes here
+                paths_are_local = header["paths_are_local"]
 
-                self.add_border(header["border_path"])
+                self.start_search_in_center.set(search_data.get("start_search_in_center"))
+                self.search_right_to_left.set(search_data.get("search_right_to_left"))
+                self.detect_identical_images.set(search_data.get("detect_identical_images"))
+                self.detect_rotated_images.set(search_data.get("detect_rotated_images"))
+                self.detect_flip_h_images.set(search_data.get("detect_flip_h_images"))
+                self.detect_flip_v_images.set(search_data.get("detect_flip_v_images"))
 
+                
+                # self.search_types[self.search_types.index(search_type_data.get("search_type"))]
+
+                # self.search_type_option.set(
+                #     self.search_types[self.search_types.index(search_type_data.get("search_type"))] # HOPEFULLY this works???
+                # )
+                self.search_type_option.set(search_type_data["search_type"]) # this should work, actually
+
+
+                if search_type_data["search_type"] == "Border":
+                    self.update_border_color(self.format_color_string(search_type_data["border_color"]))
+                elif search_type_data["search_type"] == "Spacing":
+                    self.spacing_rows.set(str(search_type_data["spacing_rows"]))
+                    self.spacing_columns.set(str(search_type_data["spacing_columns"]))
+                    self.spacing_outer_padding.set(str(search_type_data["spacing_outer_padding"]))
+                    self.spacing_inner_padding.set(str(search_type_data["spacing_inner_padding"]))
+                    self.spacing_x_separation.set(str(search_type_data["spacing_x_separation"]))
+                    self.spacing_y_separation.set(str(search_type_data["spacing_y_separation"]))
+                elif search_type_data["search_type"] == "Padding" and pose_data:
+                    self.pose_data = pose_data
+                    # need to think of clever way to not allow textbox entry, but to show that it's been loaded regardless? idk TODO TODO TODO TODO TODO
+
+                # self.add_border(header["border_path"])
                 # if header["start_search_in_center"]:
-                self.start_search_in_center.set(header["start_search_in_center"])
+                # self.search_right_to_left.set(header["search_right_to_left"])
 
-                self.search_right_to_left.set(header["search_right_to_left"])
                 # if header["search_right_to_left"]:
                     # pass
 
-                self.padding_type_option.set(self.padding_types[header["automatic_padding_type"]])
+                # self.automatic_padding_type_option.set(header["automatic_padding_type"])
+                # self.automatic_padding_type_option.set(self.padding_types[generation_data.get("automatic_padding_type")])
+                self.automatic_padding_type_option.set(generation_data.get("automatic_padding_type"))
 
-                self.custom_padding.set(header["custom_padding_amount"])
+                # self.custom_padding_amount.set(header["custom_padding_amount"])
+                self.custom_padding_amount.set(generation_data["custom_padding_amount"])
 
                 # delete current images too!!!
+                # self.add_image_layers(layer_data)
+
+                # delete any current layers
+                for i in range(len(self.layer_data)):
+                    self.delete_layer(i)
+                
+                # reformat layer paths if paths_are_local == True
+                if paths_are_local:
+                    curr_folder_path = os.path.dirname(path)
+
+                    for layer in layer_data:
+
+                        search_image_path = layer.get("search_image_path")
+                        # if search_image_path:
+                        #     layer["search_image_path"] = os.path.join(curr_folder_path,
+                        #         f"{layer.get('name') or 'unnamed_layer'}{'' if (layer.get('is_border') or layer.get('is_cosmetic_only')) else '_search'}_image.png"
+                        #     )
+                        if search_image_path:
+                            layer["search_image_path"] = os.path.join(curr_folder_path, search_image_path)
+                        
+                        source_image_path = layer.get("source_image_path")
+                        if source_image_path:
+                            layer["source_image_path"] = os.path.join(curr_folder_path, source_image_path)
+                
                 self.add_image_layers(layer_data)
+
+                if output_folder_path: self.output_folder_path.set(output_folder_path)
+            except json.JSONDecodeError as e:
+                messagebox.showerror("Error importing .json", e) # not sure for what reason i'd need to have these separated, but i guess it's nice to catch 'em
+            except Exception as e:
+                messagebox.showerror("Error importing .json", e)
+
+                # json_data = json.load(json_file)
+                # # header = json_data["header"]
+                # header = json_data.get("header")
+                # # layer_data = json_data["layer_data"]
+                # layer_data = json_data.get("layer_data")
+
+                # self.name_entry_input.set(header["name"])
+
+                # self.update_border_color(self.format_color_string(header["border_color"]))
+
+                # self.add_border(header["border_path"])
+
+                # # if header["start_search_in_center"]:
+                # self.start_search_in_center.set(header["start_search_in_center"])
+
+                # self.search_right_to_left.set(header["search_right_to_left"])
+                # # if header["search_right_to_left"]:
+                #     # pass
+
+                # self.automatic_padding_type_option.set(self.padding_types[header["automatic_padding_type"]])
+
+                # self.custom_padding_amount.set(header["custom_padding_amount"])
+
+                # # delete current images too!!!
+                # self.add_image_layers(layer_data)
     
     # def compile_data_into_dict(self):
     #     header = {
@@ -1435,77 +1648,81 @@ actual image output. If no source image is selected, the search image will be us
 
     def generate_button_pressed(self):
 
-        header = {
-            "name": self.name_entry_input.get(),
-            "consistxels_version": consistxels_version,
-            "paths_are_local": True, # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
-            "width": None, # get this figured out sooner probably?
-            "height": None # get this figured out sooner probably?
-        }
+        # header = {
+        #     "name": self.name_entry_input.get(),
+        #     "consistxels_version": consistxels_version,
+        #     "paths_are_local": True, # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
+        #     "width": None, # get this figured out sooner probably?
+        #     "height": None # get this figured out sooner probably?
+        # }
 
-        search_data = {
-            "start_search_in_center": self.start_search_in_center.get(),
-            "search_right_to_left": self.search_right_to_left.get(),
-            "detect_identical_images": True, # TODO
-            "detect_rotated_images": True, # TODO
-            "detect_flip_h_images": True, # TODO
-            "detect_flip_v_images": False # TODO
-        }
+        # search_data = {
+        #     "start_search_in_center": self.start_search_in_center.get(),
+        #     "search_right_to_left": self.search_right_to_left.get(),
+        #     "detect_identical_images": True, # TODO
+        #     "detect_rotated_images": True, # TODO
+        #     "detect_flip_h_images": True, # TODO
+        #     "detect_flip_v_images": False # TODO
+        # }
 
-        search_type_data = {
-            "search_type": self.search_type_option.get(),
-            "border_color": self.border_color,
-            "spacing_rows": self.spacing_grid_rows.get(), # TODO: change so can only be int
-            "spacing_columns": self.spacing_grid_columns.get(), # TODO: change so can only be int
-            "spacing_outer_padding": self.outer_padding.get(), # TODO: change so can only be int
-            "spacing_inner_padding": self.inner_padding.get(), # TODO: change so can only be int
-            "spacing_x_separation": self.spacing_x_separation.get(), # TODO: change so can only be int
-            "spacing_y_separation": self.spacing_y_separation.get() # TODO: change so can only be int
-        }
+        # search_type_data = {
+        #     "search_type": self.search_type_option.get(),
+        #     "border_color": self.border_color,
+        #     "spacing_rows": self.spacing_rows.get(), # TODO: change so can only be int
+        #     "spacing_columns": self.spacing_columns.get(), # TODO: change so can only be int
+        #     "spacing_outer_padding": self.spacing_outer_padding.get(), # TODO: change so can only be int
+        #     "spacing_inner_padding": self.spacing_inner_padding.get(), # TODO: change so can only be int
+        #     "spacing_x_separation": self.spacing_x_separation.get(), # TODO: change so can only be int
+        #     "spacing_y_separation": self.spacing_y_separation.get() # TODO: change so can only be int
+        # }
 
-        generation_data = {
-            "automatic_padding_type": self.padding_type_option.get(), # TODO: change so can only be int
-            "custom_padding_amount": self.custom_padding.get(), # TODO: change so can only be int
-            "generate_empty_poses": False # TODO
-        }
+        # generation_data = {
+        #     "automatic_padding_type": self.automatic_padding_type_option.get(), # TODO: change so can only be int
+        #     "custom_padding_amount": self.custom_padding_amount.get(), # TODO: change so can only be int
+        #     "generate_empty_poses": False # TODO
+        # }
 
-        # TODO: A LOT
-        layer_data = []
-        duplicate_layer_name = False
-        for layer in self.layer_data:
-            if layer["name"] in [image["name"] for image in layer_data]:
-                duplicate_layer_name = True
-                break
-            # layer_data.append({"path": layer["path"], "name": layer["name"], "alt_source": layer["alt_source"]})
-            layer_data.append({ # TODO TODO TODO
-                "name": layer["name"], "is_border": False, "is_cosmetic_only": False,
-                # "search_image_path": layer["path"], "source_image_path": layer["alt_source"],
-                "export_original_images": True
-            })
+        # # TODO: A LOT
+        # layer_data = []
+        # duplicate_layer_name = False
+        # for layer in self.layer_data:
+        #     if layer["name"] in [image["name"] for image in layer_data]:
+        #         duplicate_layer_name = True
+        #         break
+        #     # layer_data.append({"path": layer["path"], "name": layer["name"], "alt_source": layer["alt_source"]})
+        #     layer_data.append({ # TODO TODO TODO
+        #         "name": layer["name"], "is_border": False, "is_cosmetic_only": False,
+        #         # "search_image_path": layer["path"], "source_image_path": layer["alt_source"],
+        #         "export_original_images": True
+        #     })
 
-        if search_type_data["search_type"] == "Border": # TODO. can mostly just copy-and-paste this. still do want rigid control of the data in the border layer
-            layer_data.append({
-                "name": "border", "is_border": True, "is_cosmetic_only": True,
-                "search_image_path": self.border_path, "source_image_path": None,
-                "export_original_images": True
+        # if search_type_data["search_type"] == "Border": # TODO. can mostly just copy-and-paste this. still do want rigid control of the data in the border layer
+        #     layer_data.append({
+        #         "name": "border", "is_border": True, "is_cosmetic_only": True,
+        #         "search_image_path": self.border_path, "source_image_path": None,
+        #         "export_original_images": True
                 
-            })
+        #     })
 
-        pose_data = None
-        if self.search_type_option.get() == "Preset":
-            pass # TODO
+        # pose_data = None
+        # if self.search_type_option.get() == "Preset":
+        #     pass # TODO
         
-        data = {
-            "header": header, "search_data": search_data, "search_type_data": search_type_data,
-            "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
-        }
+        # data = {
+        #     "header": header, "search_data": search_data, "search_type_data": search_type_data,
+        #     "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
+        # }
+
+        data = self.format_layer_json(True)
 
         # check for output folder in entry, when I get around to adding it
-        TEMP_output_folder_path = filedialog.askdirectory(title="Select an output folder")
+        # TEMP_output_folder_path = filedialog.askdirectory(title="Select an output folder")
+        output_folder_path = self.output_folder_path.get()
 
-        if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and TEMP_output_folder_path:
+        # if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and output_folder_path:
+        if data.get("layer_data") and (self.name_entry_input.get() and self.name_entry_input.get() != "") and output_folder_path:
             try:
-                temp_json_data = {"data": data, "path": TEMP_output_folder_path}
+                temp_json_data = {"data": data, "path": output_folder_path}
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
                     json.dump(temp_json_data, temp_json_file)
@@ -1517,16 +1734,17 @@ actual image output. If no source image is selected, the search image will be us
             warning_output = ""
 
             # if self.border_path == None: warning_output += "Please add a border image"
-            if len(layer_data) <= 0:
+            # if len(layer_data) <= 0:
+            if not data.get("layer_data"):
                 if warning_output != "": warning_output += "\n"
                 warning_output += "Please add at least one layer"
-            if header["name"] == "":
+            if not (self.name_entry_input.get() and self.name_entry_input.get() != ""):
                 if warning_output != "": warning_output += "\n"
                 warning_output += "Please enter a name for this sprite sheet"
-            if duplicate_layer_name:
-                if warning_output != "": warning_output += "\n"
-                warning_output += "Ensure all layers have unique names"
-            if not TEMP_output_folder_path:
+            # if duplicate_layer_name: # do we NEED this???
+            #     if warning_output != "": warning_output += "\n"
+            #     warning_output += "Ensure all layers have unique names"
+            if not output_folder_path:
                 if warning_output != "": warning_output += "\n"
                 warning_output += "You must select an output folder first"
 
