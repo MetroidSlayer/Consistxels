@@ -125,7 +125,7 @@ def read_generate_stdout():
                         output_generate_progress(line, True)
                         return
                     case "done":
-                        print(line)
+                        # print(line)
                         output_generate_progress(line, True)
                         return
                     case "print":
@@ -141,16 +141,16 @@ def output_generate_progress(line, use_gui_process = False):
     if use_gui_process and gui_process != None:
         gui_process.stdin.write(line + "\n")
         gui_process.stdin.flush()
-    else:
+    else: # this presumes that the status is "update", which it shouldn't presume
         data = json.loads(line)
         value = data.get("value")
         header_text = data.get("header_text")
         info_text = data.get("info_text")
         
-        output_string = "|\t"
-        if value: output_string += f"Progress: {value}%\t|\t"
-        if header_text: output_string += f"{header_text}\t|\t"
-        if info_text: output_string += f"{info_text}\t|"
+        output_string = "|"
+        if value: output_string += f"\tProgress: {value}%\t|"
+        if header_text: output_string += f"\t{header_text}\t|"
+        if info_text: output_string += f"\t{info_text}\t|"
         print(output_string)
 
 def cancel_generate_process():

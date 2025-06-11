@@ -40,20 +40,34 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
         # Variable declaration
 
         # Taken from input, but updated versions are used in the output
-        input_header = input_data["header"]
-        input_layer_data = input_data["layer_data"]
-        input_pose_data = input_data["pose_data"]
+        # input_header = input_data["header"]
+        # input_layer_data = input_data["layer_data"]
+        # input_pose_data = input_data["pose_data"]
+
+        # # Also taken from input, but simply used in output as they are, with no modification
+        # search_data = input_data["search_data"]
+        # search_type_data = input_data["search_type_data"]
+        # generation_data = input_data["generation_data"]
+
+        # Taken from input, but updated versions are used in the output
+        input_header = input_data.get("header")
+        input_layer_data = input_data.get("layer_data")
+        input_pose_data = input_data.get("pose_data")
 
         # Also taken from input, but simply used in output as they are, with no modification
-        search_data = input_data["search_data"]
-        search_type_data = input_data["search_type_data"]
-        generation_data = input_data["generation_data"]
+        search_data = input_data.get("search_data")
+        search_type_data = input_data.get("search_type_data")
+        generation_data = input_data.get("generation_data")
 
         # Size is used in a few places, especially when generating full output in menu_loadjson, so it's calculated and stored in the header.
         # TODO: Throw exception if size is still (0,0) after that. Or I guess if either height or width is still 0, neither should be after all
         size = (0,0)
         layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
         with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
+        # layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
+        # layer_path = layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]
+        # if input_header["paths_are_local"]: layer_path = os.path.join(output_folder_path, layer_path)
+        # with Image.open(layer_path) as img:
             size = img.size
 
         # Match the search type
@@ -109,7 +123,8 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
         # Save OUTPUT layer data, useful if any layers are cosmetic-only or a border
         # print("saving layers")
         # output_layer_data = generate_layer_data(input_layer_data, output_folder_path, input_header["paths_are_local"])
-        output_layer_data, search_images, source_images = generate_layer_data(input_layer_data, output_dir, input_header["paths_are_local"])
+        # output_layer_data, search_images, source_images = generate_layer_data(input_layer_data, output_dir, input_header["paths_are_local"])
+        output_layer_data, search_images, source_images = generate_layer_data(input_layer_data)
 
         for i in range(len(search_images)):
             # print("saving image", i)
@@ -117,9 +132,10 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
             if search_images[i]:
                 
                 image_path = output_layer_data[i]["search_image_path"]
-                if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["search_image_path"])
+                # if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["search_image_path"])
                 
-                search_images[i].save(image_path)
+                # search_images[i].save(image_path)
+                search_images[i].save(os.path.join(output_dir, image_path))
 
         for i in range(len(source_images)):
             # print("saving image", i)
@@ -127,9 +143,10 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
             if source_images[i]:
                 
                 image_path = output_layer_data[i]["source_image_path"]
-                if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["source_image_path"])
+                # if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["source_image_path"])
                 
-                source_images[i].save(image_path)
+                # source_images[i].save(image_path)
+                source_images[i].save(os.path.join(output_dir, image_path))
 
         # update_progress(progress_callback, 75, "Wrapping up; saving output to .json...")
         # update_progress(conn, 75, "Wrapping up; saving output to .json...")
@@ -138,7 +155,8 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
         output_header = {
             "name": input_header["name"],
             "consistxels_version": consistxels_version,
-            "paths_are_local": input_header["paths_are_local"],
+            # "paths_are_local": input_header["paths_are_local"],
+            "paths_are_local": True,
             "width": size[0],
             "height": size[1]
         }
@@ -197,7 +215,7 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
         # if conn != None:
         #     conn.send(("error", str(e)))
         # maybe throw another exception? or at least tell user what's going on. might need to be an else for the if conn != None
-        update_progress("error", 0, "An error occured", e)
+        update_progress("error", 0, "An error occured", str(e))
         # update_progress(progress_callback, 0, "An error occured", e)
 
 # Gets passed layer_data and finds the border; uses said border to find and return pose locations.
@@ -792,7 +810,8 @@ def generate_image(input_image, size, offset):
 
     return image
 
-def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
+# def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
+def generate_layer_data(input_layer_data):
     output_layer_data = []
     search_images = []
     source_images = []
@@ -801,13 +820,19 @@ def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
         search_image_path = None
         source_image_path = None
 
-        if layer["export_original_images"]:
+        # if layer["export_original_images"]: # i MIGHT like this name more??? idk
+        if layer["export_layer_images"]:
 
             if layer["search_image_path"]:
+                # search_image_path = (
+                #     (f"{layer['name']}_" + ("search" if layer["source_image_path"] else "layer") + "_image.png") # i kinda like the _layer_image.png naming idea TODO TODO TODO TODO yeah do this honestly
+                #     if not layer["is_border"] else
+                #     "border.png"
+                # )
                 search_image_path = (
-                    (f"{layer['name']}_" + ("search" if layer["source_image_path"] else "layer") + "_image.png")
+                    (f"{layer['name']}" + ("" if layer["is_cosmetic_only"] else "_search") + "_image.png")
                     if not layer["is_border"] else
-                    "border.png"
+                    "border_image.png"
                 )
 
                 with Image.open(layer["search_image_path"]) as search_image:
@@ -816,7 +841,7 @@ def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
 
                 # if not paths_are_local: search_image_path = output_folder_path + search_image_path
                 # if not paths_are_local: search_image_path = output_folder_path + "/" + search_image_path
-                if not paths_are_local: search_image_path = os.path.join(output_folder_path, search_image_path)
+                # if not paths_are_local: search_image_path = os.path.join(output_folder_path, search_image_path)
             else:
                 search_images.append(None)
             if layer["source_image_path"]:
@@ -828,13 +853,17 @@ def generate_layer_data(input_layer_data, output_folder_path, paths_are_local):
 
                 # if not paths_are_local: source_image_path = output_folder_path + source_image_path
                 # if not paths_are_local: source_image_path = output_folder_path + "/" + source_image_path
-                if not paths_are_local: source_image_path = os.path.join(output_folder_path, source_image_path)
+                # if not paths_are_local: source_image_path = os.path.join(output_folder_path, source_image_path) # do we NEED this? paths_are_local has basically nothing to do with generation, right? it's only saving layerselect data to folder?
             else:
                 source_images.append(None)
 
         output_layer_data.append({
-            "name": layer["name"], "is_border": layer["is_border"], "is_cosmetic_only": layer["is_cosmetic_only"],
-            "search_image_path": search_image_path, "source_image_path": source_image_path
+            "name": layer["name"],
+            "search_image_path": (os.path.basename(search_image_path) if search_image_path else None),
+            "source_image_path": (os.path.basename(source_image_path) if source_image_path else None),
+            # "is_border": layer["is_border"], "is_cosmetic_only": layer["is_cosmetic_only"], "export_layer_images": layer.get("export_layer_images")
+            "is_border": layer.get("is_border") == True, "is_cosmetic_only": layer.get("is_cosmetic_only") == True,
+            "export_layer_images": layer.get("export_layer_images") == True
         })
 
     return output_layer_data, search_images, source_images

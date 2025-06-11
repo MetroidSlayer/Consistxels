@@ -1713,7 +1713,7 @@ actual image output. If no source image is selected, the search image will be us
         #     "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
         # }
 
-        data = self.format_layer_json(True)
+        data = self.format_layer_json(False)
 
         # check for output folder in entry, when I get around to adding it
         # TEMP_output_folder_path = filedialog.askdirectory(title="Select an output folder")
@@ -1726,7 +1726,7 @@ actual image output. If no source image is selected, the search image will be us
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
                     json.dump(temp_json_data, temp_json_file)
-                    print(json.dumps({"type": "generate", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
+                    print(json.dumps({"type": "generate_pose_data", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
 
             except Exception as e:
                 print(json.dumps({"type": "error", "val": e}), flush=True)
