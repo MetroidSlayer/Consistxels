@@ -33,14 +33,14 @@ def main():
     read_gui_stdout_thread.join()
 
     print("Main: ending")
-    cancel_generate_process()
+    cancel_generate_process(True)
     # cancel any current processes! (need a way to cancel generate process, i guess)
 
-def generate_pose_data(temp_json_filepath):
+def start_generate_process(temp_json_filepath):
     global generate_process
 
     generate_process = subprocess.Popen(
-        [sys.executable, "-u", "generate_worker.py", temp_json_filepath],
+        [sys.executable, "-u", "generate_main.py", temp_json_filepath],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True,
         # creationflags=subprocess.CREATE_NEW_CONSOLE
@@ -49,6 +49,26 @@ def generate_pose_data(temp_json_filepath):
     )
 
     threading.Thread(target=read_generate_stdout, daemon=True).start()
+
+# def generate_sheet_image(temp_json_filepath):
+#     global generate_process
+
+#     pass
+
+# def generate_layer_images(temp_json_filepath):
+#     global generate_process
+    
+#     pass
+
+# def generate_external_filetype(temp_json_filepath):
+#     global generate_process
+
+#     pass
+
+# def generate_updated_pose_images(temp_json_filepath):
+#     global generate_process
+    
+#     pass
 
 # def monitor_gui(gui_proc):
 #     while True:
@@ -69,34 +89,46 @@ def read_gui_stdout():
                 type = data.get("type")
                 val = data.get("val")
 
-                match type:
-                    case "generate_pose_data":
-                        generate_pose_data(val)
-                        output_generate_progress(line, True)
-                    case "generate_layer_image":
-                        pass
-                    case "generate_all_layer_images":
-                        pass
-                    case "generate_sheet_image":
-                        pass
-                    case "generate_updated_pose_images":
-                        pass
-                    case "cancel":
-                        cancel_generate_process()
-                        output_generate_progress(line, True)
-                    case "error":
-                        print(f"Error in gui\n{val}")
-                        return
-                    case "done":
-                        print(line)
-                        return
-                    case "print":
-                        print(val)
-                    case _:
-                        print(line)
+                if type in ["generate_pose_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
+                    # start_generate_process(val)
+                    start_generate_process(line)
+                    output_generate_progress(line, True)
+                else:
+
+                    match type:
+                        # case "generate_pose_data":
+                        # case "generate_pose_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images":
+                        #     start_generate_process(val)
+                        #     output_generate_progress(line, True)
+                        # case "generate_sheet_image":
+                        #     generate_sheet_image(val)
+                        #     output_generate_progress(line, True)
+                        # case "generate_layer_images":
+                        #     generate_layer_images(val)
+                        #     output_generate_progress(line, True)
+                        # case "generate_external_filetype":
+                        #     pass
+                        # case "generate_updated_pose_images":
+                        #     generate_updated_pose_images(val)
+                        #     output_generate_progress(line, True)
+                        case "cancel":
+                            cancel_generate_process()
+                            output_generate_progress(line, True)
+                        case "error":
+                            print(f"Error in gui\n{val}")
+                            return
+                        case "done":
+                            print(line)
+                            return
+                        case "print":
+                            print(val)
+                        case _:
+                            print(line)
 
             except json.JSONDecodeError:
                 print("Malformed output from gui to main:", line)
+            except:
+                print("Malformed from gui to main, in some other way:", line)
 
 def read_generate_stdout():
     global generate_process
@@ -134,6 +166,9 @@ def read_generate_stdout():
                         print(line)
             except json.JSONDecodeError:
                 print("Malformed output from generate to main:", line)
+            except:
+                print("Malformed from generate to main, in some other way:", line)
+            
 
 def output_generate_progress(line, use_gui_process = False):
     global gui_process
@@ -141,7 +176,7 @@ def output_generate_progress(line, use_gui_process = False):
     if use_gui_process and gui_process != None:
         gui_process.stdin.write(line + "\n")
         gui_process.stdin.flush()
-    else: # this presumes that the status is "update", which it shouldn't presume
+    else: # this presumes that the status is "update", which it shouldn't presume (update: i mean not really? the value param, and any other, can be skipped entirely)
         data = json.loads(line)
         value = data.get("value")
         header_text = data.get("header_text")
@@ -153,13 +188,13 @@ def output_generate_progress(line, use_gui_process = False):
         if info_text: output_string += f"\t{info_text}\t|"
         print(output_string)
 
-def cancel_generate_process():
+def cancel_generate_process(app_closing = False):
     global generate_process
 
     if generate_process != None:
         generate_process.terminate()
         generate_process.wait()
-    else:
+    elif not app_closing:
         print("Tried to cancel generate_process, but it does not exist")
 
 if __name__ == "__main__":

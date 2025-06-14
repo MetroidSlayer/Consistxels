@@ -15,7 +15,7 @@ def update_progress(type="update", value = None, header_text = None, info_text =
 # Generate and save a full .json output file, and save all generated pose images
 # def generate_all(input_data, output_folder_path, progress_callback = None): #input_data is already in proper structure for consistxels .json
 # def generate_all(input_data, output_folder_path, conn = None): #input_data is already in proper structure for consistxels .json
-def generate_all(input_data, output_folder_path): #input_data is already in proper structure for consistxels .json
+def generate_all_pose_data(input_data, output_folder_path): #input_data is already in proper structure for consistxels .json
     # output_folder_path += "/" # Adding it now, 'cause otherwise we'd just add it literally every time we use it
     try:
         # p = psutil.Process(os.getpid())
@@ -29,12 +29,12 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
 
         # search and source layer images should be opened HERE, or perhaps not here but in main thread. transfers should happen w/ everything in bytes.
 
-        start_time = datetime.now() # Time taken to generate is tracked and shown at the end
+        # start_time = datetime.now() # Time taken to generate is tracked and shown at the end
 
         # update_progress(progress_callback, 0, "Initializing...") # is Initializing the right word here?
         # update_progress(conn, 0, "", "Initializing...") # is Initializing the right word here?
         # update_progress(conn, 0, "", "Initializing...") # is Initializing the right word here?
-        update_progress("update", 0, "", "Initializing...") # is Initializing the right word here?
+        # update_progress("update", 0, "", "Initializing...") # is Initializing the right word here?
         # update_progress(progress_callback, 0, "", "Initializing...") # is Initializing the right word here?
 
         # Variable declaration
@@ -181,21 +181,21 @@ def generate_all(input_data, output_folder_path): #input_data is already in prop
 
         # Calculate and format time elapsed
         # print("getting endtime")
-        end_time = datetime.now()
-        time_elapsed = end_time - start_time
-        time_elapsed_seconds = int(time_elapsed.total_seconds())
-        hours = time_elapsed_seconds // 3600
-        minutes = (time_elapsed_seconds % 3600) // 60
-        seconds = time_elapsed_seconds % 60
-        formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
-        # print("time elapsed formatted")
+        # end_time = datetime.now()
+        # time_elapsed = end_time - start_time
+        # time_elapsed_seconds = int(time_elapsed.total_seconds())
+        # hours = time_elapsed_seconds // 3600
+        # minutes = (time_elapsed_seconds % 3600) // 60
+        # seconds = time_elapsed_seconds % 60
+        # formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
+        # # print("time elapsed formatted")
         
-        # It's a *tad* redundant to have both update_progress and messagebox.showinfo, but I'd like to both display in the window *and* send an OS alert to the user
-        # in case they tabbed out while waiting.
-        # update_progress(progress_callback, 100, f"Complete! Time elapsed: {formatted_time_elapsed}")
-        # print("updating progress one last time")
-        # update_progress(conn, 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
-        update_progress("done", 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
+        # # It's a *tad* redundant to have both update_progress and messagebox.showinfo, but I'd like to both display in the window *and* send an OS alert to the user
+        # # in case they tabbed out while waiting.
+        # # update_progress(progress_callback, 100, f"Complete! Time elapsed: {formatted_time_elapsed}")
+        # # print("updating progress one last time")
+        # # update_progress(conn, 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
+        # update_progress("done", 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
         # update_progress(progress_callback, 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
         # messagebox.showinfo("Complete!", f"Time elapsed: {formatted_time_elapsed}")
 
@@ -937,6 +937,161 @@ def compare_images(image:Image, compare_to:Image, detect_identical_images = True
     # print("unique image")
     # Getting here doesn't mean the image IS unique OVERALL - it still likely has to check against many more images
     return True, False, 0
+
+def generate_sheet_image(selected_layers, data, output_folder_path):
+    size = (data["header"]["width"], data["header"]["height"])
+    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"], size, output_folder_path)
+    print("generate_gothere1")
+
+    color_transparent = ImageColor.getrgb("#00000000")
+    # sheet_image = Image.new("RGBA", (data["header"]["width"], data["header"]["height"]), color_transparent)
+    sheet_image = Image.new("RGBA", size, color_transparent)
+
+    # for i, layer_image in enumerate(layer_images):
+    for layer_image in reversed(layer_images):
+        sheet_image.alpha_composite(layer_image)
+    print("generate_gothere2")
+
+    # need to ask if want to overwrite somewhere
+    # ALSO output_folder_path is not necessarily the same as the INPUT folder path! might as well separate them in case someone wants to export to a location other than the one the pose images are. otherwise, what's even the point of having an option to enter an output path?
+    sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png"))
+    print("generate_gothere3")
+
+def generate_layer_images(selected_layers, unique_only, data, output_folder_path):
+    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, unique_only, data["pose_data"], data["layer_data"], data["image_data"]))
+
+    for i, layer_image in enumerate(layer_images):
+        path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # COULD have filetype be selectable? though i have no idea why anyone would use anything other than png
+        layer_image.save(os.path.join(output_folder_path, path))
+
+def generate_external_filetype(selected_layers, unique_only, data, output_folder_path):
+    pass
+
+def generate_image_placement_data(selected_layers, unique_only, pose_data, layer_data, image_data):
+    # layer_names = [layer.get("name") for layer_index, layer in enumerate(layer_data) if (layer_index in selected_layers)]
+    layer_names = [layer.get("name") for layer in layer_data]
+    # print(layer_names) # to verify this works
+
+    # image_placement_data = [[None]] * len(image_data)
+    # image_placement_data = [[]] * len(image_data)
+    # image_placement_data = [([] * len(image_data))]
+
+    image_placement_data = []
+    for _ in range(len(image_data)):
+        image_placement_data.append([])
+        # print("gothere")
+
+
+    # image_placement_data = [
+    #     [1], [2], [3], [4], [5]
+    # ]
+
+    # print(json.dumps({"type":"print","val":str(image_placement_data)}))
+    # print(str(image_placement_data))
+    # image_placement_data.
+    # for i in range(len(image_data)):
+
+
+    print(str(selected_layers))
+    print(str(layer_names))
+
+    # for image in image_data:
+
+    for pose_index, pose in enumerate(pose_data):
+        x_position = pose["x_position"]
+        y_position = pose["y_position"]
+
+        limb_data = pose["limb_data"]
+        for limb in limb_data:
+            # if limb["name"] == curr_layer_name:
+            layer_index = layer_names.index(limb["name"])
+            # if limb["name"] in layer_names:
+            if layer_index in selected_layers:
+                print("got to if layer_index in selected_layers")
+
+                x_offset = limb["x_offset"]
+                y_offset = limb["y_offset"]
+
+                image_index = limb["image_index"]
+
+                if (not unique_only) or (image_data[image_index]["original_pose_index"] == pose_index):
+                    print("got to image_placement_data[image_index].append()")
+                    image_placement_data[image_index].append({"x_position": x_position + x_offset, "y_position": y_position + y_offset, "layer_index": layer_index, "flip_h": limb["flip_h"], "rotation_amount": limb["rotation_amount"]})
+
+    # dawning on me that we can check for original pose index if we simply look through pose data for the first instance. we're kinda doing that anyway. think abt this
+    # print(json.dumps({"type":"print","val":image_placement_data}))
+    return image_placement_data
+
+def place_pose_images(image_data, image_placement_data, layer_data, size, output_folder_path):
+    # print("gothere")
+    # print(str(image_placement_data))
+
+    layer_images = [None] * len(layer_data)
+    # print(str(layer_images))
+    color_transparent = ImageColor.getrgb("#00000000")
+
+    img_base = Image.new("RGBA", size, color_transparent)
+
+    for i, layer in enumerate(layer_data):
+        if layer["is_border"] or layer["is_cosmetic_only"]:
+            # path = layer_data["search_image_path"]
+            # # if paths are local (which they usually will be):
+            # path = os.path.join(output_folder_path, path)
+            path = os.path.join(output_folder_path, layer["search_image_path"])
+            with Image.open(path) as image:
+                layer_images[i] = image.copy()
+        else:
+        # if not (layer["is_border"] or layer["is_cosmetic"]):
+            # layer_images[i] = Image.new("RGBA", size, color_transparent)
+            layer_images[i] = img_base.copy()
+    
+    # corny ass name. cant think of anything else tho
+    # for i, image_datum in enumerate(image_data):
+    #     with Image.open(os.path.join(output_folder_path, image_datum["path"])) as image:
+    #         pass
+    for i, image_placement in enumerate(image_placement_data):
+        with Image.open(os.path.join(output_folder_path, image_data[i]["path"])) as image:
+            # if i == 43:
+            #     image.show()
+            #     print(image_placement)
+                # import time
+                # time.sleep(1)
+            
+            for limb_placement in image_placement:
+                if limb_placement != None and layer_images[limb_placement["layer_index"]] != None:
+                    adjusted_image = image.copy()
+
+                    match limb_placement["rotation_amount"]:
+                        case 1:
+                            adjusted_image = adjusted_image.transpose(Image.Transpose.ROTATE_270)
+                        case 2:
+                            adjusted_image = adjusted_image.transpose(Image.Transpose.ROTATE_180)
+                        case 3:
+                            adjusted_image = adjusted_image.transpose(Image.Transpose.ROTATE_90)
+                    
+                    if limb_placement["flip_h"]: adjusted_image = adjusted_image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+                    layer_images[limb_placement["layer_index"]].paste(adjusted_image, (limb_placement["x_position"], limb_placement["y_position"]))
+
+                # limb_placement["x_position"]
+                # limb_placement["y_position"]
+                # limb_placement["layer_index"]
+
+        
+        # if i == 43:
+        #     layer_images[1].show()
+            # import time
+            # time.sleep(1)
+    
+    return layer_images
+    
+
+
+
+
+# updated_layers in format [{"new_image_path"}, {...}...] or something to that effect
+def generate_updated_pose_images(new_image_paths, data, output_folder_path):
+    pass
 
 # fiddling with this a bit; technically, it's not good to so this without adding a setting, but... it's better anyway, and i WILL add the setting.
 # TODO: Change "search right to left" into "Reverse search order", and I guess change "Start search in center" to "search outward"?

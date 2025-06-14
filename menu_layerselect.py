@@ -1,3 +1,5 @@
+# TODO TODO TODO: go through and remove unnecessary frames that were there for formatting. can often use 'anchor="w"'
+
 import os
 import json
 import tempfile
@@ -13,7 +15,7 @@ import gui_shared
 from gui_shared import add_widget
 
 class Menu_LayerSelect(tk.Frame):
-    def __init__(self, master, show_frame_callback):
+    def __init__(self, master, change_menu_callback, load_path = None):
         super().__init__(master)
 
         # # in the future, should be taken from some style file
@@ -33,9 +35,10 @@ class Menu_LayerSelect(tk.Frame):
 
         self.configure(bg=gui_shared.bg_color)
 
-        self.setup_ui(show_frame_callback)
+        # self.setup_ui(change_menu_callback, load_path)
+        self.after(0, self.setup_ui, change_menu_callback, load_path)
 
-    def setup_ui(self, show_frame_callback):
+    def setup_ui(self, change_menu_callback, load_path = None):
 
         # Header
         self.header = tk.Frame(self, bg=gui_shared.bg_color)
@@ -81,13 +84,16 @@ Load a .json file and restore previous search options and layer data.
         # Header right:
 
         # Back button
-        # self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: show_frame_callback("Main"))
-        def back_to_main_menu():
-            self.clear_all()
-            # check for unsaved work
-            show_frame_callback("Main")
 
-        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=back_to_main_menu)
+        # self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: show_frame_callback("Main"))
+
+        # def back_to_main_menu():
+            # self.clear_all()
+            # check for unsaved work
+            # change_menu_callback("Main")
+        # self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=back_to_main_menu)
+
+        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: change_menu_callback("Main"))
         self.back_button.pack(side="right", padx=10, pady=10)
         ToolTip(self.back_button, "...Come on, this one is self explanatory.", False, True, 2000)
 
@@ -130,7 +136,7 @@ Load a .json file and restore previous search options and layer data.
         # Actual layer menu
         layer_canvas_frame = tk.Frame(layer_main_frame, bg=gui_shared.bg_color, width=0)
         # layer_canvas_frame.pack(side="left", fill="both", expand=True)
-        layer_canvas_frame.pack(side="left", fill="both", expand=True, pady=5) # TODO instead of this, find way to add +5 pady to top and bottom layer cards. not high priority
+        layer_canvas_frame.pack(side="left", fill="both", expand=True)#, pady=5) # TODO instead of this, find way to add +5 pady to top and bottom layer cards. not high priority
 
         # self.layer_canvas = tk.Canvas(layer_main_frame, bg=gui_shared.bg_color, )
         self.layer_canvas = tk.Canvas(layer_canvas_frame, bg=gui_shared.bg_color, highlightthickness=0, width=0)
@@ -519,13 +525,15 @@ layer images, automatic and custom are for the output pose images)
         # Search options
 
         search_options_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-        search_options_frame.pack(side="top", fill="x")
+        # search_options_frame.pack(side="top", fill="x")
+        search_options_frame.pack(side="top", fill="both", expand=True)
 
         search_options_checkboxes_frame = tk.Frame(search_options_frame, bg=gui_shared.bg_color)
-        search_options_checkboxes_frame.pack(side="top", fill="x", expand=True)
+        # search_options_checkboxes_frame.pack(side="top", fill="x", expand=True)
+        search_options_checkboxes_frame.pack(side="top", fill="x")
 
         self.start_search_in_center = tk.BooleanVar()
-        start_search_in_center_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
+        start_search_in_center_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
         # start_search_in_center_checkbutton = tk.Checkbutton(search_directions_checkbox_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
         # start_search_in_center_checkbutton.pack(side="top", padx=5, pady=5)
         # start_search_in_center_checkbutton.pack(side="left", padx=10, pady=10)
@@ -541,7 +549,7 @@ pose images are found in much more intuitive. Not recommended if "Search right-t
         """.strip())
         
         self.search_right_to_left = tk.BooleanVar()
-        search_right_to_left_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
+        search_right_to_left_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
         # search_right_to_left_checkbutton = tk.Checkbutton(search_directions_checkbox_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
         # search_right_to_left_checkbutton.pack(side="top", padx=5, pady=5)
         # search_right_to_left_checkbutton.pack(side="left", padx=(0,10), pady=10)
@@ -556,7 +564,7 @@ will use the right-facing poses as the defaults. Not recommended otherwise.
 
         # detect identical images
         self.detect_identical_images = tk.BooleanVar()
-        detect_identical_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect identical images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.detect_identical_images)
+        detect_identical_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect identical images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_identical_images)
         detect_identical_images_checkbutton.grid(row=1, column=0, padx=10, pady=(10,5))
         detect_identical_images_checkbutton.select()
         ToolTip(detect_identical_images_checkbutton, """
@@ -575,21 +583,21 @@ Check if poses use already-found pose images, so they can share the same pose im
 
         # detect rotated images
         self.detect_rotated_images = tk.BooleanVar()
-        detect_rotated_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect rotated images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.detect_rotated_images, command=check_flip_v_allowed)
+        detect_rotated_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect rotated images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_rotated_images, command=check_flip_v_allowed)
         detect_rotated_images_checkbutton.grid(row=1, column=1, padx=10, pady=(10,5))
         detect_rotated_images_checkbutton.select()
         ToolTip(detect_rotated_images_checkbutton, "Check if poses use rotated versions of already-found pose images.")
 
         # detect horizontally mirrored images
         self.detect_flip_h_images = tk.BooleanVar()
-        detect_flip_h_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect horizontally mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.detect_flip_h_images, command=check_flip_v_allowed)
+        detect_flip_h_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect horizontally mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_h_images, command=check_flip_v_allowed)
         detect_flip_h_images_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5)
         detect_flip_h_images_checkbutton.select()
         ToolTip(detect_flip_h_images_checkbutton, "Check if poses use horizontally-flipped versions of already-found pose images.")
         
         # detect vertically mirrored images
         self.detect_flip_v_images = tk.BooleanVar()
-        detect_flip_v_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect vertically mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.detect_flip_v_images, state='disabled')
+        detect_flip_v_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect vertically mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_v_images, state='disabled')
         detect_flip_v_images_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=(5,10))
         ToolTip(detect_flip_v_images_checkbutton, """
 Check if poses use vertically-flipped versions of already-found pose images.
@@ -604,7 +612,7 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
         # generate empty poses
         # Determine whether pose data will be created for completely-empty pose boxes.
         self.generate_empty_poses = tk.BooleanVar()
-        generate_empty_poses_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Generate empty poses", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.generate_empty_poses)
+        generate_empty_poses_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Generate empty poses", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.generate_empty_poses)
         generate_empty_poses_checkbutton.grid(row=4, column=0, columnspan=2, padx=10, pady=(5,10))
         ToolTip(generate_empty_poses_checkbutton, "Determine whether pose data will be created for pose boxes that are completely empty.")
 
@@ -634,7 +642,8 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
         """.strip())
 
         custom_padding_frame = tk.Frame(search_options_frame, bg=gui_shared.bg_color)
-        custom_padding_frame.pack(side="top", fill="x", expand=True)
+        # custom_padding_frame.pack(side="top", fill="x", expand=True)
+        custom_padding_frame.pack(side="top", fill="x")
 
         tk.Label(custom_padding_frame, text="Custom padding amount:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
@@ -658,7 +667,8 @@ any of the pose images.)
         ).pack(side="left", pady=10)
 
         generate_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-        generate_frame.pack(side="bottom", fill="both", expand=True)
+        # generate_frame.pack(side="bottom", fill="both", expand=True)
+        generate_frame.pack(side="bottom", fill="x")
 
         generate_options_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
         generate_options_frame.pack(side="top", fill="x")
@@ -691,7 +701,11 @@ your files at best, and overwrite existing data at worst. That said, if you WANT
 existing data, go for it.)
         """.strip())
 
-        generate_buttons_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
+        generate_container_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
+        generate_container_frame.pack(side="top", fill="x")
+
+        # generate_buttons_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
+        generate_buttons_frame = tk.Frame(generate_container_frame, bg=gui_shared.bg_color)
         generate_buttons_frame.pack(side="left")
 
         # self.generate_button = tk.Button(search_options_frame, text="Generate Pose Data...", command=self.generate_output, bg=gui_shared.button_bg, fg=gui_shared.fg_color)
@@ -699,18 +713,19 @@ existing data, go for it.)
         self.generate_button = tk.Button(generate_buttons_frame, text="Generate Pose Data...", command=self.generate_button_pressed, bg=gui_shared.button_bg, fg=gui_shared.fg_color)
         self.generate_button.pack(side="top", padx=10, pady=10)
         # self.generate_button.grid(padx=10, pady=10, row=0, column=0)
-        ToolTip(self.generate_button, "Generate data! (May take a while)", True, True)
+        ToolTip(self.generate_button, "Generate data! (May take a while)", True)
 
         # for safety i guess
-        self.generate_process = None
+        # self.generate_process = None
 
         # disable if no process!!!
         self.cancel_button = tk.Button(generate_buttons_frame, text="Cancel", command=self.cancel_generate, fg=gui_shared.danger_fg, bg=gui_shared.button_bg, state="disabled")
         self.cancel_button.pack(side="top", padx=10, pady=(0,10), fill="x")
+        ToolTip(self.cancel_button, "Cancel pose image generation", True)
         # self.cancel_button.grid(padx=10, pady=(0,10), row=1, column=0)
-        # TODO add tooltip
 
-        generate_progress_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
+        # generate_progress_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
+        generate_progress_frame = tk.Frame(generate_container_frame, bg=gui_shared.bg_color)
         generate_progress_frame.pack(side="left", fill="x", expand=True)
 
         self.progress_header_label = tk.Label(generate_progress_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color)
@@ -730,6 +745,9 @@ existing data, go for it.)
 
         # self.bind_all("<Button-1>", on_global_click, add="+")
         self.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
+
+        if load_path:
+            self.import_layerselect_json(load_path)
 
         # resize_layer_scrollable_frame()
 
@@ -1020,9 +1038,9 @@ existing data, go for it.)
         # If card frame doesn't exist, create a new one. If it does, might as well use the existing one so we don't have to worry about re-ordering everything.
         card_frame = None
         if layer_index >= len(self.scrollable_frame.winfo_children()):
-            card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+            card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg, pady=0)
             # card_frame.pack(side="top", fill="x", expand=True, pady=2, padx=10)
-            card_frame.pack(side="top", fill="x", expand=True, pady=5, padx=10)
+            card_frame.pack(side="top", fill="x", expand=True, padx=10)
         else:
             card_frame = self.scrollable_frame.winfo_children()[layer_index]
             card_frame.configure(width=0)
@@ -1032,6 +1050,21 @@ existing data, go for it.)
             for widget in card_frame.winfo_children():
                 widget.destroy()
         
+        # presumably, these do not work because I'm trying to configure() that which was set in pack(), which will not work.
+        # fiddle around with this
+        # pad_top = 10 if (layer_index == 0) else 5
+        # pad_bottom = 10 if (layer_index >= len(self.layer_data)) else 5
+        # pad = [pad_top, pad_bottom]
+
+        # card_frame.configure(pady=(pad_top, pad_bottom))
+        # card_frame.configure(pady=pad)
+
+        # card_frame.update()
+        # card_frame.configure(pady=((10 if (layer_index == 0) else 5), (10 if (layer_index >= len(self.layer_data)) else 5)))
+        # card_frame.pack_configure(pady=((10 if (layer_index == 0) else 5), (10 if (layer_index >= len(self.layer_data)) else 5)))
+        card_frame.pack_configure(pady=((10 if (layer_index == 0) else 0), 10))
+        # card_frame.update()
+
         # Get this layer's data, for convenience
         data = self.layer_data[layer_index]
 
@@ -1090,7 +1123,7 @@ existing data, go for it.)
 
         # Separate frame for search image label, entry, and button
         search_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
-        search_frame.pack(side="top", fill="x", padx=10, pady=((10,0) if is_border else 0))
+        search_frame.pack(side="top", fill="x", padx=10, pady=((0 if is_border else 10), (10 if is_cosmetic_only else 0)))
 
         tk.Label(
             search_frame, text=("Image:" if is_border or is_cosmetic_only else "Search img:"), bg=gui_shared.secondary_bg, fg=gui_shared.fg_color
@@ -1118,11 +1151,12 @@ existing data, go for it.)
             save_search_image(entry=entry, entry_widget=entry_widget)
             
         search_button = tk.Button(search_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_search_image)
-        search_button.pack(side="left", padx=(10,0), pady=((0 if is_border else 10),(10 if (is_cosmetic_only and not is_border) else 0)))
+        # search_button.pack(side="left", padx=(10,0), pady=((0 if is_border else 10),(10 if (is_cosmetic_only and not is_border) else 0)))
+        search_button.pack(side="left", padx=(10,0))
             
         if not is_border and not is_cosmetic_only:
             source_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
-            source_frame.pack(side="top", fill="x", padx=10)
+            source_frame.pack(side="top", fill="x", padx=10, pady=(0,10))
 
             tk.Label(source_frame, text="Source img:", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(0,5))
 
@@ -1147,7 +1181,8 @@ actual image output. If no source image is selected, the search image will be us
                 save_source_image(entry=entry, entry_widget=entry_widget)
                 
             source_button = tk.Button(source_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_source_image)
-            source_button.pack(side="left", padx=(10,0), pady=(0,10))
+            # source_button.pack(side="left", padx=(10,0), pady=(0,10))
+            source_button.pack(side="left", padx=(10,0))
 
             
         right_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
@@ -1171,7 +1206,7 @@ actual image output. If no source image is selected, the search image will be us
             footer = tk.Frame(content_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
             footer.pack(side="bottom", fill="both")
 
-            cosmetic_checkbutton = tk.Checkbutton(footer, text="Cosmetic only", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False)
+            cosmetic_checkbutton = tk.Checkbutton(footer, text="Cosmetic only", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False)
             cosmetic_checkbutton.pack(side="left", padx=10, pady=5)
             if is_cosmetic_only: cosmetic_checkbutton.select()
             ToolTip(cosmetic_checkbutton, "If selected, this layer will not be searched for pose images. Instead, the provided image will be exported alongside the pose images.")
@@ -1187,7 +1222,7 @@ actual image output. If no source image is selected, the search image will be us
             if is_cosmetic_only:
                 data.update({"export_layer_images":True})
                 
-            export_checkbutton = tk.Checkbutton(footer, text="Export copies", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, state="disabled" if is_cosmetic_only else "normal")
+            export_checkbutton = tk.Checkbutton(footer, text="Export copies", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, state="disabled" if is_cosmetic_only else "normal")
             export_checkbutton.pack(side="left", padx=(0,10), pady=5)
             if data.get("export_layer_images"): export_checkbutton.select()
             ToolTip(export_checkbutton, "If selected, copies of the search and source image will be provided in addition to pose images.")
@@ -1455,8 +1490,8 @@ actual image output. If no source image is selected, the search image will be us
             #     json.dump(export, file, indent=4)
 
     # Import a valid .json file.
-    def import_layerselect_json(self):
-        path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
+    def import_layerselect_json(self, path = None):
+        if not path: path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
         if path:
             with open(path) as json_file:
                 json_data = json.load(json_file)

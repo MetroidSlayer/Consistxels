@@ -23,7 +23,7 @@ class ConsistxelsApp(tk.Frame):
         root.title("Consistxels")
 
         # Set window attributes
-        root.geometry("1680x864")        # window size
+        root.geometry("1680x968")        # window size
         root.configure(bg = '#303030') # bg color
 
         self.container = tk.Frame(self)
@@ -34,26 +34,67 @@ class ConsistxelsApp(tk.Frame):
         root.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
         # root.bind_class("Canvas", "<Button-1>", on_global_click, add="+")
 
-        self.frames = {
-            "Main": Menu_MainMenu(self.container, self.show_frame),
-            "LayerSelect": Menu_LayerSelect(self.container, self.show_frame),
-            "LoadJson": Menu_LoadJson(self.container, self.show_frame)
-        }
+        # self.frames = {
+        #     "Main": Menu_MainMenu(self.container, self.show_frame),
+        #     "LayerSelect": Menu_LayerSelect(self.container, self.show_frame),
+        #     "LoadJson": Menu_LoadJson(self.container, self.show_frame)
+        # }
 
-        for frame in self.frames.values():
-            frame.place(relwidth=1, relheight=1)
+        # for frame in self.frames.values():
+        #     frame.place(relwidth=1, relheight=1)
 
-        self.show_frame("Main")
+        # self.show_frame("Main")
+
+        self.curr_menu = None
+        self.change_menu("Main")
 
         self.handle_input_thread = threading.Thread(target=self.handle_input, daemon=True)
         self.handle_input_thread.start()
 
-    def show_frame(self, name):
-        frame = self.frames[name]
-        frame.tkraise()
+    # def show_frame(self, name):
+    #     frame = self.frames[name]
+    #     frame.tkraise()
+
+    def change_menu(self, new_menu = "Main", arg = None):
+        for widget in self.container.winfo_children():
+            widget.destroy()
+        
+        new_menu_widget = None
+
+        match new_menu:
+            case "Main":
+                new_menu_widget = Menu_MainMenu(self.container, self.change_menu)
+            case "LayerSelect":
+                new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, arg)
+            case "LoadJson":
+                new_menu_widget = Menu_LoadJson(self.container, self.change_menu, arg)
+            case _:
+                print("nonexistent menu chosen")
+                raise Exception
+        
+        new_menu_widget.place(relwidth=1, relheight=1)
+        self.curr_menu = new_menu_widget
+
+        # self.after(0, self.create_menu, new_menu, arg)
+
+    # def create_menu(self, new_menu = "Main", arg = None):
+    #     match new_menu:
+    #         case "Main":
+    #             new_menu_widget = Menu_MainMenu(self.container, self.change_menu)
+    #         case "LayerSelect":
+    #             new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, arg)
+    #         case "LoadJson":
+    #             new_menu_widget = Menu_LoadJson(self.container, self.change_menu, arg)
+    #         case _:
+    #             print("nonexistent menu chosen")
+    #             raise Exception
+        
+    #     new_menu_widget.place(relwidth=1, relheight=1)
+    #     self.curr_menu = new_menu_widget
 
     def update_progress(self, value, header_text, info_text):
-        self.frames["LayerSelect"].update_progress(value, header_text, info_text)
+        # self.frames["LayerSelect"].update_progress(value, header_text, info_text)
+        self.curr_menu.update_progress(value, header_text, info_text)
 
     def on_close(self, root):
         # ask if want to save if curr frame has modified work
@@ -77,34 +118,42 @@ class ConsistxelsApp(tk.Frame):
                         header_text = data.get("header_text")
                         info_text = data.get("info_text")
                         
-                        match type:
-                            case "generate_pose_data": # could theoretically do this stuff when a generate button is pressed, but this acts as a sort of acknowledgement, i think?
-                                self.frames["LayerSelect"].generate_began()
-                                self.update_progress(0, "", "Initializing...")
-                            case "generate_layer_image":
-                                pass
-                            case "generate_all_layer_images":
-                                pass
-                            case "generate_sheet_image":
-                                pass
-                            case "generate_updated_pose_images":
-                                pass
-                            case "update":
-                                if self.winfo_toplevel().focus_get() != None:
+                        if type in ["generate_pose_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
+                            self.curr_menu.generate_began()
+                            self.update_progress(0, "", "Initializing...")
+                        else:
+                            match type:
+                                # case "generate_pose_data": # could theoretically do this stuff when a generate button is pressed, but this acts as a sort of acknowledgement, i think?
+                                #     # self.frames["LayerSelect"].generate_began()
+                                #     self.curr_menu.generate_began()
+                                #     self.update_progress(0, "", "Initializing...")
+                                # case "generate_layer_image":
+                                #     pass
+                                # case "generate_all_layer_images":
+                                #     pass
+                                # case "generate_sheet_image":
+                                #     pass
+                                # case "generate_updated_pose_images":
+                                #     pass
+                                case "update":
+                                    if self.winfo_toplevel().focus_get() != None:
+                                        self.update_progress(value, header_text, info_text)
+                                case "error":
+                                    # self.frames["LayerSelect"].generate_ended()
+                                    self.curr_menu.generate_ended()
+                                    self.update_progress(0, "", "Error")
+                                    messagebox.showerror("Error", line)
+                                case "done":
+                                    # self.frames["LayerSelect"].generate_ended()
+                                    self.curr_menu.generate_ended()
                                     self.update_progress(value, header_text, info_text)
-                            case "error":
-                                self.frames["LayerSelect"].generate_ended()
-                                self.update_progress(0, "", "Error")
-                                messagebox.showerror("Error", line)
-                            case "done":
-                                self.frames["LayerSelect"].generate_ended()
-                                self.update_progress(value, header_text, info_text)
-                                messagebox.showinfo(header_text, info_text)
-                            case "cancel":
-                                self.frames["LayerSelect"].generate_ended()
-                                self.update_progress(None, "", "Cancelled")
-                            # case _:
-                            #     print(line, flush=True)
+                                    messagebox.showinfo(header_text, info_text)
+                                case "cancel":
+                                    # self.frames["LayerSelect"].generate_ended()
+                                    self.curr_menu.generate_ended()
+                                    self.update_progress(None, "", "Cancelled")
+                                # case _:
+                                #     print(line, flush=True)
                     except json.JSONDecodeError:
                         print(json.dumps({"type": "error", "val": ("Malformed output to generate stdin:", line)}), flush=True)
                         
