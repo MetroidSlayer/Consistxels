@@ -1757,7 +1757,7 @@ actual image output. If no source image is selected, the search image will be us
         # if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and output_folder_path:
         if data.get("layer_data") and (self.name_entry_input.get() and self.name_entry_input.get() != "") and output_folder_path:
             try:
-                temp_json_data = {"data": data, "path": output_folder_path}
+                temp_json_data = {"data": data, "output_folder_path": output_folder_path}
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
                     json.dump(temp_json_data, temp_json_file)

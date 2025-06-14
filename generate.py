@@ -780,21 +780,38 @@ def generate_image_data(image_prep_data, layer_data, pose_data): # image_data = 
     return image_data, images
 
 def generate_image_from_layers(original_layer_image, source_layer_image, pose_box, padding):
-    # source_image = source_layer_image.crop(pose_box)
-    # source_bbox = source_image.getbbox()
-    # bound_source_image = source_image.crop(source_bbox)
+    # # source_image = source_layer_image.crop(pose_box)
+    # # source_bbox = source_image.getbbox()
+    # # bound_source_image = source_image.crop(source_bbox)
+
+    # original_image = original_layer_image.crop(pose_box)
+    # original_bbox = original_image.getbbox()
+    # bound_original_image = original_image.crop(original_bbox)
+
+    # offset = (padding[0] - original_bbox[0], padding[1] - original_bbox[1])
+
+    # return generate_image(
+    #     source_layer_image.crop(pose_box),
+    #     ((bound_original_image.width + padding[0] + padding[2]), (bound_original_image.height + padding[1] + padding[3])),
+    #     offset
+    # )
 
     original_image = original_layer_image.crop(pose_box)
     original_bbox = original_image.getbbox()
     bound_original_image = original_image.crop(original_bbox)
 
     offset = (padding[0] - original_bbox[0], padding[1] - original_bbox[1])
+    size = ((bound_original_image.width + padding[0] + padding[2]), (bound_original_image.height + padding[1] + padding[3]))
 
-    return generate_image(
-        source_layer_image.crop(pose_box),
-        ((bound_original_image.width + padding[0] + padding[2]), (bound_original_image.height + padding[1] + padding[3])),
-        offset
-    )
+    # return generate_image(
+    #     source_layer_image.crop(pose_box),
+    #     ((bound_original_image.width + padding[0] + padding[2]), (bound_original_image.height + padding[1] + padding[3])),
+    #     offset
+    # )
+    return generate_image_from_source_layer(source_layer_image, pose_box, size, offset)
+
+def generate_image_from_source_layer(source_layer_image, pose_box, size, offset):
+    return generate_image(source_layer_image.crop(pose_box), size, offset)
 
 # def update_existing_image(existing_layer_image, new_layer_image, pose_box):
 #     pass
@@ -938,33 +955,39 @@ def compare_images(image:Image, compare_to:Image, detect_identical_images = True
     # Getting here doesn't mean the image IS unique OVERALL - it still likely has to check against many more images
     return True, False, 0
 
-def generate_sheet_image(selected_layers, data, output_folder_path):
+def generate_sheet_image(selected_layers, data, input_folder_path, output_folder_path):
     size = (data["header"]["width"], data["header"]["height"])
-    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"], size, output_folder_path)
-    print("generate_gothere1")
+    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"], size, input_folder_path)
+    # print("generate_gothere1")
 
     color_transparent = ImageColor.getrgb("#00000000")
     # sheet_image = Image.new("RGBA", (data["header"]["width"], data["header"]["height"]), color_transparent)
     sheet_image = Image.new("RGBA", size, color_transparent)
 
     # for i, layer_image in enumerate(layer_images):
+
+    for i, layer_image in enumerate(layer_images): # probably a better way to do this
+        if not i in selected_layers: layer_images.pop(i)
+
     for layer_image in reversed(layer_images):
         sheet_image.alpha_composite(layer_image)
-    print("generate_gothere2")
+    # print("generate_gothere2")
 
     # need to ask if want to overwrite somewhere
     # ALSO output_folder_path is not necessarily the same as the INPUT folder path! might as well separate them in case someone wants to export to a location other than the one the pose images are. otherwise, what's even the point of having an option to enter an output path?
     sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png"))
-    print("generate_gothere3")
+    # print("generate_gothere3")
 
-def generate_layer_images(selected_layers, unique_only, data, output_folder_path):
-    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, unique_only, data["pose_data"], data["layer_data"], data["image_data"]))
+def generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path):
+    size = (data["header"]["width"], data["header"]["height"])
+    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, unique_only, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"], size, input_folder_path)
 
     for i, layer_image in enumerate(layer_images):
-        path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # COULD have filetype be selectable? though i have no idea why anyone would use anything other than png
-        layer_image.save(os.path.join(output_folder_path, path))
+        if i in selected_layers:
+            path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # COULD have filetype be selectable? though i have no idea why anyone would use anything other than png
+            layer_image.save(os.path.join(output_folder_path, path))
 
-def generate_external_filetype(selected_layers, unique_only, data, output_folder_path):
+def generate_external_filetype(selected_layers, unique_only, data, input_folder_path, output_folder_path):
     pass
 
 def generate_image_placement_data(selected_layers, unique_only, pose_data, layer_data, image_data):
@@ -992,8 +1015,8 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
     # for i in range(len(image_data)):
 
 
-    print(str(selected_layers))
-    print(str(layer_names))
+    # print(str(selected_layers))
+    # print(str(layer_names))
 
     # for image in image_data:
 
@@ -1007,7 +1030,7 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
             layer_index = layer_names.index(limb["name"])
             # if limb["name"] in layer_names:
             if layer_index in selected_layers:
-                print("got to if layer_index in selected_layers")
+                # print("got to if layer_index in selected_layers")
 
                 x_offset = limb["x_offset"]
                 y_offset = limb["y_offset"]
@@ -1015,14 +1038,14 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
                 image_index = limb["image_index"]
 
                 if (not unique_only) or (image_data[image_index]["original_pose_index"] == pose_index):
-                    print("got to image_placement_data[image_index].append()")
+                    # print("got to image_placement_data[image_index].append()")
                     image_placement_data[image_index].append({"x_position": x_position + x_offset, "y_position": y_position + y_offset, "layer_index": layer_index, "flip_h": limb["flip_h"], "rotation_amount": limb["rotation_amount"]})
 
     # dawning on me that we can check for original pose index if we simply look through pose data for the first instance. we're kinda doing that anyway. think abt this
     # print(json.dumps({"type":"print","val":image_placement_data}))
     return image_placement_data
 
-def place_pose_images(image_data, image_placement_data, layer_data, size, output_folder_path):
+def place_pose_images(image_data, image_placement_data, layer_data, size, input_folder_path):
     # print("gothere")
     # print(str(image_placement_data))
 
@@ -1037,7 +1060,7 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, output
             # path = layer_data["search_image_path"]
             # # if paths are local (which they usually will be):
             # path = os.path.join(output_folder_path, path)
-            path = os.path.join(output_folder_path, layer["search_image_path"])
+            path = os.path.join(input_folder_path, layer["search_image_path"])
             with Image.open(path) as image:
                 layer_images[i] = image.copy()
         else:
@@ -1050,7 +1073,7 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, output
     #     with Image.open(os.path.join(output_folder_path, image_datum["path"])) as image:
     #         pass
     for i, image_placement in enumerate(image_placement_data):
-        with Image.open(os.path.join(output_folder_path, image_data[i]["path"])) as image:
+        with Image.open(os.path.join(input_folder_path, image_data[i]["path"])) as image:
             # if i == 43:
             #     image.show()
             #     print(image_placement)
@@ -1090,8 +1113,52 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, output
 
 
 # updated_layers in format [{"new_image_path"}, {...}...] or something to that effect
-def generate_updated_pose_images(new_image_paths, data, output_folder_path):
-    pass
+# def generate_updated_pose_images(new_image_paths, data, input_folder_path, output_folder_path):
+def generate_updated_pose_images(new_image_paths, data, input_folder_path):
+    # get original pose bbox
+    # get img from new_image_path layer image inside original pose bbox (per layer)
+    # paste new img onto old one, or clear old one, or something
+
+    layer_names = [layer.get("name") for layer in data["layer_data"]] # so we WILL need to EITHER prevent identical layer names, OR fill pose limb_data with empty limbs for each unused layer
+
+
+
+    # new_layer_images = []
+    # for new_image_path in new_image_paths:
+    #     if new_image_path:
+    #         with Image.open(new_image_path) as new_layer_image:
+    #              new_layer_images.append(new_layer_image.copy())
+    #     else:
+    #         new_layer_images.append(None)
+    # new_images = []
+    new_layer_images = [None] * len(new_image_paths)
+    for i, new_image_path in enumerate(new_image_paths):
+        if new_image_path:
+            with Image.open(new_image_path) as new_layer_image:
+                new_layer_images[i] = new_layer_image.copy()
+
+    for image_datum in data["image_data"]:
+
+        layer_index = image_datum["original_layer_index"]
+        if new_layer_images[layer_index] != None:
+
+            pose = data["pose_data"][image_datum["original_pose_index"]]
+            pose_box = (pose["x_position"], pose["y_position"], pose["x_position"] + pose["width"], pose["y_position"] + pose["height"])
+
+            limb = next(l for l in pose["limb_data"] if l["name"] == layer_names[image_datum["original_layer_index"]])
+
+            with Image.open(os.path.join(input_folder_path, image_datum["path"])) as image:
+                size = image.size
+                
+                # bbox = image.getbbox()
+                # offset = (bbox[0] + limb["x_offset"], bbox[1] + limb["y_offset"])
+            offset = (-limb["x_offset"], -limb["y_offset"])
+            # new_images.append(generate_image_from_source_layer(new_layer_images[image_datum["original_layer_index"]], pose_box, size, offset))
+
+            generate_image_from_source_layer(
+                new_layer_images[image_datum["original_layer_index"]], pose_box, size, offset
+            # ).save(os.path.join(output_folder_path, image_datum["path"]))
+            ).save(os.path.join(input_folder_path, image_datum["path"]))
 
 # fiddling with this a bit; technically, it's not good to so this without adding a setting, but... it's better anyway, and i WILL add the setting.
 # TODO: Change "search right to left" into "Reverse search order", and I guess change "Start search in center" to "search outward"?

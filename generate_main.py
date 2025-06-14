@@ -66,26 +66,28 @@ def main():
 
 def generate_pose_data(temp_json_data):
     data = temp_json_data.get("data", {})
-    path = temp_json_data.get("path", "")
+    output_folder_path = temp_json_data.get("output_folder_path", "")
 
-    generate.generate_all_pose_data(data, path)
+    generate.generate_all_pose_data(data, output_folder_path)
 
 def generate_sheet_image(temp_json_data):
     # print("generatemain_gothere4")
     selected_layers = temp_json_data.get("selected_layers", []) # update comment to say update_unique_only or whatever won't work at all for this. still make it disabled at some point
     data = temp_json_data.get("data", {})
-    path = temp_json_data.get("path", "")
+    input_folder_path = temp_json_data.get("input_folder_path", "")
+    output_folder_path = temp_json_data.get("output_folder_path", "")
     # print("generatemain_gothere5")
-    generate.generate_sheet_image(selected_layers, data, path)
+    generate.generate_sheet_image(selected_layers, data, input_folder_path, output_folder_path)
 
 def generate_layer_images(temp_json_data):
     selected_layers = temp_json_data.get("selected_layers", [])
     unique_only = temp_json_data.get("unique_only", False)
 
     data = temp_json_data.get("data", {})
-    path = temp_json_data.get("path", "")
+    input_folder_path = temp_json_data.get("input_folder_path", "")
+    output_folder_path = temp_json_data.get("output_folder_path", "")
 
-    generate.generate_layer_images(selected_layers, unique_only, data, path)
+    generate.generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path)
 
 def generate_external_filetype(temp_json_data):
     selected_layers = temp_json_data.get("selected_layers", [])
@@ -93,16 +95,18 @@ def generate_external_filetype(temp_json_data):
     unique_only = temp_json_data.get("unique_only", False)
 
     data = temp_json_data.get("data", {})
-    path = temp_json_data.get("path", "")
+    input_folder_path = temp_json_data.get("input_folder_path", "")
+    output_folder_path = temp_json_data.get("output_folder_path", "")
 
-    generate.generate_external_filetype(selected_layers, unique_only, data, path)
+    generate.generate_external_filetype(selected_layers, unique_only, data, input_folder_path, output_folder_path)
 
 def generate_updated_pose_images(temp_json_data):
     new_image_paths = temp_json_data.get("new_image_paths", [])
     data = temp_json_data.get("data", {})
-    path = temp_json_data.get("path", "")
+    input_folder_path = temp_json_data.get("input_folder_path", "")
+    # output_folder_path = temp_json_data.get("output_folder_path", "")
 
-    generate.generate_layer_images(new_image_paths, data, path)
+    generate.generate_updated_pose_images(new_image_paths, data, input_folder_path)
 
 if __name__ == "__main__":
     main()

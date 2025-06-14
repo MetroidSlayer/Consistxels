@@ -170,5 +170,6 @@ def main():
     root.mainloop()
 
 # run main
+# is there some way to make it raise an exception if ran as the main process? idk
 if __name__ == "__main__":
     main()
