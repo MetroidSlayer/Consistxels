@@ -32,11 +32,14 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
         generation_data = input_data.get("generation_data")
 
         # Size is used in a few places, especially when generating full output in menu_loadjson, so it's calculated and stored in the header.
-        # TODO: Throw exception if size is still (0,0) after that. Or I guess if either height or width is still 0, neither should be after all
         size = (0,0)
         layer = next(layer for layer in input_layer_data if (layer.get("search_image_path") or layer.get("source_image_path")))
         with Image.open(layer["search_image_path"] if layer.get("search_image_path") else layer["source_image_path"]) as img:
             size = img.size
+        
+        if size[0] <= 0 or size[1] <= 0:
+            print(json.dumps({"type":"error", "value":0, "info_text":"Image has invalid height or width"}))
+            raise ValueError
 
         # Match the search type
         match search_type_data["search_type"]:
@@ -47,7 +50,8 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
             case "Preset":
                 pose_locations = input_pose_data # TODO: Test
             case _:
-                pass # TODO: throw exception: invalid search type
+                print(json.dumps({"type":"error", "value":0, "info_text":f"{search_type_data["search_type"]} is not a valid search type"}))
+                raise ValueError
 
         # Output pose data. Also output some image data; I would have liked to separate them, but they're so conceptually intertwined that I don't think it's possible
         output_pose_data, image_prep_data = generate_pose_data(pose_locations, input_layer_data, search_data, generation_data)
@@ -135,7 +139,7 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
 def search_border(search_data, search_type_data, layer_data):
     # Determine which layer is the border
     border_layer = next(layer for layer in layer_data if layer.get("is_border"))
-    # TODO: throw exception if border_layer == None
+    # TODO: throw exception if border_layer == None # I mean... we don't HAVE to? An exception will be raised automatically if it attempts to open an image that's None
 
     # Open the border image
     with Image.open(border_layer["search_image_path"]) as border_image:
@@ -149,9 +153,8 @@ def search_border(search_data, search_type_data, layer_data):
         # TODO: test if values that already have alpha can make it here, and stop 'em. probably throw error too
         border_color_rgb = ImageColor.getrgb(search_type_data["border_color"] + "ff")
 
-        # TODO errors if these don't exist, I guess??
-        start_search_in_center = search_data["start_search_in_center"]
-        search_right_to_left = search_data["search_right_to_left"]
+        start_search_in_center = search_data.get("start_search_in_center", True)
+        search_right_to_left = search_data.get("search_right_to_left", False)
 
         pose_locations = [] # Not full pose data, just the x/y positions and size
 
@@ -271,7 +274,7 @@ def search_spacing(search_data, search_type_data, size):
 
 # Generate all-new pose data, as well as data necessary to generate images for that pose data.
 # Returns pose_data and image_prep_data.
-# TODO: think of renaming? shares name with the general concept, and some other functions that EVENTUALLY lead to this one but idk idk idk idk TODO rewrite this comment
+# TODO: think of renaming? shares name with some other functions that EVENTUALLY lead to this one, so it might help with clarity
 def generate_pose_data(pose_locations, layer_data, search_data, generation_data):
 
     # Stores image padding. indexes will match final image data
@@ -292,6 +295,12 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
         else:
             layer_search_images.append(None)
     
+    # layer_search_images = [None] * len(layer_data)
+    # for layer.get("search_image_path") in 
+    # for i, layer in enumerate(layer_data):
+    #     try:
+    #         with Image.open
+    
     pose_data = []
     
     curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
@@ -310,7 +319,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
         limb_data = []
 
         # Search through every layer for sprites
-        # TODO: At some point, make this part its own function
+        # TODO: At some point, make this part its own function # NOT sure what I meant by "this part". Just the layer search? I dunno, would that ever be used elsewhere? I agree in theory but it might not be worth it
         for layer_index, layer in enumerate(layer_data):
             # i.e. if there's actually something we want to search here
             if layer != None and layer_search_images[layer_index] != None and not layer["is_border"] and not layer["is_cosmetic_only"]:
@@ -364,9 +373,13 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                             if not is_unique: break # If it's been detected that this image is a copy of another, no need to check for more
                             image_index += 1 # Image index is incremented here, because when I put it in other places or tried smarter methods, everything broke
 
+                    # Save padding - i.e., the space between the bound search image and the edge of the output pose image on a given side. Padding is
+                    # saved such that it's consistent, no matter what the flip or rotation of the image is; therefore, when calculating offsets later,
+                    # flip and rotation must be accounted for.
+                    #
                     # Padding is saved for a few reasons. Mostly, it's there to make the sprites easier to edit in a separate program once
                     # they've been output. Without the padding, there'd be no room to work with, and you'd need to increase the size of the sprites,
-                    # and then everything would get cut off, and it'd just be a whole mess. Padding is also used to adjust the offsets of each limb.
+                    # and then everything would get cut off, and it'd just be a whole mess.
 
                     # The same amount of custom padding is applied to all sides
                     left_padding = top_padding = right_padding = bottom_padding = generation_data["custom_padding_amount"]
@@ -391,9 +404,6 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                             "original_layer_index": layer_index, 
                             "original_pose_location": pose_location # Might eventually reformat pose_location to be (x1, y1, x2, y2) instead of (x, y, w, h)
                         })
-
-                        # Update the pose number, so that the user knows something is actually happening
-                        # update_progress(conn, None, f"Unique images found: {len(image_prep_data)}")
 
                     # If automatic padding is selected, EVERY pose that uses a given pose image must have their offsets adjusted to accomodate paddings that
                     # aren't even originally from their pose. In other words, padding is specific to individual pose images, but we want to make it universal instead.
@@ -433,6 +443,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
 
                     limb = {
                         "name": layer["name"],
+                        "layer_index": layer_index,
                         "x_offset": bbox[0], # Offsets will be edited later. At the moment, there's simply no way to know if the offsets work with the paddings,
                         "y_offset": bbox[1], # since not all images have been searched and the padding size for an image might change still.
                         "image_index": image_index,
@@ -453,7 +464,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 "limb_data": limb_data
             })
 
-            # Update progress        
+            # For updating progress bar. To prevent being called constantly, does a little math
             new_percent = math.floor((pose_index / len(pose_locations)) * 100)
             if new_percent > curr_percent:
                 curr_percent = new_percent
@@ -468,18 +479,11 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 left_padding, top_padding, right_padding, bottom_padding = image_prep_data[limb["image_index"]]["padding"]
                 padding = [left_padding, top_padding, right_padding, bottom_padding]
 
-                # Adjust paddings for the flip and rotation. As a bit of a side note, the offsets are saved WITH the flip and rotation in mind, but the paddings
-                # are saved WITHOUT the flip and rotation in mind. There might be a better way to go about that, since it seems counterintuitive and like we need
-                # to do a lot of unnecessary work, but I'm pretty sure this is the best way. Think about it - there needs to be ONE UNIVERSAL padding for a given
-                # image that works for EVERY pose that uses that image, so rotation and flips shouldn't factor into that. Flip and rotation must be saved
-                # *some*where, though, and the only other option is the offsets. We COULD save a left_, top_, right_, and bottom_ offset for every single limb in
-                # every single pose to avoid doing this weird rotation stuff, but two of those paddings would go completely unused EVERY SINGLE time - it would
-                # simply select whichever sides make sense as the left and top, given the flip and rotation of the pose. Therefore, we only NEED left_ and top_
-                # saved, and since we NEED to save rotation and flip data to the offsets, the left_ and top_ padding need to undergo this process every time.
-                
-                # TODO: re-read and probably rewrite the above comment. I need to get better at explaining things quickly and intuitively
+                # Adjust paddings to account for flip and rotation, then apply the paddings to the offset. It might seem a bit counterintuitive to calculate
+                # and undo the padding flip/rotation a few times, but this way we make sure we're ONLY saving the sides that are actually being used on a
+                # per-limb basis.  
 
-                # Rotation and flipping done in reverse order from last time, 'cause we're undoing it or something TODO make better comment
+                # Rotation and flipping done in reverse order from last time, because we're effectively undoing the calculations from earlier.
 
                 # Rotate padding values clockwise by 90-degree steps
                 for _ in range(limb["rotation_amount"]):
@@ -489,8 +493,6 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 if limb["flip_h"]: padding = [padding[2], padding[1], padding[0], padding[3]]
 
                 # Offsets for each limb are adjusted by the appropriate amount.
-                # I've explained this exhaustively, but not *well* - but essentially, the padding HAS to rotate whether we like it or not, so we need to
-                # work around that. Will try to think of a better explanation
                 limb["x_offset"] -= padding[0]
                 limb["y_offset"] -= padding[1]
 
@@ -506,7 +508,8 @@ def generate_image_data(image_prep_data, layer_data, pose_data):
     layer_source_images = []
 
     # Used for filenames (though I guess if the filenames already exist, this isn't good? Will want to possibly think of reworking this some more
-    # once I want to be able to update pose images for existing generated .jsons) Ok yeah TODO TODO TODO
+    # once I want to be able to update pose images for existing generated .jsons) Ok yeah TODO 
+    # (OK this is a bit of an outdated comment - no longer using this for updating existing pose images. So I probably don't have to worry about this, I think)
     number_of_characters = len(str(len(image_prep_data)))
 
     curr_percent = 0
@@ -551,11 +554,15 @@ def generate_image_data(image_prep_data, layer_data, pose_data):
         # the data stored in image_prep
         original_pose_index = None
 
-        # TODO: should maybe throw an error if it tries to find a pose that doesn't exist
         # Also I'm not sure why this works fine here, but it didn't work well for image_index back in generate_pose_data()?
         for original_pose_index, pose in enumerate(pose_data):
             if pose["x_position"] == original_pose_location["x_position"] and pose["y_position"] == original_pose_location["y_position"]:
                 break
+
+        # Throw an error if it tries to find a pose that doesn't exist
+        if original_pose_index == None:
+            print(json.dumps({"type":"error","value":0,"info_text":"image_prep_data searched for a pose that is not part of pose_data"}))
+            raise Exception
         
         # If there's already appropriate image data, use that instead. We'll probably want to split generate_image_data into a few different functions for
         # the different possibilities, honestly. I dunno.
@@ -565,6 +572,7 @@ def generate_image_data(image_prep_data, layer_data, pose_data):
             "original_layer_index": image_prep["original_layer_index"]
         })
 
+        # For updating progress bar. To prevent being called constantly, does a little math
         new_percent = math.floor((len(images) / len(image_prep_data)) * 100)
         if new_percent > curr_percent:
             curr_percent = new_percent
@@ -572,45 +580,45 @@ def generate_image_data(image_prep_data, layer_data, pose_data):
 
     return image_data, images
 
+# Input a layer image to get the position from, and a layer image to draw with
 def generate_image_from_layers(original_layer_image, source_layer_image, pose_box, padding):
-
+    # Get image position
     original_image = original_layer_image.crop(pose_box)
     original_bbox = original_image.getbbox()
     bound_original_image = original_image.crop(original_bbox)
-
     offset = (padding[0] - original_bbox[0], padding[1] - original_bbox[1])
     size = ((bound_original_image.width + padding[0] + padding[2]), (bound_original_image.height + padding[1] + padding[3]))
 
-    # return generate_image(
-    #     source_layer_image.crop(pose_box),
-    #     ((bound_original_image.width + padding[0] + padding[2]), (bound_original_image.height + padding[1] + padding[3])),
-    #     offset
-    # )
+    # Make image
     return generate_image_from_source_layer(source_layer_image, pose_box, size, offset)
 
+# Input a source image and a position, get an image
 def generate_image_from_source_layer(source_layer_image, pose_box, size, offset):
     return generate_image(source_layer_image.crop(pose_box), size, offset)
 
+# Generate a new image with the given input image, size, and offset
 def generate_image(input_image, size, offset):
-    image = Image.new(
+    image = Image.new( # Create new image
         "RGBA", size,
         ImageColor.getrgb("#00000000") # Transparency
     )
 
+    # Paste input image at position, then return
     image.paste(input_image, offset)
-
     return image
 
+# Generate data about the layers used, and return layer images as well
+# TODO rework a little at some point. It works, though
 def generate_layer_data(input_layer_data):
     output_layer_data = []
     search_images = []
     source_images = []
     
-    for layer in input_layer_data:
+    for layer in input_layer_data: # Could probably do most of this better
         search_image_path = None
         source_image_path = None
 
-        if layer["export_layer_images"]:
+        if layer["export_layer_images"]: # Now TECHNICALLY redundant, since this check is done when the images are saved in generate_all_pose_data(), but idk I like it in both places
 
             if layer["search_image_path"]:
                 search_image_path = (
@@ -643,12 +651,13 @@ def generate_layer_data(input_layer_data):
 
     return output_layer_data, search_images, source_images
 
+# Compare images. Return whether the two images are identical; if they are, also return image's flip and rotation relative to compare_to
 # Return vals: is_unique, is_flipped, rotation_amount
 def compare_images(image:Image, compare_to:Image, detect_identical_images = True, detect_rotated_images = True, detect_flip_h_images = True, detect_flip_v_images = False):
     if detect_identical_images and image.tobytes() == compare_to.tobytes(): # the image is already stored; move on
         return False, False, 0
 
-    # a necessary evil, i think
+    # Declared here to remain in-scope later. A bit clunky, but ehh
     flip_h = None
 
     if detect_flip_h_images:
@@ -704,12 +713,17 @@ def compare_images(image:Image, compare_to:Image, detect_identical_images = True
     # Getting here doesn't mean the image IS unique OVERALL - it still likely has to check against many more images
     return True, False, 0
 
+# Generate one image that contains all selected layers merged together
 def generate_sheet_image(selected_layers, data, input_folder_path, output_folder_path):
     size = (data["header"]["width"], data["header"]["height"])
-    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"], size, input_folder_path)
+    layer_images = place_pose_images(
+        data["image_data"],
+        generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"],
+        size,
+        input_folder_path
+    )
 
-    color_transparent = ImageColor.getrgb("#00000000")
-    sheet_image = Image.new("RGBA", size, color_transparent)
+    sheet_image = Image.new("RGBA", size, ImageColor.getrgb("#00000000"))
 
     for i, layer_image in enumerate(layer_images): # probably a better way to do this
         if not i in selected_layers: layer_images.pop(i)
@@ -717,25 +731,39 @@ def generate_sheet_image(selected_layers, data, input_folder_path, output_folder
     for layer_image in reversed(layer_images):
         sheet_image.alpha_composite(layer_image)
 
-    # need to ask if want to overwrite somewhere
-    # ALSO output_folder_path is not necessarily the same as the INPUT folder path! might as well separate them in case someone wants to export to a location other than the one the pose images are. otherwise, what's even the point of having an option to enter an output path?
+    # TODO need to ask if want to overwrite somewhere
     sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png"))
 
+# Generate an image for each selected layer
 def generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path):
     size = (data["header"]["width"], data["header"]["height"])
-    layer_images = place_pose_images(data["image_data"], generate_image_placement_data(selected_layers, unique_only, data["pose_data"], data["layer_data"], data["image_data"]), data["layer_data"], size, input_folder_path)
+    layer_images = place_pose_images(
+        data["image_data"],
+        generate_image_placement_data(selected_layers, unique_only, data["pose_data"], data["layer_data"], data["image_data"]),
+        data["layer_data"],
+        size,
+        input_folder_path
+    )
 
     for i, layer_image in enumerate(layer_images):
         if i in selected_layers:
-            path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # COULD have filetype be selectable? though i have no idea why anyone would use anything other than png
+            path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
             layer_image.save(os.path.join(output_folder_path, path))
 
+# Not implemented yet
 def generate_external_filetype(selected_layers, unique_only, data, input_folder_path, output_folder_path):
-    pass
+    raise NotImplementedError
 
+# Re-format pose, layer, and image data so that limb data is per-image, not per-pose.
 def generate_image_placement_data(selected_layers, unique_only, pose_data, layer_data, image_data):
     layer_names = [layer.get("name") for layer in layer_data]
 
+    # image_placement_data format:
+    # [
+    #   ["x_offset", "y_offset", "layer_index", "flip_h", "rotation_amount"],
+    #   ["x_offset", "y_offset", "layer_index", "flip_h", "rotation_amount"],
+    #   [...], ...
+    # ]
     image_placement_data = []
     for _ in range(len(image_data)):
         image_placement_data.append([])
@@ -755,17 +783,22 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
                 image_index = limb["image_index"]
 
                 if (not unique_only) or (image_data[image_index]["original_pose_index"] == pose_index):
-                    image_placement_data[image_index].append({"x_position": x_position + x_offset, "y_position": y_position + y_offset, "layer_index": layer_index, "flip_h": limb["flip_h"], "rotation_amount": limb["rotation_amount"]})
+                    image_placement_data[image_index].append({
+                        "x_position": x_position + x_offset,
+                        "y_position": y_position + y_offset,
+                        "layer_index": layer_index,
+                        "flip_h": limb["flip_h"],
+                        "rotation_amount": limb["rotation_amount"]
+                    })
 
     # dawning on me that we can check for original pose index if we simply look through pose data for the first instance. we're kinda doing that anyway. think abt this
     return image_placement_data
 
+# Place pose images according to image_placement_data
 def place_pose_images(image_data, image_placement_data, layer_data, size, input_folder_path):
-
+    # Pose images will be placed onto layer images, which will all be returned at the end
     layer_images = [None] * len(layer_data)
-    color_transparent = ImageColor.getrgb("#00000000")
-
-    img_base = Image.new("RGBA", size, color_transparent)
+    img_base = Image.new("RGBA", size, ImageColor.getrgb("#00000000"))
 
     for i, layer in enumerate(layer_data):
         if layer["is_border"] or layer["is_cosmetic_only"]:
@@ -776,13 +809,16 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
         else:
             layer_images[i] = img_base.copy()
     
+    # Iterate through each image
     for i, image_placement in enumerate(image_placement_data):
         with Image.open(os.path.join(input_folder_path, image_data[i]["path"])) as image:
             
+            # Iterate through each instance of each image
             for limb_placement in image_placement:
                 if limb_placement != None and layer_images[limb_placement["layer_index"]] != None:
                     adjusted_image = image.copy()
 
+                    # I've never been sure why, but I've had to rotate backwards pretty consistently. Am I storing the info wrong or something? I don't THINK so, right???
                     match limb_placement["rotation_amount"]:
                         case 1:
                             adjusted_image = adjusted_image.transpose(Image.Transpose.ROTATE_270)
@@ -799,11 +835,8 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
     
 # updated_layers in format [{"new_image_path"}, {...}...] or something to that effect
 def generate_updated_pose_images(new_image_paths, data, input_folder_path):
-    # get original pose bbox
-    # get img from new_image_path layer image inside original pose bbox (per layer)
-    # paste new img onto old one, or clear old one, or something
 
-    layer_names = [layer.get("name") for layer in data["layer_data"]] # so we WILL need to EITHER prevent identical layer names, OR fill pose limb_data with empty limbs for each unused layer. (OR!!!! store layer_index in limb_data, rather than the layer's name. we can still store the name, but ALSO the layer index - i like this plan best)
+    # layer_names = [layer.get("name") for layer in data["layer_data"]] # so we WILL need to EITHER prevent identical layer names, OR fill pose limb_data with empty limbs for each unused layer. (OR!!!! store layer_index in limb_data, rather than the layer's name. we can still store the name, but ALSO the layer index - i like this plan best)
 
     new_layer_images = [None] * len(new_image_paths)
     for i, new_image_path in enumerate(new_image_paths):
@@ -819,22 +852,24 @@ def generate_updated_pose_images(new_image_paths, data, input_folder_path):
             pose = data["pose_data"][image_datum["original_pose_index"]]
             pose_box = (pose["x_position"], pose["y_position"], pose["x_position"] + pose["width"], pose["y_position"] + pose["height"])
 
-            limb = next(l for l in pose["limb_data"] if l["name"] == layer_names[image_datum["original_layer_index"]])
+            # Get a limb from this pose that's part of the correct layer. It would be fairly trivial to prevent an error from happening if no limb
+            # is found, but on the other hand, maybe it SHOULD raise an error if limbs are not found where they're expected. After all, this is
+            # searching for the ORIGINAL limb locations, so there can only NOT be something there if the data was modified in some way.
+            # limb = next(l for l in pose["limb_data"] if l["name"] == layer_names[image_datum["original_layer_index"]])
+            limb = next(l for l in pose["limb_data"] if l["layer_index"] == layer_index)
 
             with Image.open(os.path.join(input_folder_path, image_datum["path"])) as image:
                 size = image.size
                 
+            # Admittedly not sure why we're using the negative offsets, but this is the only way this works. I am not good at math
             offset = (-limb["x_offset"], -limb["y_offset"])
 
+            # Generate image
             generate_image_from_source_layer(
                 new_layer_images[image_datum["original_layer_index"]], pose_box, size, offset
             ).save(os.path.join(input_folder_path, image_datum["path"]))
 
-# fiddling with this a bit; technically, it's not good to so this without adding a setting, but... it's better anyway, and i WILL add the setting.
-# TODO: Change "search right to left" into "Reverse search order", and I guess change "Start search in center" to "search outward"?
-# It'd be *good* to have that as a setting and keep the original implementation, but... not necessary.
-#
-# I actually don't need to do that I think, at least not right now. In any case, maybe I should make this more interesting than just an if-else ladder? I dunno.
+# Given the search settings, calculate the range or ranges to search.
 def get_x_range(start = 0, end = 10, start_search_in_center = False, search_right_to_left = False, edge_offset = 0): # edge_offset modifies the end value without changing the original midpoint
     if start_search_in_center: # if we're starting search in center, we need a chain of ranges, rather than just a range
         # Calculate midpoint

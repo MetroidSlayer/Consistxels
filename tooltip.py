@@ -1,13 +1,13 @@
 import tkinter as tk
-
+import gui_shared
 
 # A tooltip that shows up by the mouse cursor after a specified amount of time.
-# TODO: change text so that it wraps. really would not be that hard
 class ToolTip:
-    def __init__(self, widget, text, force_above=False, force_left=False, delay=500):
+    def __init__(self, widget, text, force_above=False, force_left=False, delay=500, wraplength=500):
         self.widget = widget
         self.text = text
         self.delay = delay  # milliseconds
+        self.wraplength = wraplength # pixels, I think
         self.tooltip_window = None
         self.id = None
 
@@ -16,7 +16,6 @@ class ToolTip:
 
         self.widget.bind("<Enter>", self.schedule_show)
         self.widget.bind("<Leave>", self.hide_tooltip)
-        # self.widget.bind("<Motion>", self.move_tooltip)
 
     def schedule_show(self, event=None):
         self.unschedule()
@@ -35,10 +34,9 @@ class ToolTip:
         self.tooltip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
 
-        label = tk.Label(tw, text=self.text, justify='left',
-                        background="#333", foreground="white",
-                        relief='solid', borderwidth=1,
-                        font=("tahoma", "9", "normal"))
+        label = tk.Label(tw, text=self.text, wraplength=self.wraplength, justify='left',
+            background=gui_shared.field_bg, foreground=gui_shared.fg_color,
+            highlightthickness=1, highlightbackground=gui_shared.fg_color)
         label.pack(ipadx=4, ipady=2)
 
         # Wait for widget geometry to be realized

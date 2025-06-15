@@ -5,7 +5,7 @@ import json
 import tempfile
 import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox, ttk
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageColor
 
 from tooltip import ToolTip
 # from shared import on_global_click, consistxels_version
@@ -21,6 +21,11 @@ class Menu_LayerSelect(tk.Frame):
         # Track images and border
         self.layer_data = []  # List of dicts: {path, name, thumbnail, img_obj}
         self.border_color = "#00007f" # in the future, could be taken from info stored from last generation
+        self.image_size = None
+        self.preview_zoom = 1.0
+        self.preview_image = None
+        self.formatted_canvas_image = None
+        self.img_id = None
 
         self.configure(bg=gui_shared.bg_color)
 
@@ -37,31 +42,17 @@ class Menu_LayerSelect(tk.Frame):
         # Save button
         save_json_button = tk.Button(self.header, text="💾 Save .json", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layerselect_json)
         save_json_button.pack(padx=10, pady=10, side="left")
-        ToolTip(save_json_button,"""
-Save the selected search options and layer data to a .json file for later use.
-Should ONLY be used locally, and not transferred to other devices, as this uses
-direct paths to layer images that are specific to this device.
-        """.strip())
+        ToolTip(save_json_button,"""Save the selected search options and layer data to a .json file for later use. Should ONLY be used locally, and not transferred to other devices, as this uses direct paths to layer images that are specific to this device.""")
 
         # Save folder button (would like to save to .zip at some point to make it more obvious what this feature is for)
         save_folder_button = tk.Button(self.header, text="💾 Save all to folder", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layerselect_all)
         save_folder_button.pack(padx=(0,10), pady=10, side="left")
-        ToolTip(save_folder_button, """
-Save the selected search options, layer data, and layer images to a specified folder.
-This avoids the problem with the 'Save .json' option, and the folder can be
-transferred to other devices without issue.
-            
-(It's recommended that you choose a new, EMPTY folder, so as to not clutter up your files!)
-        """.strip())
+        ToolTip(save_folder_button, """Save the selected search options, layer data, and layer images to a specified folder. This avoids the problem with the 'Save .json' option, and the folder can be transferred to other devices without issue.\n\n(It's recommended that you choose a new, EMPTY folder, so as to not clutter up your files!)""")
         
         # Load button
         self.load_button = tk.Button(self.header, text="📁 Load", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.import_layerselect_json)
         self.load_button.pack(padx=(0,10), pady=10, side="left")
-        ToolTip(self.load_button, """
-Load a .json file and restore previous search options and layer data.
-
-(Works with both of the previous 'Save' options, as well as generated pose data output.)
-        """.strip())
+        ToolTip(self.load_button, """Load a .json file and restore previous search options and layer data.\n\n(Works with both of the previous 'Save' options, as well as generated pose data output.)""")
 
         # Clear button
         self.clear_button = tk.Button(self.header, text="✏️ Clear", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.clear_all)
@@ -119,7 +110,7 @@ Load a .json file and restore previous search options and layer data.
         self.layer_canvas = tk.Canvas(layer_canvas_frame, bg=gui_shared.bg_color, highlightthickness=0, width=0)
 
         self.layer_scrollbar = tk.Scrollbar(layer_main_frame, orient="vertical", command=self.layer_canvas.yview)
-        self.layer_scrollbar.pack(side="left", fill="y", padx=(2,0), pady=0)
+        self.layer_scrollbar.pack(side="left", fill="y", padx=(2,0))
 
         self.scrollable_frame = tk.Frame(self.layer_canvas, bg=gui_shared.bg_color)
 
@@ -192,16 +183,31 @@ Load a .json file and restore previous search options and layer data.
 
         # Center preview:
 
+        preview_frame = tk.Frame(self.center_frame, bg=gui_shared.field_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+        preview_frame.pack(side="top", fill="both", expand=True)
+
         # Preview canvas
-        self.preview_canvas = tk.Canvas(self.center_frame, bg=gui_shared.field_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-        self.preview_canvas.pack(side="top", fill="both", expand=True)
+        # self.preview_canvas = tk.Canvas(self.center_frame, bg=gui_shared.field_bg, highlightthickness=0)
+        # self.preview_canvas.pack(side="top", fill="both", expand=True)
+        self.preview_canvas = tk.Canvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0)
+        self.preview_contents_frame = tk.Frame(self.preview_canvas, bg=gui_shared.field_bg)
 
         # Canvas scroll bars
-        preview_canvas_vert_scroll = tk.Scrollbar(self.preview_canvas, orient="vertical", command=self.preview_canvas.yview)
-        preview_canvas_vert_scroll.pack(side="right", fill="y", padx=1, pady=1)
+        # preview_canvas_vert_scroll = tk.Scrollbar(self.preview_canvas, orient="vertical", command=self.preview_canvas.yview)
+        preview_canvas_vert_scroll = tk.Scrollbar(preview_frame, orient="vertical", command=self.preview_canvas.yview)
+        preview_canvas_vert_scroll.pack(side="right", fill="y")
 
-        preview_canvas_hori_scroll = tk.Scrollbar(self.preview_canvas, orient="horizontal", command=self.preview_canvas.xview)
-        preview_canvas_hori_scroll.pack(side="bottom", fill="x", padx=1, pady=1)
+        # preview_canvas_hori_scroll = tk.Scrollbar(self.preview_canvas, orient="horizontal", command=self.preview_canvas.xview)
+        preview_canvas_hori_scroll = tk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_canvas.xview)
+        preview_canvas_hori_scroll.pack(side="bottom", fill="x")
+
+        self.preview_canvas.create_window((0, 0), window=self.preview_contents_frame, anchor="center")
+        self.preview_canvas.configure(yscrollcommand=preview_canvas_vert_scroll.set, xscrollcommand=preview_canvas_hori_scroll.set)
+        self.preview_canvas.pack(side="top", fill="both", expand=True)
+
+        # self.preview_canvas.bind("<MouseWheel>", self.on_preview_canvas_mousewheel, add="+")
+
+        self.preview_contents_frame.bind("<Configure>", lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all")))
 
         # Canvas buttons have to go *some*where.
         # (would really like this to be ON the canvas at some point.)
@@ -209,21 +215,17 @@ Load a .json file and restore previous search options and layer data.
         canvas_buttons_frame.pack(side="top", fill="x")
 
         # Bottomleft reload button
-        self.update_preview_button = tk.Button(canvas_buttons_frame, text="Update Preview", command=self.update_preview, bg=gui_shared.button_bg, fg=gui_shared.fg_color)
+        self.update_preview_button = tk.Button(canvas_buttons_frame, text="Update Preview", command=self.update_preview_image, bg=gui_shared.button_bg, fg=gui_shared.fg_color)
         self.update_preview_button.pack(side="left", padx=10, pady=10) # figure out how to get bottom-left
-        ToolTip(self.update_preview_button, """
-Update the preview image that contains all layers ordered as shown. May take a while if you have
-a lot of images.
-                                                             
-(If the button is yellow, changes have been made, and the preview can be updated.)
-""".strip(), True)
+        ToolTip(self.update_preview_button, """Update the preview image that contains all layers ordered as shown. May take a while if you have a lot of images.\n\n(If the button is yellow, changes have been made, and the preview can be updated.)""", True)
 
         # Bottomright zoom buttons
-        zoom_in_button = tk.Button(canvas_buttons_frame, text="➕", bg=gui_shared.button_bg, fg=gui_shared.fg_color)
+        # zoom_in_button = tk.Button(canvas_buttons_frame, text="➕", bg=gui_shared.button_bg, fg=gui_shared.fg_color)
+        zoom_in_button = tk.Button(canvas_buttons_frame, text="➕", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda d=1.0: self.preview_canvas_zoom(d))
         zoom_in_button.pack(side="right", padx=(5, 10), pady=10)
         ToolTip(zoom_in_button, "Zoom in", True)
 
-        zoom_out_button = tk.Button(canvas_buttons_frame, text="➖", bg=gui_shared.button_bg, fg=gui_shared.fg_color)
+        zoom_out_button = tk.Button(canvas_buttons_frame, text="➖", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda d=-1.0: self.preview_canvas_zoom(d))
         zoom_out_button.pack(side="right", padx=(10, 5), pady=10)
         ToolTip(zoom_out_button, "Zoom out", True)
 
@@ -260,13 +262,11 @@ a lot of images.
         search_type_label = tk.Label(search_type_option_frame, text="Search type:", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
         search_type_label.pack(side="left", padx=10, pady=10)
         ToolTip(search_type_label, """
-- Border: Searches a border image for boxes that contain poses. When selected, a border layer will
-  be automatically created. Add a valid image, with *perfectly rectangular* pose boxes.
+- Border: Searches a border image for boxes that contain poses. When selected, a border layer will be automatically created. Add a valid image, with *perfectly rectangular* pose boxes.
 
 - Spacing: Poses are assumed to be spaced out equally from each other.
 
-- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate
-  Pose Data..." button) to search for poses in already-known locations.
+- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate Pose Data..." button) to search for poses in already-known locations.
         """.strip(), False, True)
 
         self.search_type_option = tk.StringVar(value=self.search_types[0])
@@ -307,13 +307,11 @@ a lot of images.
         search_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color)
         search_type_optionmenu.pack(side="left", padx=(0,10), pady=10, fill="x", expand=True)
         ToolTip(search_type_optionmenu, """
-- Border: Searches a border image for boxes that contain poses. When selected, a border layer will
-  be automatically created. Add a valid image with *perfectly rectangular* pose boxes.
+- Border: Searches a border image for boxes that contain poses. When selected, a border layer will be automatically created. Add a valid image with *perfectly rectangular* pose boxes.
 
 - Spacing: Poses are assumed to be spaced out equally from each other.
 
-- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate
-  Pose Data..." button) to search for poses in already-known locations.
+- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate Pose Data..." button) to search for poses in already-known locations.
         """.strip(), False, True)
 
         # Border subframe
@@ -403,12 +401,7 @@ a lot of images.
         # outer_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(outer_padding_entry, "How much space between the sprites and the edge of the sprite sheet?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
         add_widget(
-            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_outer_padding}, {'text':"""
-How much space between the sprites and the edge of the sprite sheet?
-
-(NOT to be confused with the automatic and custom padding - outer and inner are for the input
-layer images, automatic and custom are for the output pose images)
-""".strip()}
+            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_outer_padding}, {'text':"""How much space between the sprites and the edge of the sprite sheet?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
         ).pack(side="left", pady=10)
 
         # tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
@@ -427,12 +420,7 @@ layer images, automatic and custom are for the output pose images)
         # inner_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(inner_padding_entry, "How much extra padding around each sprite?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
         add_widget(
-            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_inner_padding}, {'text':"""
-How much extra padding around each sprite?
-
-(NOT to be confused with the automatic and custom padding - outer and inner are for the input
-layer images, automatic and custom are for the output pose images)
-""".strip()}
+            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_inner_padding}, {'text':"""How much extra padding around each sprite?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
         ).pack(side="left", pady=10)
 
 
@@ -516,14 +504,7 @@ layer images, automatic and custom are for the output pose images)
         # start_search_in_center_checkbutton.pack(side="left", padx=10, pady=10)
         start_search_in_center_checkbutton.grid(row=0, column=0, padx=10, pady=5)
         start_search_in_center_checkbutton.select()
-        ToolTip(start_search_in_center_checkbutton, """
-When searching the spritesheet, the program will look at each row starting in the middle of the
-image, rather than at the edge. It will search outward in one direction before reaching the edge,
-at which point it will search in the other direction, before moving onto the next row.
-
-Recommended for sprite sheets that group poses in a vertical formation, as it makes the order that
-pose images are found in much more intuitive. Not recommended if "Search right-to-left" is enabled.
-        """.strip())
+        ToolTip(start_search_in_center_checkbutton, """When searching the spritesheet, the program will look at each row starting in the middle of the image, rather than at the edge. It will search outward in one direction before reaching the edge, at which point it will search in the other direction, before moving onto the next row.\n\nRecommended for sprite sheets that group poses in a vertical formation, as it makes the order that pose images are found in much more intuitive. Not recommended if "Search right-to-left" is enabled.""")
         
         self.search_right_to_left = tk.BooleanVar()
         search_right_to_left_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
@@ -531,24 +512,14 @@ pose images are found in much more intuitive. Not recommended if "Search right-t
         # search_right_to_left_checkbutton.pack(side="top", padx=5, pady=5)
         # search_right_to_left_checkbutton.pack(side="left", padx=(0,10), pady=10)
         search_right_to_left_checkbutton.grid(row=0, column=1, padx=10, pady=5)
-        ToolTip(search_right_to_left_checkbutton, """
-Search the spritesheet from right-to-left, instead of from left-to-right.
-
-Recommended if "Start search in center" is disabled, as most characters face right by default, and
-most sprite sheets show the rightmost sprites on the right side of the sheet, so the generated data
-will use the right-facing poses as the defaults. Not recommended otherwise.
-        """.strip())
+        ToolTip(search_right_to_left_checkbutton, """Search the spritesheet from right-to-left, instead of from left-to-right.\n\nRecommended if "Start search in center" is disabled, as most characters face right by default, and most sprite sheets show the rightmost sprites on the right side of the sheet, so the generated data will use the right-facing poses as the defaults. Not recommended otherwise.""")
 
         # detect identical images
         self.detect_identical_images = tk.BooleanVar()
         detect_identical_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect identical images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_identical_images)
         detect_identical_images_checkbutton.grid(row=1, column=0, padx=10, pady=(10,5))
         detect_identical_images_checkbutton.select()
-        ToolTip(detect_identical_images_checkbutton, """
-Check if poses use already-found pose images, so they can share the same pose image.
-
-(Highly recommended - this is kinda the whole point)
-        """.strip())
+        ToolTip(detect_identical_images_checkbutton, """Check if poses use already-found pose images, so they can share the same pose image.\n\n(Highly recommended - this is kinda the whole point)""")
 
         # When both flip_h and rotated are selected, flip_v is redundant and therefore disabled for clarity
         def check_flip_v_allowed():
@@ -576,13 +547,7 @@ Check if poses use already-found pose images, so they can share the same pose im
         self.detect_flip_v_images = tk.BooleanVar()
         detect_flip_v_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect vertically mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_v_images, state='disabled')
         detect_flip_v_images_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=(5,10))
-        ToolTip(detect_flip_v_images_checkbutton, """
-Check if poses use vertically-flipped versions of already-found pose images.
- 
-(Automatically disabled when using both "detect rotated" and "detect hori. mirrored" to avoid
-redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-
--flipped image.)
-        """.strip())
+        ToolTip(detect_flip_v_images_checkbutton, """Check if poses use vertically-flipped versions of already-found pose images.\n\n(Automatically disabled when using both "detect rotated" and "detect hori. mirrored" to avoid redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-flipped image.)""")
 
         # Generation
 
@@ -609,11 +574,9 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
         padding_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color)
         padding_type_optionmenu.pack(side="top", padx=10, pady=10)
         ToolTip(padding_type_optionmenu, """
-- Show only always-visible pixels: Padding for pose images will increase to show how much space is
-  visible in all instances of that pose image. (Recommended)
+- Show only always-visible pixels: Padding for pose images will increase to show how much space is visible in all instances of that pose image. (Recommended)
 
-- Show all theoretically-visible pixels: Same as above, but padding also contains space that is not
-  visible in some pose boxes.
+- Show all theoretically-visible pixels: Same as above, but padding also contains space that is not visible in some pose boxes.
 
 - None: No extra automatic padding is applied. (Recommended if using the "Custom padding" option.)
         """.strip())
@@ -634,13 +597,7 @@ redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a 
         # custom_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(custom_padding_entry, "Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding, this will add the automatic and custom padding together.\n(Negative values are allowed, and will instead subtract from automatic padding without cutting off any of the pose images.)")
         add_widget(
-            tk.Entry, custom_padding_frame, {'width':6, 'textvariable':self.custom_padding_amount}, {'text':"""
-Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding,
-this will add the automatic and custom padding together.
-
-(Negative values are allowed, and will instead subtract from automatic padding without cutting off
-any of the pose images.)
-        """.strip()}
+            tk.Entry, custom_padding_frame, {'width':6, 'textvariable':self.custom_padding_amount}, {'text':"""Enter a custom amount of padding to apply to each pose image. If used alongside automatic padding, this will add the automatic and custom padding together.\n\n(Negative values are allowed, and will instead subtract from automatic padding without cutting off any of the pose images.)"""}
         ).pack(side="left", pady=10)
 
         generate_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
@@ -656,13 +613,7 @@ any of the pose images.)
         # some sort of function to check if folder is empty, and warn user if not
         self.output_folder_path = tk.StringVar()
         add_widget(
-            tk.Entry, generate_options_frame, {'textvariable':self.output_folder_path}, {'text':"""
-Enter the path to the folder where the pose images and .json data will be output.
-
-(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up
-your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite
-existing data, go for it.)
-        """.strip()}
+            tk.Entry, generate_options_frame, {'textvariable':self.output_folder_path}, {'text':"""Enter the path to the folder where the pose images and .json data will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""}
         ).pack(side="left", fill="x", expand=True, pady=10)
 
         def select_output_folder_path():
@@ -670,13 +621,7 @@ existing data, go for it.)
 
         output_folder_button = tk.Button(generate_options_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
         output_folder_button.pack(side="left", padx=10, pady=10)
-        ToolTip(output_folder_button, """
-Open a file dialog and select the folder where the pose images and .json data will be output.
-
-(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up
-your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite
-existing data, go for it.)
-        """.strip())
+        ToolTip(output_folder_button, """Open a file dialog and select the folder where the pose images and .json data will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)""")
 
         generate_container_frame = tk.Frame(generate_frame, bg=gui_shared.bg_color)
         generate_container_frame.pack(side="top", fill="x")
@@ -801,6 +746,20 @@ existing data, go for it.)
         # print("gothere3")
         return color
 
+    def check_image_valid(self, image_path):
+        try:
+            with Image.open(image_path) as image:
+                if self.image_size == None:
+                    self.image_size = image.size
+                elif self.image_size != image.size:
+                    messagebox.showwarning("Warning!", f"All images must be the same size.\nThe detected sprite sheet size is {self.image_size[0]}x{self.image_size[1]}, but a selected image is {image.size[0]}x{image.size[1]}.)")
+                    return False
+                return True
+        except Image.UnidentifiedImageError:
+            messagebox.showwarning("Warning!", "Please select a valid image.")
+            return False
+
+
     def add_blank_layer(self, add_to_top = True):
         blank_layer = {
             "name": None,
@@ -837,7 +796,7 @@ existing data, go for it.)
         #     for d in data:
         #         # paths.append(d["path"])
         #         pass
-        image_size = None
+        # image_size = None
 
         # for i, path in enumerate(paths):
         # for d in data:
@@ -866,25 +825,25 @@ existing data, go for it.)
             # with Image.open(search_image_path) as image:
             #     thumb = image.copy()
 
-            if search_image_path: # TODO TODO TODO think of way to add this to card function versions of adding images. this is an important check!
-                with Image.open(search_image_path) as search_image:
-                    search_image_size = search_image.size
+            # if search_image_path: # TODO TODO TODO think of way to add this to card function versions of adding images. this is an important check!
+            #     with Image.open(search_image_path) as search_image:
+            #         search_image_size = search_image.size
 
-                if image_size == None:
-                    image_size = search_image_size
-                elif image_size != search_image_size:
-                    messagebox.showwarning("Warning!", "All images must be the same size")
-                    break
+            #     if self.image_size == None:
+            #         self.image_size = search_image_size
+            #     elif self.image_size != search_image_size:
+            #         messagebox.showwarning("Warning!", "All images must be the same size")
+            #         break
 
-            if source_image_path:
-                with Image.open(source_image_path) as source_image:
-                    source_image_size = source_image.size
+            # if source_image_path:
+            #     with Image.open(source_image_path) as source_image:
+            #         source_image_size = source_image.size
 
-                if image_size == None:
-                    image_size = source_image_size
-                elif image_size != source_image_size:
-                    messagebox.showwarning("Warning!", "All images must be the same size")
-                    break
+            #     if self.image_size == None:
+            #         self.image_size = source_image_size
+            #     elif self.image_size != source_image_size:
+            #         messagebox.showwarning("Warning!", "All images must be the same size")
+            #         break
 
             # if len(self.layer_data):
             #     if self.layer_data[0]["img"].size != thumb.size:
@@ -1112,13 +1071,16 @@ existing data, go for it.)
         if data.get("search_image_path"):
             search_entry.insert(0, data.get("search_image_path"))
 
+        # Will this run every time the entry is UNFOCUSED, or every time ANYTHING IS TYPED? if it's the latter, it's quite annoying, but also who is gonna type these things anyway
         def save_search_image(e = None, entry=data, entry_widget=search_entry, i=layer_index):
-            entry.update({"search_image_path":entry_widget.get()})
-            
-            self.create_layer_thumbnail(i) # Force a thumbnail update
-            self.redraw_layer_card(i) # Only need to redraw THIS card
+            new_image_path = entry_widget.get()
+            if self.check_image_valid(new_image_path): # Check that image is the proper size, and that it is a valid image according to Pillow (I think)
+                entry.update({"search_image_path":new_image_path})
+                
+                self.create_layer_thumbnail(i) # Force a thumbnail update
+                self.redraw_layer_card(i) # Only need to redraw THIS card
 
-            self.set_preview_button(True)
+                self.set_preview_button(True)
 
         search_entry.bind("<FocusOut>", save_search_image, add="+")
 
@@ -1130,25 +1092,24 @@ existing data, go for it.)
         search_button = tk.Button(search_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_search_image)
         # search_button.pack(side="left", padx=(10,0), pady=((0 if is_border else 10),(10 if (is_cosmetic_only and not is_border) else 0)))
         search_button.pack(side="left", padx=(10,0))
+        ToolTip(search_button, "Open a file dialog and select this layer's image, which will be searched for poses.")
             
-        if not is_border and not is_cosmetic_only:
+        if not is_border and not is_cosmetic_only: # TODO: make source image disabled if search image entry is empty? idk
             source_frame = tk.Frame(content_right_frame, bg=gui_shared.secondary_bg)
             source_frame.pack(side="top", fill="x", padx=10, pady=(0,10))
 
             tk.Label(source_frame, text="Source img:", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(0,5))
 
-            source_entry = add_widget(tk.Entry, source_frame, {'width':1}, {'text':"""
-(OPTIONAL!) The search image is used to find identical copies, but the source image is used for the
-actual image output. If no source image is selected, the search image will be used instead.
-
-(Just leave this empty if you're not sure.)""".strip()})
+            source_entry = add_widget(tk.Entry, source_frame, {'width':1}, {'text':"""(OPTIONAL!) The search image is used to find identical copies, but the source image is used for the actual image output. If no source image is selected, the search image will be used instead.\n\n(Just leave this empty if you're not sure.)"""})
             source_entry.pack(side="left", fill="x", expand=True)
             
             if data.get("source_image_path"):
                 source_entry.insert(0, data.get("source_image_path"))
 
             def save_source_image(e = None, entry=data, entry_widget=source_entry):
-                entry.update({"source_image_path":entry_widget.get()})
+                new_image_path = entry_widget.get()
+                if self.check_image_valid(new_image_path):
+                    entry.update({"source_image_path":new_image_path})
 
             source_entry.bind("<FocusOut>", save_source_image, add="+")
 
@@ -1160,6 +1121,7 @@ actual image output. If no source image is selected, the search image will be us
             source_button = tk.Button(source_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_source_image)
             # source_button.pack(side="left", padx=(10,0), pady=(0,10))
             source_button.pack(side="left", padx=(10,0))
+            ToolTip(source_button, "(OPTIONAL!) The search image is used to find identical copies, but the source image is used for the actual image output. If no source image is selected, the search image will be used instead.\n\n(Just leave this alone if you're not sure.)")
 
             
         right_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
@@ -1264,36 +1226,127 @@ actual image output. If no source image is selected, the search image will be us
             bg=(gui_shared.warning_bg if can_update else gui_shared.button_bg), fg=(gui_shared.warning_fg if can_update else gui_shared.fg_color)
         )
 
-    def update_preview(self):
+    def update_preview_image(self):
+        # print("got to update_preview_image")
         # self.update_preview_button.configure(bg=gui_shared.button_bg, fg=gui_shared.fg_color)
         self.set_preview_button(False)
 
-        width = self.preview_canvas.winfo_width()
-        height = self.preview_canvas.winfo_height()
-        composite = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        # composite = Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
-        def paste_center(base, img):
-            img_ratio = min(width / img.width, height / img.height)
-            new_size = (int(img.width * img_ratio), int(img.height * img_ratio))
+        # def paste_center(base, img):
+        #     img_ratio = min(width / img.width, height / img.height)
+        #     new_size = (int(img.width * img_ratio), int(img.height * img_ratio))
             
-            # zoomed_size = (int(img.width * self.zoom_level), int(img.height * self.zoom_level))
-            # resized = img.resize(zoomed_size, Image.Resampling.LANCZOS)
+        #     # zoomed_size = (int(img.width * self.zoom_level), int(img.height * self.zoom_level))
+        #     # resized = img.resize(zoomed_size, Image.Resampling.LANCZOS)
 
-            resized = img.resize(new_size, Image.Resampling.LANCZOS)
+        #     resized = img.resize(new_size, Image.Resampling.LANCZOS)
 
-            offset = ((width - new_size[0]) // 2, (height - new_size[1]) // 2)
-            base.paste(resized, offset, resized if resized.mode == 'RGBA' else None)
+        #     offset = ((width - new_size[0]) // 2, (height - new_size[1]) // 2)
+        #     base.paste(resized, offset, resized if resized.mode == 'RGBA' else None)
 
-        # if self.border_image:
-        #     paste_center(composite, self.border_image)
+        # need a separate func for: pasting layers together into single preview image; displaying preview image
+
+        if self.image_size != None:
+            # print(self.image_size)
+            self.preview_image = Image.new("RGBA", self.image_size, ImageColor.getrgb(gui_shared.field_bg))
+        else:
+            print("Got to preview image creation with an image size of None, somehow")
+            raise ValueError
+
         for layer in reversed(self.layer_data):
             if layer.get("search_image_path"):
                 with Image.open(layer["search_image_path"]) as image:
-                    paste_center(composite, image)
+                    self.preview_image.alpha_composite(image)
+        
+        # print("gothere1")
+        # print("Image size:", self.preview_image.size, "mode:", self.preview_image.mode)
+        self.formatted_canvas_image = ImageTk.PhotoImage(self.preview_image.convert("RGB"))
 
-        self.preview_image = ImageTk.PhotoImage(composite)
-        self.preview_canvas.delete("all")
-        self.preview_canvas.create_image(width // 2, height // 2, image=self.preview_image)
+        # print("gothere2")
+
+        # self.preview_canvas.delete("all")
+        # self.img_id = self.preview_canvas.create_image(
+        #     self.preview_canvas.winfo_width() // 2, self.preview_canvas.winfo_height() // 2, image=self.formatted_canvas_image, anchor="center")
+        
+        # print("gothere3")
+
+        # if self.border_image:
+        #     paste_center(composite, self.border_image)
+        # for layer in reversed(self.layer_data):
+        #     if layer.get("search_image_path"):
+        #         with Image.open(layer["search_image_path"]) as image:
+        #             paste_center(composite, image)
+
+        # self.preview_canvas.delete("all")
+        # self.preview_image = ImageTk.PhotoImage(composite)
+        # self.preview_canvas.create_image(width // 2, height // 2, image=self.preview_image)
+
+        # print("gothere4")
+        
+        self.display_preview_image()
+
+        # print("end of update preview image")
+
+
+    # def on_preview_canvas_mousewheel(self, event):
+    #     pass
+        # delta = (event.delta // 120)
+        # self.preview_canvas_zoom(delta, event.x, event.y)
+
+    # def preview_canvas_zoom(self, delta, x, y):
+    def preview_canvas_zoom(self, delta):
+        # self.display_preview_image(delta)
+        # self.display_preview_image((self.preview_zoom + (float(delta) / 10)) / self.preview_zoom)
+
+        # old_zoom = self.preview_zoom
+        # self.preview_zoom += (float(delta) / 10)
+
+        zoom_amount = 0.25 * self.preview_zoom
+
+        self.preview_zoom += zoom_amount * delta
+        self.preview_zoom = max(0.25, self.preview_zoom)
+
+        # factor = (self.preview_zoom + (float(delta) / 10)) / self.preview_zoom
+        # factor = self.preview_zoom / old_zoom
+
+        # self.preview_zoom += 
+
+        # canvasx = self.preview_canvas.canvasx(x)
+        # canvasy = self.preview_canvas.canvasy(y)
+        # self.preview_canvas.scale("all", canvasx, canvasy, factor, factor)
+        # self.display_preview_image(factor, canvasx, canvasy)
+        # self.display_preview_image(canvasx, canvasy, self.preview_zoom)
+        self.display_preview_image(self.preview_zoom)
+
+
+    # def display_preview_image(self, factor = 1.0, x = 0, y = 0):
+    # def display_preview_image(self, x = 0, y = 0, scale = 1.0):
+    def display_preview_image(self, scale = 1.0):
+        if self.preview_image != None:
+            # size = (int(self.preview_image.size[0] * scale), int(self.preview_image.size[1] * scale))
+            self.formatted_canvas_image = ImageTk.PhotoImage(
+                self.preview_image.convert("RGB").resize(
+                    (int(self.preview_image.size[0] * scale), int(self.preview_image.size[1] * scale)), Image.Resampling.NEAREST
+                )
+            )
+            
+            # self.preview_canvas.delete("all")
+            
+            # self.preview_canvas.create_image(
+            #     self.preview_canvas.winfo_width() // 2, self.preview_canvas.winfo_height() // 2, image=self.formatted_canvas_image, anchor="center")
+            
+            for widget in self.preview_contents_frame.winfo_children():
+                widget.destroy()
+
+            test = tk.Label(self.preview_contents_frame, image = self.formatted_canvas_image, bg=gui_shared.bg_color)
+            test.pack(anchor="center")
+
+            # self.preview_canvas.create_window(0,0,anchor="center",window=test)
+
+            # self.preview_canvas.scale(self.img_id, x, y, 1, 1)
+            # self.preview_canvas.scale(self.img_id, x, y, factor, factor)
+
 
     # def change_zoom(self, factor):
     #     self.zoom_level *= factor
@@ -1518,22 +1571,25 @@ actual image output. If no source image is selected, the search image will be us
                     self.delete_layer(i)
                 
                 # reformat layer paths if paths_are_local == True
-                if paths_are_local:
-                    curr_folder_path = os.path.dirname(path)
+                curr_folder_path = os.path.dirname(path) if paths_are_local else ""
 
-                    for layer in layer_data:
+                for layer in layer_data:
 
-                        search_image_path = layer.get("search_image_path")
                         # if search_image_path:
                         #     layer["search_image_path"] = os.path.join(curr_folder_path,
                         #         f"{layer.get('name') or 'unnamed_layer'}{'' if (layer.get('is_border') or layer.get('is_cosmetic_only')) else '_search'}_image.png"
                         #     )
-                        if search_image_path:
-                            layer["search_image_path"] = os.path.join(curr_folder_path, search_image_path)
+                    search_image_path = layer.get("search_image_path")
+                    if search_image_path:
+                        path = os.path.join(curr_folder_path, search_image_path)
+                        if self.check_image_valid(path):
+                            layer["search_image_path"] = path
                         
-                        source_image_path = layer.get("source_image_path")
-                        if source_image_path:
-                            layer["source_image_path"] = os.path.join(curr_folder_path, source_image_path)
+                    source_image_path = layer.get("source_image_path")
+                    if source_image_path:
+                        path = os.path.join(curr_folder_path, source_image_path)
+                        if self.check_image_valid(path):
+                            layer["source_image_path"] = path
                 
                 self.add_image_layers(layer_data)
 

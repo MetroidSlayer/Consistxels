@@ -8,6 +8,7 @@ from tooltip import ToolTip
 import json
 import os
 import tempfile
+from PIL import Image
 
 class Menu_LoadJson(tk.Frame):
     def __init__(self, master, change_menu_callback, load_path = None):
@@ -17,6 +18,8 @@ class Menu_LoadJson(tk.Frame):
         self.input_folder_path = None
 
         self.configure(bg=gui_shared.bg_color)
+
+        
 
         # Put setup in .after() so that program does not freeze pre-BG color change when menu changes.
         # It still DOES freeze, but it's just less ugly this way
@@ -126,7 +129,7 @@ class Menu_LoadJson(tk.Frame):
         tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export type:").pack(anchor="w", padx=10, pady=10)
 
         # Stores radio button value
-        # 0: single image, 1: multiple images, 2: multi-layer file, 3: update pose images
+        # 0: single image, 1: individual layer image(s), 2: multi-layer file, 3: update pose images
         self.export_type = tk.IntVar()
         self.export_type.set(0)
 
@@ -140,8 +143,17 @@ class Menu_LoadJson(tk.Frame):
             if (curr_export_type < 3) != (self.last_export_type < 3):
                 if curr_export_type == 3:
                     self.draw_layer_entries()
+                    self.output_folder_entry.config(state="disabled")
+                    self.output_folder_button.config(state="disabled")
                 else:
                     self.draw_layer_checkbuttons()
+                    self.output_folder_entry.config(state="normal")
+                    self.output_folder_button.config(state="normal")
+            
+            if curr_export_type in [0,3]:
+                self.unique_pose_images_only_checkbutton.config(state="disabled")
+            else:
+                self.unique_pose_images_only_checkbutton.config(state="normal")
 
             self.last_export_type = curr_export_type
 
@@ -151,9 +163,9 @@ class Menu_LoadJson(tk.Frame):
         radio_single.pack(anchor="w", padx=10)
         ToolTip(radio_single, "Export one image containing all selected layers merged together.")
 
-        radio_multiple = tk.Radiobutton(export_options_frame, text="Multiple individual layer images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=1, command=check_update_layer_list)
-        radio_multiple.pack(anchor="w", padx=10)
-        ToolTip(radio_multiple, "Export an image for each selected layer.")
+        radio_layers = tk.Radiobutton(export_options_frame, text="Individual layer image(s)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=1, command=check_update_layer_list)
+        radio_layers.pack(anchor="w", padx=10)
+        ToolTip(radio_layers, "Export an image for each selected layer.")
 
 #         radio_external_filetype = tk.Radiobutton(export_options_frame, text="Multi-layered file (for external editor)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=2, command=check_update_layer_list)
 #         radio_external_filetype.pack(anchor="w", padx=10)
@@ -166,32 +178,14 @@ class Menu_LoadJson(tk.Frame):
 
         radio_update = tk.Radiobutton(export_options_frame, text="Update pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=3, command=check_update_layer_list)
         radio_update.pack(anchor="w", padx=10, pady=10)
-        ToolTip(radio_update, """
-Input new versions of layer images. Existing pose images in this folder will be updated. As long as
-the first unique instance of a pose image has been changed, that change will be reflected in the
-pose images. You can then export an entire sheet with the updated pose images.
+        ToolTip(radio_update, """Input new versions of layer images. Existing pose images in this folder will be updated. As long as the first unique instance of a pose image has been changed, that change will be reflected in the pose images. You can then export an entire sheet with the updated pose images.\n\n(This is what the "Unique Pose Image" and "Source Image" options are generally made for, but you don't necessarily *need* to use an image that was generated with either option.)""")
 
-(This is what the "Unique Pose Image" and "Source Image" options are generally made for, but you
-don't necessarily *need* to use an image that was generated with either option.)
-        """.strip())
-
-        # TODO
-        # make not work for full-sheet export? probably??? just to avoid confusion?
-        # ALSO disable for update_unique_images. so this is really only for multiple layers or for multilayer filetype
+        # Controls whether only unique images are exported. Does not work for single image or update pose images
         self.unique_pose_images_only = tk.BooleanVar()
-        unique_pose_images_only_checkbutton = tk.Checkbutton(export_options_frame, text="Only show unique pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.unique_pose_images_only)
-        unique_pose_images_only_checkbutton.pack(anchor="w", padx=10, pady=10)
-        ToolTip(unique_pose_images_only_checkbutton, """
-Exported layers will only contain unique pose images. They'll be positioned where they were
-initially found during the "Generate Pose Data" search, so they might be a little spread out.
-
-In general, if you're transferring a number of poses from one sheet to another, this will be much
-faster than opening each pose image individually. After modifying unique-only layers, use the
-"Update pose images" export type to make sure individual pose images are up-to-date, then generate
-the whole sheet.
-
-(NOT RECOMMENDED with the "Single merged image" export type.)
-""".strip())
+        self.unique_pose_images_only_checkbutton = tk.Checkbutton(export_options_frame, text="Only show unique pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color,
+            selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.unique_pose_images_only, state="disabled")
+        self.unique_pose_images_only_checkbutton.pack(anchor="w", padx=10, pady=10)
+        ToolTip(self.unique_pose_images_only_checkbutton,"""Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Pose Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
 
         # Eventually, file type option menu should go here.
         # The options should be different depending on if external_filetype is chosen;
@@ -203,31 +197,17 @@ the whole sheet.
 
         tk.Label(output_path_frame, text="Output folder path:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
-        # TODO disable output folder path if "update" is selected.
         self.output_folder_path = tk.StringVar()
-        add_widget(
-            tk.Entry, output_path_frame, {'textvariable':self.output_folder_path}, {'text':"""
-Enter the path to the folder where the exported images will be output.
-
-(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up
-your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite
-existing data, go for it.)
-        """.strip()}
-        ).pack(side="left", fill="x", expand=True, pady=10)
+        self.output_folder_entry = add_widget(tk.Entry, output_path_frame, {'textvariable':self.output_folder_path, 'disabledbackground':gui_shared.field_bg}, {'text':"""Enter the path to the folder where the exported images will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""})
+        self.output_folder_entry.pack(side="left", fill="x", expand=True, pady=10)
 
         # Open file dialog for output folder path
         def select_output_folder_path():
             self.output_folder_path.set(filedialog.askdirectory(title="Select an output folder (preferably empty)"))
 
-        output_folder_button = tk.Button(output_path_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
-        output_folder_button.pack(side="left", padx=10, pady=10)
-        ToolTip(output_folder_button, """
-Open a file dialog and select the folder where the exported images will be output.
-
-(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up
-your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite
-existing data, go for it.)
-        """.strip())
+        self.output_folder_button = tk.Button(output_path_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
+        self.output_folder_button.pack(side="left", padx=10, pady=10)
+        ToolTip(self.output_folder_button, """Open a file dialog and select the folder where the exported images will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)""")
 
         # Progress bar, confirmation/cancellation buttons
         
@@ -340,9 +320,22 @@ existing data, go for it.)
                 tk.Entry, frame, {'textvariable':entry_var, 'width':1}, {'text':"Enter the path to the image that will update all pose images sourced from this layer."}
             ).pack(side="left", fill="x", expand=True, pady=10)
 
+            # Open filedialog, get new image, check size
             def select_new_image(var=entry_var):
-                var.set(filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
-                # TODO SIZE CHECK!!!
+                # Get path from filedialog
+                path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
+
+                try: # Check if image's size matches sprite sheet's size
+                    with Image.open(var.get()) as image:
+                        if self.image_size != image.size:
+                            messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
+                            return
+                    
+                    var.set(path) # Set tk.StringVar() to path
+                except Image.UnidentifiedImageError:
+                    messagebox.showwarning("Warning!", "Please enter a valid image.")
+                except Exception as e:
+                    messagebox.showerror("Error", e.with_traceback()) # HOPEFULLY this works and I understand what it's doing???
 
             output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
             output_folder_button.pack(side="left", padx=10, pady=10)
@@ -366,7 +359,7 @@ existing data, go for it.)
     # Load the json specified at the given or selected path
     def load_json(self, path = None):
         # If a path was not passed as parameter, ask for one
-        if not path: path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")]) # TODO: make sure file dialogs are consistent with filetypes, titles, etc.
+        if not path: path = filedialog.askopenfilename(title="Select a .json with pose data and pose images", defaultextension=".json", filetypes=[("Json File", "*.json")]) # TODO: make sure file dialogs are consistent with filetypes, titles, etc.
         if path: # If a path was not passed as param nor given through filedialog, don't continue
             with open(path) as json_file:
                 self.json_data = json.load(json_file) #could unindent after this? i.e. self.json_data's been set, so we don't need to keep the actual json file open
@@ -379,7 +372,7 @@ existing data, go for it.)
                 # Now, it's not possible through normal means, so no need to have this check
                 # self.generate_ended() # does all necessary stuff at once
 
-                # Set image size (TODO use for size checks!)
+                # Set image size
                 self.image_size = (self.json_data["header"]["width"], self.json_data["header"]["height"])
 
                 # Check radiobutton var. Depending on what's selected, create either checkbuttons or entries
