@@ -4,6 +4,7 @@ from PIL import Image, ImageSequence, ImageTk
 # A widget inheriting from tk.Label made to play .gif files
 class GifPlayer(tk.Label):
     def __init__(self, master, gif_path, loop=True, initial_delay=0, scale=None, resampling = Image.Resampling.LANCZOS, *args, **kwargs):
+        
         # Initialize tkinter stuff
         super().__init__(master, *args, **kwargs)
 
@@ -18,11 +19,9 @@ class GifPlayer(tk.Label):
         self.frame_index = 0
 
         # Start animation, with initial delay
-        # self.animate()
-        # print(initial_delay)
-        # self.after(initial_delay, self.animate)
         self.animate(initial_delay)
 
+    # Load frame and timing data from .gif file
     def _load_frames_and_delays(self):
         frames = []
         delays = []
@@ -41,6 +40,7 @@ class GifPlayer(tk.Label):
         
         return frames, delays
 
+    # Animate by changing current image
     def animate(self, added_delay = 0):
         self.config(image=self.frames[self.frame_index]) # Change frame image
         delay = self.delays[self.frame_index] + added_delay # Get delay before next frame, plus any additional desired delay

@@ -1,5 +1,8 @@
 import tkinter as tk
 
+
+# A tooltip that shows up by the mouse cursor after a specified amount of time.
+# TODO: change text so that it wraps. really would not be that hard
 class ToolTip:
     def __init__(self, widget, text, force_above=False, force_left=False, delay=500):
         self.widget = widget

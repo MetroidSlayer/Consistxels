@@ -18,24 +18,12 @@ class Menu_LayerSelect(tk.Frame):
     def __init__(self, master, change_menu_callback, load_path = None):
         super().__init__(master)
 
-        # # in the future, should be taken from some style file
-        # self.bg_color = "#2e2e2e"
-        # self.fg_color = "#ffffff"
-        # self.secondary_bg = "#3a3a3a"
-        # self.secondary_fg = "#6a6a6a"
-        # self.button_bg = "#444"
-        # self.field_bg = "#222222"
-
         # Track images and border
         self.layer_data = []  # List of dicts: {path, name, thumbnail, img_obj}
-        # self.layer_thumbnails = []
-        # self.border_image = None
-        # self.border_path = None
         self.border_color = "#00007f" # in the future, could be taken from info stored from last generation
 
         self.configure(bg=gui_shared.bg_color)
 
-        # self.setup_ui(change_menu_callback, load_path)
         self.after(0, self.setup_ui, change_menu_callback, load_path)
 
     def setup_ui(self, change_menu_callback, load_path = None):
@@ -43,8 +31,7 @@ class Menu_LayerSelect(tk.Frame):
         # Header
         self.header = tk.Frame(self, bg=gui_shared.bg_color)
         self.header.pack(fill="x", padx=2)
-        # self.header = add_widget(tk.Frame, self, placement_func="pack", placement_args={"fill":"x", "padx":2})
-
+        
         # Header left:
 
         # Save button
@@ -56,7 +43,7 @@ Should ONLY be used locally, and not transferred to other devices, as this uses
 direct paths to layer images that are specific to this device.
         """.strip())
 
-        # Save folder button (NOT sure if i CAN save to a .zip.)
+        # Save folder button (would like to save to .zip at some point to make it more obvious what this feature is for)
         save_folder_button = tk.Button(self.header, text="💾 Save all to folder", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.export_layerselect_all)
         save_folder_button.pack(padx=(0,10), pady=10, side="left")
         ToolTip(save_folder_button, """
@@ -84,15 +71,6 @@ Load a .json file and restore previous search options and layer data.
         # Header right:
 
         # Back button
-
-        # self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: show_frame_callback("Main"))
-
-        # def back_to_main_menu():
-            # self.clear_all()
-            # check for unsaved work
-            # change_menu_callback("Main")
-        # self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=back_to_main_menu)
-
         self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: change_menu_callback("Main"))
         self.back_button.pack(side="right", padx=10, pady=10)
         ToolTip(self.back_button, "...Come on, this one is self explanatory.", False, True, 2000)
@@ -118,7 +96,6 @@ Load a .json file and restore previous search options and layer data.
         self.right_frame.pack(side="right", fill="y", padx=10)
         self.right_frame.pack_propagate(False)
 
-        # paned_window.add(self.left_frame, minsize=386, stretch="never")
         paned_window.add(self.left_frame, minsize=417, stretch="never")
         paned_window.add(self.center_frame, minsize=0, stretch="always")
         paned_window.add(self.right_frame, minsize=400, stretch="never")
@@ -1468,27 +1445,6 @@ actual image output. If no source image is selected, the search image will be us
             
             messagebox.showinfo("Success!", f"{os.path.basename(path)} exported")
 
-            # header = {
-            #     # "name": self.name_entry_input.get(),
-            #     "name": name,
-            #     "border_color": self.border_color,
-            #     "border_path": self.border_path,
-            #     "start_search_in_center": self.start_search_in_center.get(),
-            #     "search_right_to_left": self.search_right_to_left.get(),
-            #     "automatic_padding_type": self.padding_types.index(self.automatic_padding_type_option.get()),
-            #     "custom_padding_amount": self.custom_padding_amount.get()
-            # }
-
-            # layer_data = []
-
-            # # for image in self.layer_data:
-            # #     layer_data.append({"path": image["path"], "name": image["name"], "alt_source": image["alt_source"]})
-
-            # export = {"header": header, "layer_data": layer_data}
-
-            # with open(path, 'w') as file:
-            #     json.dump(export, file, indent=4)
-
     # Import a valid .json file.
     def import_layerselect_json(self, path = None):
         if not path: path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
@@ -1587,166 +1543,7 @@ actual image output. If no source image is selected, the search image will be us
             except Exception as e:
                 messagebox.showerror("Error importing .json", e)
 
-                # json_data = json.load(json_file)
-                # # header = json_data["header"]
-                # header = json_data.get("header")
-                # # layer_data = json_data["layer_data"]
-                # layer_data = json_data.get("layer_data")
-
-                # self.name_entry_input.set(header["name"])
-
-                # self.update_border_color(self.format_color_string(header["border_color"]))
-
-                # self.add_border(header["border_path"])
-
-                # # if header["start_search_in_center"]:
-                # self.start_search_in_center.set(header["start_search_in_center"])
-
-                # self.search_right_to_left.set(header["search_right_to_left"])
-                # # if header["search_right_to_left"]:
-                #     # pass
-
-                # self.automatic_padding_type_option.set(self.padding_types[header["automatic_padding_type"]])
-
-                # self.custom_padding_amount.set(header["custom_padding_amount"])
-
-                # # delete current images too!!!
-                # self.add_image_layers(layer_data)
-    
-    # def compile_data_into_dict(self):
-    #     header = {
-    #         "name": self.name_entry_input.get(),
-    #         "consistxels_version": consistxels_version,
-    #         "paths_are_local": True, # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
-    #         "width": None, # get this figured out sooner probably?
-    #         "height": None # get this figured out sooner probably?
-    #     }
-
-    #     search_data = {
-    #         "start_search_in_center": self.start_search_in_center.get(),
-    #         "search_right_to_left": self.search_right_to_left.get(),
-    #         "detect_identical_images": True, # TODO
-    #         "detect_rotated_images": True, # TODO
-    #         "detect_flip_h_images": True, # TODO
-    #         "detect_flip_v_images": False # TODO
-    #     }
-
-    #     search_type_data = {
-    #         "search_type": self.search_type_option.get(),
-    #         "border_color": self.border_color,
-    #         "spacing_rows": self.spacing_grid_rows.get(), # TODO: change so can only be int
-    #         "spacing_columns": self.spacing_grid_columns.get(), # TODO: change so can only be int
-    #         "spacing_outer_padding": self.outer_padding.get(), # TODO: change so can only be int
-    #         "spacing_inner_padding": self.inner_padding.get(), # TODO: change so can only be int
-    #         "spacing_x_separation": self.spacing_x_separation.get(), # TODO: change so can only be int
-    #         "spacing_y_separation": self.spacing_y_separation.get() # TODO: change so can only be int
-    #     }
-
-    #     generation_data = {
-    #         "automatic_padding_type": self.padding_type_option.get(), # TODO: change so can only be int
-    #         "custom_padding_amount": self.custom_padding.get(), # TODO: change so can only be int
-    #         "generate_empty_poses": False # TODO
-    #     }
-
-    #     # TODO: A LOT
-    #     layer_data = []
-    #     duplicate_layer_name = False
-    #     for layer in self.layer_data:
-    #         if layer["name"] in [image["name"] for image in layer_data]:
-    #             duplicate_layer_name = True
-    #             break
-    #         # layer_data.append({"path": layer["path"], "name": layer["name"], "alt_source": layer["alt_source"]})
-    #         layer_data.append({ # TODO TODO TODO
-    #             "name": layer["name"], "is_border": False, "is_cosmetic_only": False,
-    #             "search_image_path": layer["path"], "source_image_path": layer["alt_source"],
-    #             "export_original_images": True
-    #         })
-
-    #     if search_type_data["search_type"] == "Border": # TODO. can mostly just copy-and-paste this. still do want rigid control of the data in the border layer
-    #         layer_data.append({
-    #             "name": "border", "is_border": True, "is_cosmetic_only": True,
-    #             "search_image_path": self.border_path, "source_image_path": None,
-    #             "export_original_images": True
-                
-    #         })
-
-    #     pose_data = None
-    #     if self.search_type_option.get() == "Preset":
-    #         pass # TODO
-        
-    #     data = {
-    #         "header": header, "search_data": search_data, "search_type_data": search_type_data,
-    #         "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
-    #     }
-        
-    #     return data
-
     def generate_button_pressed(self):
-
-        # header = {
-        #     "name": self.name_entry_input.get(),
-        #     "consistxels_version": consistxels_version,
-        #     "paths_are_local": True, # CHANGE! Or i guess not HERE, this only really applies to saved layer data and all that
-        #     "width": None, # get this figured out sooner probably?
-        #     "height": None # get this figured out sooner probably?
-        # }
-
-        # search_data = {
-        #     "start_search_in_center": self.start_search_in_center.get(),
-        #     "search_right_to_left": self.search_right_to_left.get(),
-        #     "detect_identical_images": True, # TODO
-        #     "detect_rotated_images": True, # TODO
-        #     "detect_flip_h_images": True, # TODO
-        #     "detect_flip_v_images": False # TODO
-        # }
-
-        # search_type_data = {
-        #     "search_type": self.search_type_option.get(),
-        #     "border_color": self.border_color,
-        #     "spacing_rows": self.spacing_rows.get(), # TODO: change so can only be int
-        #     "spacing_columns": self.spacing_columns.get(), # TODO: change so can only be int
-        #     "spacing_outer_padding": self.spacing_outer_padding.get(), # TODO: change so can only be int
-        #     "spacing_inner_padding": self.spacing_inner_padding.get(), # TODO: change so can only be int
-        #     "spacing_x_separation": self.spacing_x_separation.get(), # TODO: change so can only be int
-        #     "spacing_y_separation": self.spacing_y_separation.get() # TODO: change so can only be int
-        # }
-
-        # generation_data = {
-        #     "automatic_padding_type": self.automatic_padding_type_option.get(), # TODO: change so can only be int
-        #     "custom_padding_amount": self.custom_padding_amount.get(), # TODO: change so can only be int
-        #     "generate_empty_poses": False # TODO
-        # }
-
-        # # TODO: A LOT
-        # layer_data = []
-        # duplicate_layer_name = False
-        # for layer in self.layer_data:
-        #     if layer["name"] in [image["name"] for image in layer_data]:
-        #         duplicate_layer_name = True
-        #         break
-        #     # layer_data.append({"path": layer["path"], "name": layer["name"], "alt_source": layer["alt_source"]})
-        #     layer_data.append({ # TODO TODO TODO
-        #         "name": layer["name"], "is_border": False, "is_cosmetic_only": False,
-        #         # "search_image_path": layer["path"], "source_image_path": layer["alt_source"],
-        #         "export_original_images": True
-        #     })
-
-        # if search_type_data["search_type"] == "Border": # TODO. can mostly just copy-and-paste this. still do want rigid control of the data in the border layer
-        #     layer_data.append({
-        #         "name": "border", "is_border": True, "is_cosmetic_only": True,
-        #         "search_image_path": self.border_path, "source_image_path": None,
-        #         "export_original_images": True
-                
-        #     })
-
-        # pose_data = None
-        # if self.search_type_option.get() == "Preset":
-        #     pass # TODO
-        
-        # data = {
-        #     "header": header, "search_data": search_data, "search_type_data": search_type_data,
-        #     "generation_data": generation_data, "layer_data": layer_data, "pose_data": pose_data
-        # }
 
         data = self.format_layer_json(False)
 

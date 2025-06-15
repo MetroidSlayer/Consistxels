@@ -1,62 +1,46 @@
 import ctypes
-ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PER_MONITOR_AWARE
+ctypes.windll.shcore.SetProcessDpiAwareness(1) # Makes sure window is scaled properly for monitor's resolution
+
+import sys
+import json
+import threading
 
 import tkinter as tk
+import gui_shared
+from tkinter import messagebox
+
 from menu_mainmenu import Menu_MainMenu
 from menu_layerselect import Menu_LayerSelect
 from menu_loadjson import Menu_LoadJson
 
-# from shared import on_global_click
-import gui_shared
-
-import sys
-import json
-from tkinter import messagebox
-import threading
-# import time
-
+# Class containing GUI
 class ConsistxelsApp(tk.Frame):
     def __init__(self, root):
         super().__init__()
         
-        # self.root = root
-        root.title("Consistxels")
-
         # Set window attributes
-        root.geometry("1680x968")        # window size
-        root.configure(bg = '#303030') # bg color
+        root.title("Consistxels") # Title
+        root.geometry("1680x968") # Window size
+        root.configure(bg=gui_shared.bg_color) # BG color
 
-        self.container = tk.Frame(self)
+        # Main container 
+        self.container = tk.Frame(self, bg=gui_shared.bg_color) # TEST! didn't need bg= before? not sure why
         self.container.pack(fill="both", expand=True)
-        
-        root.configure(bg=gui_shared.bg_color)
 
+        # Bind widgets to a function that makes Entries change color when focused/unfocused
         root.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
-        # root.bind_class("Canvas", "<Button-1>", on_global_click, add="+")
 
-        # self.frames = {
-        #     "Main": Menu_MainMenu(self.container, self.show_frame),
-        #     "LayerSelect": Menu_LayerSelect(self.container, self.show_frame),
-        #     "LoadJson": Menu_LoadJson(self.container, self.show_frame)
-        # }
-
-        # for frame in self.frames.values():
-        #     frame.place(relwidth=1, relheight=1)
-
-        # self.show_frame("Main")
-
+        # Prepare different menu stuff, change menu to menu_mainmenu
         self.curr_menu = None
         self.change_menu("Main")
 
+        # Start thread for handling incoming info from main process
         self.handle_input_thread = threading.Thread(target=self.handle_input, daemon=True)
         self.handle_input_thread.start()
 
-    # def show_frame(self, name):
-    #     frame = self.frames[name]
-    #     frame.tkraise()
-
+    # Change menu
     def change_menu(self, new_menu = "Main", arg = None):
-        for widget in self.container.winfo_children():
+        for widget in self.container.winfo_children(): # Destroy current menu entirely
             widget.destroy()
         
         new_menu_widget = None
@@ -75,92 +59,65 @@ class ConsistxelsApp(tk.Frame):
         new_menu_widget.place(relwidth=1, relheight=1)
         self.curr_menu = new_menu_widget
 
-        # self.after(0, self.create_menu, new_menu, arg)
-
-    # def create_menu(self, new_menu = "Main", arg = None):
-    #     match new_menu:
-    #         case "Main":
-    #             new_menu_widget = Menu_MainMenu(self.container, self.change_menu)
-    #         case "LayerSelect":
-    #             new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, arg)
-    #         case "LoadJson":
-    #             new_menu_widget = Menu_LoadJson(self.container, self.change_menu, arg)
-    #         case _:
-    #             print("nonexistent menu chosen")
-    #             raise Exception
-        
-    #     new_menu_widget.place(relwidth=1, relheight=1)
-    #     self.curr_menu = new_menu_widget
-
+    # Update progress in current menu. (Maybe just call this directly? I dunno)
     def update_progress(self, value, header_text, info_text):
-        # self.frames["LayerSelect"].update_progress(value, header_text, info_text)
         self.curr_menu.update_progress(value, header_text, info_text)
 
+    # Handle closing GUI, asking if want to save, etc.
     def on_close(self, root):
         # ask if want to save if curr frame has modified work
+        # if self.curr_menu.has_unsaved_work:
+            # pass
 
         root.destroy()
     
-    
+    # Handle incoming info, sent from main process through this process's stdin
+    # Will KINDA lag things a bit, since it's updating the menu CONSTANTLY.
+    # Need to think of better method - polling, etc.
     def handle_input(self):
         while True:
             try:
-                # something to iterate through all lines, if the sleep stuff is there at the bottom of the function
+                # If I put sleep stuff at the bottom of the function, I'll need to add something to read all lines and get to the last one
                 line = sys.stdin.readline()
                 
                 if line:
-                    line = line.strip()
+                    line = line.strip() # Format line
 
                     try:
+                        # Get vars
                         data = json.loads(line)
                         type = data.get("type")
-                        value = data.get("value")
-                        header_text = data.get("header_text")
-                        info_text = data.get("info_text")
+                        value = data.get("value") # Percentage to display in progress bar
+                        header_text = data.get("header_text") # Used to show information
+                        info_text = data.get("info_text") # Used to show secondary information if there is a header, and primary information if there isn't
                         
                         if type in ["generate_pose_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
-                            self.curr_menu.generate_began()
+                            self.curr_menu.generate_began() # Format current menu; disable generate button, enable cancel button, etc.
                             self.update_progress(0, "", "Initializing...")
                         else:
                             match type:
-                                # case "generate_pose_data": # could theoretically do this stuff when a generate button is pressed, but this acts as a sort of acknowledgement, i think?
-                                #     # self.frames["LayerSelect"].generate_began()
-                                #     self.curr_menu.generate_began()
-                                #     self.update_progress(0, "", "Initializing...")
-                                # case "generate_layer_image":
-                                #     pass
-                                # case "generate_all_layer_images":
-                                #     pass
-                                # case "generate_sheet_image":
-                                #     pass
-                                # case "generate_updated_pose_images":
-                                #     pass
                                 case "update":
                                     if self.winfo_toplevel().focus_get() != None:
                                         self.update_progress(value, header_text, info_text)
                                 case "error":
-                                    # self.frames["LayerSelect"].generate_ended()
                                     self.curr_menu.generate_ended()
                                     self.update_progress(0, "", "Error")
                                     messagebox.showerror("Error", line)
                                 case "done":
-                                    # self.frames["LayerSelect"].generate_ended()
                                     self.curr_menu.generate_ended()
                                     self.update_progress(value, header_text, info_text)
                                     messagebox.showinfo(header_text, info_text)
                                 case "cancel":
-                                    # self.frames["LayerSelect"].generate_ended()
                                     self.curr_menu.generate_ended()
                                     self.update_progress(None, "", "Cancelled")
-                                # case _:
-                                #     print(line, flush=True)
                     except json.JSONDecodeError:
                         print(json.dumps({"type": "error", "val": ("Malformed output to generate stdin:", line)}), flush=True)
-                        
             except Exception as e:
                 print(json.dumps({"type": "error", "val": f"Exception in gui handle_input: {e}\nLine that caused exception: {line}"}), flush=True)
 
+# Main function for this subprocess
 def main():
+    # Create window & app interface
     root = tk.Tk()
     app = ConsistxelsApp(root)
     app.pack(fill="both", expand=True)
