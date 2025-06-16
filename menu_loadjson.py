@@ -42,8 +42,7 @@ class Menu_LoadJson(tk.Frame):
         # Header right:
 
         # Back button
-
-        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: change_menu_callback("Main"))
+        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: change_menu_callback("Main"))
         self.back_button.pack(side="right", padx=10, pady=10)
         ToolTip(self.back_button, "...Come on, this one is self explanatory.", False, True, 2000)
         

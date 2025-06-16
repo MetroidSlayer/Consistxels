@@ -1718,6 +1718,9 @@ class Menu_LayerSelect(tk.Frame):
         self.clear_button.configure(state="normal")
         self.back_button.configure(state="normal")
         self.cancel_button.configure(state="disabled")
+
+        # Is this fine? It IS, right??? Like, the user WILL have the .json by now, so it's fine, right?????
+        self.set_unsaved_changes(False)
     
     def set_unsaved_changes(self, new_unsaved_changes = True):
         self.back_button.config(fg=(gui_shared.danger_fg if new_unsaved_changes else gui_shared.fg_color))

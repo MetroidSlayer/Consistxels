@@ -12,6 +12,7 @@ from tkinter import messagebox
 from menu_mainmenu import Menu_MainMenu
 from menu_layerselect import Menu_LayerSelect
 from menu_loadjson import Menu_LoadJson
+from menu_othertools import Menu_OtherTools
 
 # Class containing GUI
 class ConsistxelsApp(tk.Frame):
@@ -57,6 +58,8 @@ class ConsistxelsApp(tk.Frame):
                     new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, self.set_unsaved_changes, arg)
                 case "LoadJson":
                     new_menu_widget = Menu_LoadJson(self.container, self.change_menu, arg)
+                case "OtherTools":
+                    new_menu_widget = Menu_OtherTools(self.container, self.change_menu)
                 case _:
                     print("nonexistent menu chosen")
                     raise Exception
