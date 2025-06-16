@@ -11,21 +11,25 @@ from tooltip import ToolTip
 # from shared import on_global_click, consistxels_version
 from shared import consistxels_version
 
+from viewport_canvas import ViewportCanvas
+
 import gui_shared
 from gui_shared import add_widget
 
 class Menu_LayerSelect(tk.Frame):
-    def __init__(self, master, change_menu_callback, load_path = None):
+    def __init__(self, master, change_menu_callback, set_unsaved_changes_callback, load_path = None):
         super().__init__(master)
 
         # Track images and border
         self.layer_data = []  # List of dicts: {path, name, thumbnail, img_obj}
-        self.border_color = "#00007f" # in the future, could be taken from info stored from last generation
+        self.border_color = "#00007f" # in the future, could be taken from info stored from last generation # ALSO could be a tk.StringVar()
         self.image_size = None
-        self.preview_zoom = 1.0
+        # self.preview_zoom = 1.0
         self.preview_image = None
-        self.formatted_canvas_image = None
-        self.img_id = None
+        # self.formatted_canvas_image = None
+        # self.img_id = None
+
+        self.set_unsaved_changes_callback = set_unsaved_changes_callback
 
         self.configure(bg=gui_shared.bg_color)
 
@@ -55,14 +59,14 @@ class Menu_LayerSelect(tk.Frame):
         ToolTip(self.load_button, """Load a .json file and restore previous search options and layer data.\n\n(Works with both of the previous 'Save' options, as well as generated pose data output.)""")
 
         # Clear button
-        self.clear_button = tk.Button(self.header, text="✏️ Clear", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.clear_all)
+        self.clear_button = tk.Button(self.header, text="✏️ Clear", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: change_menu_callback("LayerSelect"))
         self.clear_button.pack(padx=(0,10), pady=10, side="left")
         ToolTip(self.clear_button, "Reset all options, delete all layers, and start from scratch.")
 
         # Header right:
 
         # Back button
-        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.danger_fg, command=lambda: change_menu_callback("Main"))
+        self.back_button = tk.Button(self.header, text="Back to Main Menu", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: change_menu_callback("Main"))
         self.back_button.pack(side="right", padx=10, pady=10)
         ToolTip(self.back_button, "...Come on, this one is self explanatory.", False, True, 2000)
 
@@ -186,28 +190,61 @@ class Menu_LayerSelect(tk.Frame):
         preview_frame = tk.Frame(self.center_frame, bg=gui_shared.field_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
         preview_frame.pack(side="top", fill="both", expand=True)
 
+        preview_frame.grid_rowconfigure(0, weight=1)
+        preview_frame.grid_columnconfigure(0, weight=1)
+
+        self.preview_viewportcanvas = ViewportCanvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0)
+        # self.preview_viewportcanvas.pack(fill="both", expand=True)
+        self.preview_viewportcanvas.grid(row=0, column=0, sticky="NSEW")
+
         # Preview canvas
         # self.preview_canvas = tk.Canvas(self.center_frame, bg=gui_shared.field_bg, highlightthickness=0)
         # self.preview_canvas.pack(side="top", fill="both", expand=True)
-        self.preview_canvas = tk.Canvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0)
-        self.preview_contents_frame = tk.Frame(self.preview_canvas, bg=gui_shared.field_bg)
+
+        # self.preview_canvas = tk.Canvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0)
+        # self.preview_contents_frame = tk.Frame(self.preview_canvas, bg=gui_shared.field_bg)
 
         # Canvas scroll bars
         # preview_canvas_vert_scroll = tk.Scrollbar(self.preview_canvas, orient="vertical", command=self.preview_canvas.yview)
-        preview_canvas_vert_scroll = tk.Scrollbar(preview_frame, orient="vertical", command=self.preview_canvas.yview)
-        preview_canvas_vert_scroll.pack(side="right", fill="y")
+        # preview_canvas_vert_scroll = tk.Scrollbar(preview_frame, orient="vertical", command=self.preview_canvas.yview)
+        # preview_canvas_vert_scroll.pack(side="right", fill="y")
 
         # preview_canvas_hori_scroll = tk.Scrollbar(self.preview_canvas, orient="horizontal", command=self.preview_canvas.xview)
-        preview_canvas_hori_scroll = tk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_canvas.xview)
-        preview_canvas_hori_scroll.pack(side="bottom", fill="x")
+        # preview_canvas_hori_scroll = tk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_canvas.xview)
+        # preview_canvas_hori_scroll.pack(side="bottom", fill="x")
 
-        self.preview_canvas.create_window((0, 0), window=self.preview_contents_frame, anchor="center")
-        self.preview_canvas.configure(yscrollcommand=preview_canvas_vert_scroll.set, xscrollcommand=preview_canvas_hori_scroll.set)
-        self.preview_canvas.pack(side="top", fill="both", expand=True)
+        # self.preview_canvas.create_window((0, 0), window=self.preview_contents_frame, anchor="center")
+        # self.preview_canvas.configure(yscrollcommand=preview_canvas_vert_scroll.set, xscrollcommand=preview_canvas_hori_scroll.set)
+        # self.preview_canvas.pack(side="top", fill="both", expand=True)
 
         # self.preview_canvas.bind("<MouseWheel>", self.on_preview_canvas_mousewheel, add="+")
 
-        self.preview_contents_frame.bind("<Configure>", lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all")))
+        # self.preview_contents_frame.bind("<Configure>", lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all")))
+
+
+
+        # self.style = ttk.Style()
+        # self.style.theme_use('default')  # Important: avoid native theme if you want full control
+        # self.style.configure("Custom.Vertical.TScrollbar",
+        #     troughcolor='gray',
+        #     background='blue',
+        #     arrowcolor='white'
+        # )
+        # self.style.configure("Custom.Horizontal.TScrollbar",
+        #     troughcolor='gray',
+        #     background='blue',
+        #     arrowcolor='white'
+        # )
+
+        preview_canvas_hori_scroll = tk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_viewportcanvas.scroll_x)
+        # preview_canvas_hori_scroll = ttk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_viewportcanvas.scroll_x, style=self.style)
+        preview_canvas_hori_scroll.grid(row=1, column=0, sticky="EW")
+
+        preview_canvas_vert_scroll = tk.Scrollbar(preview_frame, orient="vertical", command=self.preview_viewportcanvas.scroll_y, troughcolor=gui_shared.bg_color)
+        # preview_canvas_vert_scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=self.preview_viewportcanvas.scroll_y, style=self.style)
+        preview_canvas_vert_scroll.grid(row=0, column=1, sticky="NS")
+
+        self.preview_viewportcanvas.connect_scrollbars(preview_canvas_hori_scroll, preview_canvas_vert_scroll)
 
         # Canvas buttons have to go *some*where.
         # (would really like this to be ON the canvas at some point.)
@@ -221,13 +258,13 @@ class Menu_LayerSelect(tk.Frame):
 
         # Bottomright zoom buttons
         # zoom_in_button = tk.Button(canvas_buttons_frame, text="➕", bg=gui_shared.button_bg, fg=gui_shared.fg_color)
-        zoom_in_button = tk.Button(canvas_buttons_frame, text="➕", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda d=1.0: self.preview_canvas_zoom(d))
-        zoom_in_button.pack(side="right", padx=(5, 10), pady=10)
-        ToolTip(zoom_in_button, "Zoom in", True)
+        # zoom_in_button = tk.Button(canvas_buttons_frame, text="➕", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda d=1.0: self.preview_canvas_zoom(d))
+        # zoom_in_button.pack(side="right", padx=(5, 10), pady=10)
+        # ToolTip(zoom_in_button, "Zoom in", True)
 
-        zoom_out_button = tk.Button(canvas_buttons_frame, text="➖", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda d=-1.0: self.preview_canvas_zoom(d))
-        zoom_out_button.pack(side="right", padx=(10, 5), pady=10)
-        ToolTip(zoom_out_button, "Zoom out", True)
+        # zoom_out_button = tk.Button(canvas_buttons_frame, text="➖", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda d=-1.0: self.preview_canvas_zoom(d))
+        # zoom_out_button.pack(side="right", padx=(10, 5), pady=10)
+        # ToolTip(zoom_out_button, "Zoom out", True)
 
         # Right menu:
 
@@ -285,21 +322,20 @@ class Menu_LayerSelect(tk.Frame):
 
         search_type_subframes = [search_border_subframe, search_spacing_subframe, search_preset_subframe]
 
-        def search_type_option_selected(selected_option):
+        def search_type_option_selected(selected_option, set_unsaved_changes = True):
             search_type_subframes[self.search_types.index(selected_option)].lift()
 
-            # TODO: other stuff for creating border image, etc.
             if selected_option == "Border":
-                self.add_border_layer()
+                self.add_border_layer() # TODO This should ONLY run if something has actually changed
             else:
-                # does not work for some reason. i do not understand python
-                # print(i for i, layer in enumerate(self.layer_data) if layer["is_border"])
-                # self.delete_layer(i for i, layer in enumerate(self.layer_data) if layer["is_border"])
-
                 border_index = next((i for i, layer in enumerate(self.layer_data) if layer["is_border"]), None)
                 if border_index != None: self.delete_layer(border_index)
+            
+            if set_unsaved_changes: # hackey solution to making this not run upon creating new menu.
+                # I'd prefer to have this ONLY if something's actually changed.
+               self.set_unsaved_changes(True)
 
-        search_type_option_selected("Border")
+        search_type_option_selected("Border", False)
 
         search_type_optionmenu = tk.OptionMenu(search_type_option_frame, self.search_type_option, *self.search_types, command=search_type_option_selected)
         # something to make the border stuff show up in the layers section (see above, i think)
@@ -498,25 +534,19 @@ class Menu_LayerSelect(tk.Frame):
         search_options_checkboxes_frame.pack(side="top", fill="x")
 
         self.start_search_in_center = tk.BooleanVar()
-        start_search_in_center_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
-        # start_search_in_center_checkbutton = tk.Checkbutton(search_directions_checkbox_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center)
-        # start_search_in_center_checkbutton.pack(side="top", padx=5, pady=5)
-        # start_search_in_center_checkbutton.pack(side="left", padx=10, pady=10)
+        start_search_in_center_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center, command=self.set_unsaved_changes)
         start_search_in_center_checkbutton.grid(row=0, column=0, padx=10, pady=5)
         start_search_in_center_checkbutton.select()
         ToolTip(start_search_in_center_checkbutton, """When searching the spritesheet, the program will look at each row starting in the middle of the image, rather than at the edge. It will search outward in one direction before reaching the edge, at which point it will search in the other direction, before moving onto the next row.\n\nRecommended for sprite sheets that group poses in a vertical formation, as it makes the order that pose images are found in much more intuitive. Not recommended if "Search right-to-left" is enabled.""")
         
         self.search_right_to_left = tk.BooleanVar()
-        search_right_to_left_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
-        # search_right_to_left_checkbutton = tk.Checkbutton(search_directions_checkbox_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.button_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left)
-        # search_right_to_left_checkbutton.pack(side="top", padx=5, pady=5)
-        # search_right_to_left_checkbutton.pack(side="left", padx=(0,10), pady=10)
+        search_right_to_left_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Search right-to-left", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.search_right_to_left, command=self.set_unsaved_changes)
         search_right_to_left_checkbutton.grid(row=0, column=1, padx=10, pady=5)
         ToolTip(search_right_to_left_checkbutton, """Search the spritesheet from right-to-left, instead of from left-to-right.\n\nRecommended if "Start search in center" is disabled, as most characters face right by default, and most sprite sheets show the rightmost sprites on the right side of the sheet, so the generated data will use the right-facing poses as the defaults. Not recommended otherwise.""")
 
         # detect identical images
         self.detect_identical_images = tk.BooleanVar()
-        detect_identical_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect identical images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_identical_images)
+        detect_identical_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect identical images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_identical_images, command=self.set_unsaved_changes)
         detect_identical_images_checkbutton.grid(row=1, column=0, padx=10, pady=(10,5))
         detect_identical_images_checkbutton.select()
         ToolTip(detect_identical_images_checkbutton, """Check if poses use already-found pose images, so they can share the same pose image.\n\n(Highly recommended - this is kinda the whole point)""")
@@ -531,21 +561,21 @@ class Menu_LayerSelect(tk.Frame):
 
         # detect rotated images
         self.detect_rotated_images = tk.BooleanVar()
-        detect_rotated_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect rotated images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_rotated_images, command=check_flip_v_allowed)
+        detect_rotated_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect rotated images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_rotated_images, command=lambda: [check_flip_v_allowed(), self.set_unsaved_changes()])
         detect_rotated_images_checkbutton.grid(row=1, column=1, padx=10, pady=(10,5))
         detect_rotated_images_checkbutton.select()
         ToolTip(detect_rotated_images_checkbutton, "Check if poses use rotated versions of already-found pose images.")
 
         # detect horizontally mirrored images
         self.detect_flip_h_images = tk.BooleanVar()
-        detect_flip_h_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect horizontally mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_h_images, command=check_flip_v_allowed)
+        detect_flip_h_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect horizontally mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_h_images, command=lambda: [check_flip_v_allowed(), self.set_unsaved_changes()])
         detect_flip_h_images_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5)
         detect_flip_h_images_checkbutton.select()
         ToolTip(detect_flip_h_images_checkbutton, "Check if poses use horizontally-flipped versions of already-found pose images.")
         
         # detect vertically mirrored images
         self.detect_flip_v_images = tk.BooleanVar()
-        detect_flip_v_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect vertically mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_v_images, state='disabled')
+        detect_flip_v_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect vertically mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_v_images, state='disabled', command=self.set_unsaved_changes)
         detect_flip_v_images_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=(5,10))
         ToolTip(detect_flip_v_images_checkbutton, """Check if poses use vertically-flipped versions of already-found pose images.\n\n(Automatically disabled when using both "detect rotated" and "detect hori. mirrored" to avoid redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-flipped image.)""")
 
@@ -554,7 +584,7 @@ class Menu_LayerSelect(tk.Frame):
         # generate empty poses
         # Determine whether pose data will be created for completely-empty pose boxes.
         self.generate_empty_poses = tk.BooleanVar()
-        generate_empty_poses_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Generate empty poses", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.generate_empty_poses)
+        generate_empty_poses_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Generate empty poses", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.generate_empty_poses, command=self.set_unsaved_changes)
         generate_empty_poses_checkbutton.grid(row=4, column=0, columnspan=2, padx=10, pady=(5,10))
         ToolTip(generate_empty_poses_checkbutton, "Determine whether pose data will be created for pose boxes that are completely empty.")
 
@@ -673,22 +703,21 @@ class Menu_LayerSelect(tk.Frame):
 
         # resize_layer_scrollable_frame()
 
-    def clear_all(self):
-        pass
+    # def clear_all(self, change_menu_callback): # TODO test if this even works tbh. ALSO will definitely be easier to just... create an entirely new menu, btw
 
-        self.layer_data = {}
+        # self.layer_data = {}
         # self.layer_thumbnails = []
 
         # search option
         # border color
         # spacing entries
 
-        self.start_search_in_center.set(True)
-        self.search_right_to_left.set(False)
-        self.detect_identical_images.set(True)
-        self.detect_rotated_images.set(True)
-        self.detect_flip_h_images.set(True)
-        self.detect_flip_v_images.set(False)
+        # self.start_search_in_center.set(True)
+        # self.search_right_to_left.set(False)
+        # self.detect_identical_images.set(True)
+        # self.detect_rotated_images.set(True)
+        # self.detect_flip_h_images.set(True)
+        # self.detect_flip_v_images.set(False)
 
         # entries, idk
 
@@ -731,6 +760,8 @@ class Menu_LayerSelect(tk.Frame):
             self.border_color_swatch.configure(bg=color)
             self.color_entry_input.set(color)
             self.border_color = color
+
+            self.set_unsaved_changes(True)
         except:
             messagebox.showerror("Error", "Enter a valid color")
 
@@ -775,6 +806,8 @@ class Menu_LayerSelect(tk.Frame):
         else:
             self.layer_data.append(blank_layer)
             # self.layer_thumbnails.append(None)
+
+        self.set_unsaved_changes(True)
 
         self.redraw_all_layer_cards()
 
@@ -879,11 +912,10 @@ class Menu_LayerSelect(tk.Frame):
             # self.layer_thumbnails.append(thumb)
 
         
-        
-        self.redraw_all_layer_cards()
-        # self.update_preview()
-        # self.update_preview_button.configure(bg="#ffff00", fg="#000000")
-        self.set_preview_button(True)
+        if len(data):
+            self.set_unsaved_changes(True)
+            self.redraw_all_layer_cards()
+            self.set_preview_button(True)
 
     # def get_layer_thumbnail(self, layer_index):
     def create_layer_thumbnail(self, layer_index):
@@ -915,6 +947,7 @@ class Menu_LayerSelect(tk.Frame):
         })
         # self.layer_thumbnails.append(None)
 
+        # self.set_unsaved_changes(True) # Doesn't need this, as the optionmenu changing is enough
         self.redraw_all_layer_cards()
         # scroll all the way down?
 
@@ -958,12 +991,14 @@ class Menu_LayerSelect(tk.Frame):
 
             # self.update_preview()
             # self.update_preview_button.configure(bg="#ffff00", fg="#000000")
+            self.set_unsaved_changes(True)
             self.set_preview_button(True)
 
     def delete_layer(self, layer_index):
         had_search_image = self.layer_data[layer_index].get("search_image_path") != None
 
         del self.layer_data[layer_index]
+        self.set_unsaved_changes(True)
 
         # could theoretically just do all layer cards *after* the deleted index, but also .redraw_all_layer_cards() has the necessary delete functionality
         self.redraw_all_layer_cards()
@@ -1052,6 +1087,7 @@ class Menu_LayerSelect(tk.Frame):
 
             def save_name(e, entry=data, entry_widget=name_entry): # Uses parameters rather than relying on normal variables, which usually only apply to latest layer
                 entry.update({"name":entry_widget.get()})
+                self.set_unsaved_changes(True)
 
             # It might be easier to use, say, a tk.StringVar(), but this feels better because layers can be created and destroyed dynamically & I don't wanna worry
             # about updating a bunch of lists of variables and stuff
@@ -1081,6 +1117,7 @@ class Menu_LayerSelect(tk.Frame):
                 self.redraw_layer_card(i) # Only need to redraw THIS card
 
                 self.set_preview_button(True)
+                self.set_unsaved_changes(True)
 
         search_entry.bind("<FocusOut>", save_search_image, add="+")
 
@@ -1110,6 +1147,7 @@ class Menu_LayerSelect(tk.Frame):
                 new_image_path = entry_widget.get()
                 if self.check_image_valid(new_image_path):
                     entry.update({"source_image_path":new_image_path})
+                    self.set_unsaved_changes(True)
 
             source_entry.bind("<FocusOut>", save_source_image, add="+")
 
@@ -1152,9 +1190,8 @@ class Menu_LayerSelect(tk.Frame):
 
             def save_cosmetic_check(entry=data, cosmetic=is_cosmetic_only, i=layer_index):
                 entry.update({"is_cosmetic_only": not cosmetic})
-
-                # self.redraw_layer_cards() # change to just ONE image entry, when we get around to it
-                self.redraw_layer_card(i) # change to just ONE image entry, when we get around to it
+                self.redraw_layer_card(i)
+                self.set_unsaved_changes(True)
                 
             cosmetic_checkbutton.configure(command=save_cosmetic_check)
 
@@ -1168,6 +1205,7 @@ class Menu_LayerSelect(tk.Frame):
 
             def save_export_check(entry=data):
                 entry.update({"export_layer_images": entry.get("export_layer_images") != True})
+                self.set_unsaved_changes(True)
                 
             export_checkbutton.configure(command=save_export_check)
         else:
@@ -1261,7 +1299,7 @@ class Menu_LayerSelect(tk.Frame):
         
         # print("gothere1")
         # print("Image size:", self.preview_image.size, "mode:", self.preview_image.mode)
-        self.formatted_canvas_image = ImageTk.PhotoImage(self.preview_image.convert("RGB"))
+        # self.formatted_canvas_image = ImageTk.PhotoImage(self.preview_image.convert("RGB"))
 
         # print("gothere2")
 
@@ -1284,73 +1322,86 @@ class Menu_LayerSelect(tk.Frame):
 
         # print("gothere4")
         
-        self.display_preview_image()
+        # self.display_preview_image()
 
-        # print("end of update preview image")
+        # self.preview_viewportcanvas.set_image(self.formatted_canvas_image)
+        self.preview_viewportcanvas.set_image(self.preview_image)
+
+    #     # print("end of update preview image")
 
 
-    # def on_preview_canvas_mousewheel(self, event):
+    # # def on_preview_canvas_mousewheel(self, event):
+    # #     pass
+    #     # delta = (event.delta // 120)
+    #     # self.preview_canvas_zoom(delta, event.x, event.y)
+
+    # # def preview_canvas_zoom(self, delta, x, y):
+    # def preview_canvas_zoom(self, delta):
+    #     # self.display_preview_image(delta)
+    #     # self.display_preview_image((self.preview_zoom + (float(delta) / 10)) / self.preview_zoom)
+
+    #     # old_zoom = self.preview_zoom
+    #     # self.preview_zoom += (float(delta) / 10)
+
+    #     # zoom_amount = 0.25 * self.preview_zoom
+
+    #     # self.preview_zoom += zoom_amount * delta
+    #     # self.preview_zoom = max(0.25, self.preview_zoom)
+    #     # print(self.preview_zoom)
+    #     # ok rather than this mathematical approach, we should do hard-coded step values
+    #     steps = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 6.0] # SWITCH TO VIEWPORT METHOD WHATEVER THINGY
+
+    #     if delta > 0 and self.preview_zoom != 10.0:
+    #         self.preview_zoom = steps[steps.index(self.preview_zoom) + 1]
+    #     elif delta < 0 and self.preview_zoom != .25:
+    #         self.preview_zoom = steps[steps.index(self.preview_zoom) - 1]
+
+    #     # factor = (self.preview_zoom + (float(delta) / 10)) / self.preview_zoom
+    #     # factor = self.preview_zoom / old_zoom
+
+    #     # self.preview_zoom += 
+
+    #     # canvasx = self.preview_canvas.canvasx(x)
+    #     # canvasy = self.preview_canvas.canvasy(y)
+    #     # self.preview_canvas.scale("all", canvasx, canvasy, factor, factor)
+    #     # self.display_preview_image(factor, canvasx, canvasy)
+    #     # self.display_preview_image(canvasx, canvasy, self.preview_zoom)
+    #     self.display_preview_image(self.preview_zoom)
+
+
+    # # def display_preview_image(self, factor = 1.0, x = 0, y = 0):
+    # # def display_preview_image(self, x = 0, y = 0, scale = 1.0):
+    # def display_preview_image(self, scale = 1.0):
+    #     if self.preview_image != None:
+    #         # size = (int(self.preview_image.size[0] * scale), int(self.preview_image.size[1] * scale))
+    #         self.formatted_canvas_image = ImageTk.PhotoImage(
+    #             self.preview_image.convert("RGB").resize(
+    #                 (int(self.preview_image.size[0] * scale), int(self.preview_image.size[1] * scale)), Image.Resampling.NEAREST
+    #             )
+    #         )
+            
+    #         # self.preview_canvas.delete("all")
+            
+    #         # self.preview_canvas.create_image(
+    #         #     self.preview_canvas.winfo_width() // 2, self.preview_canvas.winfo_height() // 2, image=self.formatted_canvas_image, anchor="center")
+            
+    #         for widget in self.preview_contents_frame.winfo_children():
+    #             widget.destroy()
+
+    #         test = tk.Label(self.preview_contents_frame, image = self.formatted_canvas_image, bg=gui_shared.bg_color)
+    #         test.pack(anchor="center")
+
+    #         # self.preview_canvas.create_window(0,0,anchor="center",window=test)
+
+    #         # self.preview_canvas.scale(self.img_id, x, y, 1, 1)
+    #         # self.preview_canvas.scale(self.img_id, x, y, factor, factor)
+
+    # def display_preview_image(self):
     #     pass
-        # delta = (event.delta // 120)
-        # self.preview_canvas_zoom(delta, event.x, event.y)
 
-    # def preview_canvas_zoom(self, delta, x, y):
-    def preview_canvas_zoom(self, delta):
-        # self.display_preview_image(delta)
-        # self.display_preview_image((self.preview_zoom + (float(delta) / 10)) / self.preview_zoom)
-
-        # old_zoom = self.preview_zoom
-        # self.preview_zoom += (float(delta) / 10)
-
-        zoom_amount = 0.25 * self.preview_zoom
-
-        self.preview_zoom += zoom_amount * delta
-        self.preview_zoom = max(0.25, self.preview_zoom)
-
-        # factor = (self.preview_zoom + (float(delta) / 10)) / self.preview_zoom
-        # factor = self.preview_zoom / old_zoom
-
-        # self.preview_zoom += 
-
-        # canvasx = self.preview_canvas.canvasx(x)
-        # canvasy = self.preview_canvas.canvasy(y)
-        # self.preview_canvas.scale("all", canvasx, canvasy, factor, factor)
-        # self.display_preview_image(factor, canvasx, canvasy)
-        # self.display_preview_image(canvasx, canvasy, self.preview_zoom)
-        self.display_preview_image(self.preview_zoom)
-
-
-    # def display_preview_image(self, factor = 1.0, x = 0, y = 0):
-    # def display_preview_image(self, x = 0, y = 0, scale = 1.0):
-    def display_preview_image(self, scale = 1.0):
-        if self.preview_image != None:
-            # size = (int(self.preview_image.size[0] * scale), int(self.preview_image.size[1] * scale))
-            self.formatted_canvas_image = ImageTk.PhotoImage(
-                self.preview_image.convert("RGB").resize(
-                    (int(self.preview_image.size[0] * scale), int(self.preview_image.size[1] * scale)), Image.Resampling.NEAREST
-                )
-            )
-            
-            # self.preview_canvas.delete("all")
-            
-            # self.preview_canvas.create_image(
-            #     self.preview_canvas.winfo_width() // 2, self.preview_canvas.winfo_height() // 2, image=self.formatted_canvas_image, anchor="center")
-            
-            for widget in self.preview_contents_frame.winfo_children():
-                widget.destroy()
-
-            test = tk.Label(self.preview_contents_frame, image = self.formatted_canvas_image, bg=gui_shared.bg_color)
-            test.pack(anchor="center")
-
-            # self.preview_canvas.create_window(0,0,anchor="center",window=test)
-
-            # self.preview_canvas.scale(self.img_id, x, y, 1, 1)
-            # self.preview_canvas.scale(self.img_id, x, y, factor, factor)
-
-
-    # def change_zoom(self, factor):
-    #     self.zoom_level *= factor
-    #     self.update_preview()
+    # # def change_zoom(self, factor):
+    # #     self.zoom_level *= factor
+    # #     self.update_preview()
 
     def format_layer_json(self, paths_are_local = False):
         # name = self.name_entry_input.get()
@@ -1476,7 +1527,10 @@ class Menu_LayerSelect(tk.Frame):
             with open(json_path, 'w') as file:
                 json.dump(formatted_data, file, indent=4)
             
+            self.set_unsaved_changes(False)
             messagebox.showinfo("Success!", f".json file and all layer images exported")
+            return True
+        return False
 
     def export_layerselect_json(self):
         # name = self.name_entry_input.get()
@@ -1496,7 +1550,10 @@ class Menu_LayerSelect(tk.Frame):
             with open(path, 'w') as file:
                 json.dump(formatted_data, file, indent=4)
             
+            self.set_unsaved_changes(False)
             messagebox.showinfo("Success!", f"{os.path.basename(path)} exported")
+            return True
+        return False # If nothing was actually saved, and it's intending to quit, assume this is a cancellation, not a close-without-saving
 
     # Import a valid .json file.
     def import_layerselect_json(self, path = None):
@@ -1594,6 +1651,8 @@ class Menu_LayerSelect(tk.Frame):
                 self.add_image_layers(layer_data)
 
                 if output_folder_path: self.output_folder_path.set(output_folder_path)
+
+                self.set_unsaved_changes(False)
             except json.JSONDecodeError as e:
                 messagebox.showerror("Error importing .json", e) # not sure for what reason i'd need to have these separated, but i guess it's nice to catch 'em
             except Exception as e:
@@ -1659,3 +1718,10 @@ class Menu_LayerSelect(tk.Frame):
         self.clear_button.configure(state="normal")
         self.back_button.configure(state="normal")
         self.cancel_button.configure(state="disabled")
+    
+    def set_unsaved_changes(self, new_unsaved_changes = True):
+        self.back_button.config(fg=(gui_shared.danger_fg if new_unsaved_changes else gui_shared.fg_color))
+        self.set_unsaved_changes_callback(new_unsaved_changes)
+
+    def save_changes(self):
+        return self.export_layerselect_json()

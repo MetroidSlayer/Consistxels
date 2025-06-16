@@ -31,6 +31,7 @@ class ConsistxelsApp(tk.Frame):
         root.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
 
         # Prepare different menu stuff, change menu to menu_mainmenu
+        self.unsaved_changes = False
         self.curr_menu = None
         self.change_menu("Main")
 
@@ -40,24 +41,41 @@ class ConsistxelsApp(tk.Frame):
 
     # Change menu
     def change_menu(self, new_menu = "Main", arg = None):
-        for widget in self.container.winfo_children(): # Destroy current menu entirely
-            widget.destroy()
-        
-        new_menu_widget = None
+        if self.check_quit() != None:
+            
+            self.unsaved_changes = False
+            
+            for widget in self.container.winfo_children(): # Destroy current menu entirely
+                widget.destroy()
+            
+            new_menu_widget = None
 
-        match new_menu:
-            case "Main":
-                new_menu_widget = Menu_MainMenu(self.container, self.change_menu)
-            case "LayerSelect":
-                new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, arg)
-            case "LoadJson":
-                new_menu_widget = Menu_LoadJson(self.container, self.change_menu, arg)
-            case _:
-                print("nonexistent menu chosen")
-                raise Exception
-        
-        new_menu_widget.place(relwidth=1, relheight=1)
-        self.curr_menu = new_menu_widget
+            match new_menu:
+                case "Main":
+                    new_menu_widget = Menu_MainMenu(self.container, self.change_menu)
+                case "LayerSelect":
+                    new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, self.set_unsaved_changes, arg)
+                case "LoadJson":
+                    new_menu_widget = Menu_LoadJson(self.container, self.change_menu, arg)
+                case _:
+                    print("nonexistent menu chosen")
+                    raise Exception
+            
+            new_menu_widget.place(relwidth=1, relheight=1)
+            self.curr_menu = new_menu_widget
+
+    # Set self.unsaved_changes, so that GUI can properly avoid losing work
+    def set_unsaved_changes(self, new_unsaved_changes):
+        self.unsaved_changes = new_unsaved_changes
+
+    # True = save and quit, False = don't save, do quit, None = don't save, don't quit
+    def check_quit(self):
+        if self.unsaved_changes:
+            ans = messagebox.askyesnocancel("Warning! Unsaved changes", "Save changes before closing?")
+            if ans:
+                if not self.curr_menu.save_changes(): ans = None
+            return ans
+        return False
 
     # Update progress in current menu. (Maybe just call this directly? I dunno)
     def update_progress(self, value, header_text, info_text):
@@ -68,8 +86,8 @@ class ConsistxelsApp(tk.Frame):
         # ask if want to save if curr frame has modified work
         # if self.curr_menu.has_unsaved_work:
             # pass
-
-        root.destroy()
+        if self.check_quit() != None:
+            root.destroy()
     
     # Handle incoming info, sent from main process through this process's stdin
     # Will KINDA lag things a bit, since it's updating the menu CONSTANTLY.
