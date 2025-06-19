@@ -4,7 +4,7 @@ from PIL import Image, ImageTk
 
 class ViewportCanvas(tk.Canvas):
     def __init__(self, master=None, **kwargs):
-        super().__init__(master, **kwargs)
+        super().__init__(master, **kwargs)#, cursor="hand2"
 
         self.full_image = None
         self._tk_image = None

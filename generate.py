@@ -71,6 +71,7 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
         output_layer_data, search_images, source_images = generate_layer_data(input_layer_data)
 
         # TODO: test. not sure if the method below this one had anything over something like this. maybe i was just tired??
+        # IT DID have something over it. not every search image ends up here, so it quickly checks for layers that aren't stored here, so we get an IndexError: list index out of range
         for i, layer in enumerate(output_layer_data):
             if layer.get("export_layer_images"):
                 if search_images[i]:
@@ -81,25 +82,13 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
                     source_images[i].save(os.path.join(output_dir, image_path))
 
         # for i in range(len(search_images)):
-        #     # print("saving image", i)
-        #     # images[i].save(output_folder_path + image_data[i]["path"])
         #     if search_images[i]:
-                
-        #         image_path = output_layer_data[i]["search_image_path"]
-        #         # if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["search_image_path"])
-                
-        #         # search_images[i].save(image_path)
+        #         image_path = output_layer_data[i]["search_image_path"] # see but THIS isn't right tho!!! BECAUSE it's using an index that does not match. the output_layer_data and search_images WILL mismatch IF there is a layer that is/isn't exporting images, and all the others aren't/are.
         #         search_images[i].save(os.path.join(output_dir, image_path))
 
         # for i in range(len(source_images)):
-        #     # print("saving image", i)
-        #     # images[i].save(output_folder_path + image_data[i]["path"])
         #     if source_images[i]:
-                
         #         image_path = output_layer_data[i]["source_image_path"]
-        #         # if input_header["paths_are_local"]: image_path = os.path.join(output_dir, output_layer_data[i]["source_image_path"])
-                
-        #         # source_images[i].save(image_path)
         #         source_images[i].save(os.path.join(output_dir, image_path))
 
         # Structure output
@@ -131,7 +120,7 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
             json.dump(output_data, file, indent=4)
 
     except Exception as e:
-        update_progress("error", 0, "An error occured", str(e))
+        update_progress("error", 0, "An error occurred", str(e.__traceback__)) # MAYBE this will work???
 
 # Gets passed layer_data and finds the border; uses said border to find and return pose locations.
 # Could DEFINITELY just pass ONE layer - just the border, we don't need any other layers necessarily.
@@ -614,17 +603,18 @@ def generate_layer_data(input_layer_data):
     search_images = []
     source_images = []
     
-    for layer in input_layer_data: # Could probably do most of this better
+    # for layer in input_layer_data: # Could probably do most of this better
+    for i, layer in enumerate(input_layer_data): # Could probably do most of this better
         search_image_path = None
         source_image_path = None
 
-        if layer["export_layer_images"]: # Now TECHNICALLY redundant, since this check is done when the images are saved in generate_all_pose_data(), but idk I like it in both places
+        if layer["export_layer_images"]: # Now TECHNICALLY redundant, since this check is done when the images are saved in generate_all_pose_data(), but idk I like it in both places. (IT MIGHT NOT BE THERE ANY MORE???)
 
             if layer["search_image_path"]:
                 search_image_path = (
-                    (f"{layer['name']}" + ("" if layer["is_cosmetic_only"] else "_search") + "_image.png")
+                    (f"layer{i}_{layer['name']}_original" + (("" if not layer["is_cosmetic_only"] else "_cosmetic_layer") if not layer["source_image_path"] else "_search") + "_image_copy.png") # changed cosmetic-only check to has-source-image check. might want to do another to further separate layer images and cosmetic layer images
                     if not layer["is_border"] else
-                    "border_image.png"
+                    f"layer{i}_border_original_image_copy.png" # could DEFINITELY do this part better
                 )
 
                 with Image.open(layer["search_image_path"]) as search_image:
@@ -633,13 +623,16 @@ def generate_layer_data(input_layer_data):
             else:
                 search_images.append(None)
             if layer["source_image_path"]:
-                source_image_path = f"{layer['name']}_source_image.png"
+                source_image_path = f"layer{i}_{layer['name']}_original_source_image_copy.png"
 
                 with Image.open(layer["source_image_path"]) as source_image:
                     source_images.append(source_image.copy())
 
             else:
                 source_images.append(None)
+        else:
+            search_images.append(None)
+            source_images.append(None) # THIS should fix layer index mismatch issue
 
         output_layer_data.append({
             "name": layer["name"],

@@ -36,64 +36,96 @@ class Menu_MainMenu(tk.Frame):
         tk.Label(content_frame, text="Generate Pose Data:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=(10,0), anchor="w")
 
         generate_pose_data_frame = tk.Frame(content_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
-        generate_pose_data_frame.pack(padx=10, pady=10, anchor="w", fill="x")
+        generate_pose_data_frame.pack(padx=10, anchor="w", fill="x")
         
+        # generate_pose_data_frame.grid_rowconfigure(0, weight=1)
+        generate_pose_data_frame.grid_columnconfigure(0, weight=3)
+        generate_pose_data_frame.grid_columnconfigure(1, weight=1)
+        
+        # generate_pose_data_frame.grid_columnconfigure(0, uniform="button")
+        # generate_pose_data_frame.grid_columnconfigure(1, uniform="description")
+
         generate_pose_data_buttons_frame = tk.Frame(generate_pose_data_frame, bg=gui_shared.bg_color)
-        generate_pose_data_buttons_frame.pack(side="left")
+        # generate_pose_data_buttons_frame.pack(side="left")
+        generate_pose_data_buttons_frame.grid(row=0, column=0, sticky="EW")
 
         tk.Button(generate_pose_data_buttons_frame, text="New", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
-                  command=lambda: change_menu_callback("LayerSelect")).pack(padx=10, pady=(10,0), fill="x")
+                  command=lambda: change_menu_callback("LayerSelect")).pack(padx=10, pady=(10,0), fill="x", expand=True)
         
         tk.Button(generate_pose_data_buttons_frame, text="Load layer select json", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
-                  command=lambda: open_menu_with_path("LayerSelect")).pack(padx=10, pady=10, fill="x")
+                  command=lambda: open_menu_with_path("LayerSelect")).pack(padx=10, pady=10, fill="x", expand=True)
         
         generate_pose_data_description_frame = tk.Frame(generate_pose_data_frame, bg=gui_shared.bg_color)
-        generate_pose_data_description_frame.pack(side="left")
+        # generate_pose_data_description_frame.pack(side="left")
+        # generate_pose_data_description_frame.pack(side="right")
+        generate_pose_data_description_frame.grid(row=0, column=1, columnspan=5, sticky="W")
 
         tk.Label(generate_pose_data_description_frame, text="To get started, if you don't already have pose data for a sprite sheet, you'll need to generate it. Add and modify layers, which will be searched for any and all poses that are identical to one another. If you want to generate the same sheet more than once, you can save the selected layers and search options as a .json file and load it again later.\n\nEach unique image that's found will be exported as its own .png file. You can modify the individual pose images and see those changes reflected after exporting the sprite sheet with \"Load & Export Spritesheets with Pose Data\".",
-                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw")
+                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw", fill="x")
+        
+        # Export Sheet / menu_exportsheet
         
         tk.Label(content_frame, text="Load & Export Sprite Sheet with Pose Data:",
-                 bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=10, anchor="w")
-        
-        # Load Sheet / menu_loadjson
+                 bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=(10,0), anchor="w")
 
         load_sheet_frame = tk.Frame(content_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
         load_sheet_frame.pack(padx=10, anchor="w", fill="x")
         
-        load_sheet_buttons_frame = tk.Frame(load_sheet_frame, bg=gui_shared.bg_color, width=generate_pose_data_buttons_frame.winfo_width())
-        load_sheet_buttons_frame.pack(side="left")
+        # load_sheet_frame.grid_rowconfigure(0, weight=1)
+        load_sheet_frame.grid_columnconfigure(0, weight=3)
+        load_sheet_frame.grid_columnconfigure(1, weight=1)
+        
+        # load_sheet_frame.grid_columnconfigure(0, uniform="button")
+        # load_sheet_frame.grid_columnconfigure(1, uniform="description")
+        
+        load_sheet_buttons_frame = tk.Frame(load_sheet_frame, bg=gui_shared.bg_color)#, width=generate_pose_data_buttons_frame.winfo_width())
+        # load_sheet_buttons_frame.pack(side="left")
+        load_sheet_buttons_frame.grid(row=0, column=0, sticky="EW")
 
         tk.Button(load_sheet_buttons_frame, text="Load pose data json",
-                  bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: open_menu_with_path("LoadJson")).pack(padx=10, pady=10, fill="x")
+                  bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: open_menu_with_path("ExportSheet")).pack(padx=10, pady=10, fill="x", expand=True)
         
         load_sheet_description_frame = tk.Frame(load_sheet_frame, bg=gui_shared.bg_color)
-        load_sheet_description_frame.pack(side="left")
+        # load_sheet_description_frame.pack(side="left")
+        # load_sheet_description_frame.pack(side="right")
+        load_sheet_description_frame.grid(row=0, column=1, columnspan=5, sticky="W")
 
         tk.Label(load_sheet_description_frame, text="Using the .json file that was generated alongside the pose images, load a sprite sheet. Then, choose whether to export the entire sheet as one image, or to export each layer as its own image, etc.\n\nIf a pose image has been modified, and the sheet is exported, each instance of that pose image on the original sheet will be correctly updated, so you don't have to copy-and-paste onto a gazillion different poses every time you make a tiny change.\n\nOpening each and every pose image can be time consuming, so alternatively, you can export a layer with only unique pose images, then modify them. Return to this menu with that modified sheet in order to update multiple individual pose images at once. This is probably the most efficient way of using Consistxels.",
-                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw")
+                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw", fill="x")
 
         # Other tools / menu_othertools
 
         # tk.Label(content_frame, text="Other Tools:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=(10,0), anchor="w")
 
         other_tools_frame = tk.Frame(content_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
-        other_tools_frame.pack(padx=10, pady=10, anchor="w", fill="x")
+        other_tools_frame.pack(padx=10, pady=(20,10), anchor="w", fill="x")
         
-        other_tools_buttons_frame = tk.Frame(other_tools_frame, bg=gui_shared.bg_color, width=generate_pose_data_buttons_frame.winfo_width())
-        other_tools_buttons_frame.pack(side="left")
+        # other_tools_frame.grid_rowconfigure(0, weight=1)
+        other_tools_frame.grid_columnconfigure(0, weight=3)
+        other_tools_frame.grid_columnconfigure(1, weight=1)
+        
+        # other_tools_frame.grid_columnconfigure(0, uniform="button")
+        # other_tools_frame.grid_columnconfigure(1, uniform="description")
+
+        # other_tools_frame.grid_anchor(anchor="center")
+        
+        other_tools_buttons_frame = tk.Frame(other_tools_frame, bg=gui_shared.bg_color)#, width=generate_pose_data_buttons_frame.winfo_width())
+        # other_tools_buttons_frame.pack(side="left")
+        other_tools_buttons_frame.grid(row=0, column=0, sticky="EW")
 
         tk.Button(other_tools_buttons_frame, text="Other Tools", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
-                  command=lambda: change_menu_callback("OtherTools")).pack(padx=10, pady=(10,0), fill="x")
+                  command=lambda: change_menu_callback("OtherTools")).pack(padx=10, pady=10, fill="x", expand=True)
         
         # tk.Button(other_tools_buttons_frame, text="Generate Rotated Images", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
         #           command=generate_rotated_images).pack(padx=10, pady=10, fill="x")
         
         other_tools_description_frame = tk.Frame(other_tools_frame, bg=gui_shared.bg_color)
-        other_tools_description_frame.pack(side="left")
+        # other_tools_description_frame.pack(side="left")
+        # other_tools_description_frame.pack(side="right")
+        other_tools_description_frame.grid(row=0, column=1, columnspan=5, sticky="W")
 
         tk.Label(other_tools_description_frame, text="Some other basic tools that I implemented for debugging purposes and found useful enough to keep around.",
-                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw")
+                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, fill="x")
 
         # Other description? I guess try to clean it up
 

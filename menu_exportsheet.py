@@ -10,7 +10,7 @@ import os
 import tempfile
 from PIL import Image
 
-class Menu_LoadJson(tk.Frame):
+class Menu_ExportSheet(tk.Frame):
     def __init__(self, master, change_menu_callback, load_path = None):
         super().__init__(master)
 
@@ -311,13 +311,20 @@ class Menu_LoadJson(tk.Frame):
             frame = tk.Frame(self.scrollable_frame, bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg)
             frame.pack(side="top", fill="x", expand=True)
 
+            frame.grid_columnconfigure(0, weight=1)
+            frame.grid_columnconfigure(1, weight=5)
+
             entry_var = tk.StringVar()
 
-            tk.Label(frame, text=f"{i+1}: {layer["name"]}", bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
+            tk.Label(
+                frame, text=f"{i+1}: {layer["name"]}", bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg, fg=gui_shared.fg_color
+            ).pack(side="left", padx=(10,5), pady=10)
+            # ).grid(row=0, column=0, sticky="W", padx=(10,5), pady=10)
 
             add_widget( # TODO: make widths of entry widgets consistent. At the moment it looks a little bad
                 tk.Entry, frame, {'textvariable':entry_var, 'width':1}, {'text':"Enter the path to the image that will update all pose images sourced from this layer."}
             ).pack(side="left", fill="x", expand=True, pady=10)
+            # ).grid(row=0, column=1, pady=10, sticky="EW")
 
             # Open filedialog, get new image, check size
             def select_new_image(var=entry_var):
@@ -325,7 +332,7 @@ class Menu_LoadJson(tk.Frame):
                 path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
 
                 try: # Check if image's size matches sprite sheet's size
-                    with Image.open(var.get()) as image:
+                    with Image.open(path) as image:
                         if self.image_size != image.size:
                             messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
                             return
@@ -334,10 +341,11 @@ class Menu_LoadJson(tk.Frame):
                 except Image.UnidentifiedImageError:
                     messagebox.showwarning("Warning!", "Please enter a valid image.")
                 except Exception as e:
-                    messagebox.showerror("Error", e.with_traceback()) # HOPEFULLY this works and I understand what it's doing???
+                    messagebox.showerror("Error", e.__traceback__) # HOPEFULLY this works and I understand what it's doing???
 
             output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
             output_folder_button.pack(side="left", padx=10, pady=10)
+            # output_folder_button.grid(row=0, column=2, padx=10, pady=10, sticky="E")
             ToolTip(output_folder_button, "Open a file dialog and select the image that will update all pose images sourced from this layer.")
 
             self.layer_list.append(entry_var)
@@ -367,9 +375,11 @@ class Menu_LoadJson(tk.Frame):
                 self.output_folder_path.set(self.input_folder_path)
                 self.loaded_json_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
 
-                # It's *technically* possible to have a menu_loadjson without a loaded json, and the generate buttons and stuff were disabled when that was the case.
-                # Now, it's not possible through normal means, so no need to have this check
-                # self.generate_ended() # does all necessary stuff at once
+                # It's *technically* possible to have a menu_exportsheet without a loaded json, and the generate buttons and stuff were disabled when that was the case.
+                # Now, it's not possible through normal means, so no need to have this check.
+                #
+                # THAT SAID, the export button is still disabled upon load. i dont wanna get rid of that, so this is fine
+                self.generate_ended() # does all necessary stuff at once
 
                 # Set image size
                 self.image_size = (self.json_data["header"]["width"], self.json_data["header"]["height"])
@@ -379,6 +389,8 @@ class Menu_LoadJson(tk.Frame):
                     self.draw_layer_entries()
                 else:
                     self.draw_layer_checkbuttons()
+                
+                # self.export_button.config(state="normal")
     
     # Generate button (export button, actually) has been pressed, so communicate that to main process and provide generation info
     def generate_button_pressed(self):

@@ -92,7 +92,7 @@ class Menu_LayerSelect(tk.Frame):
         self.right_frame.pack_propagate(False)
 
         paned_window.add(self.left_frame, minsize=417, stretch="never")
-        paned_window.add(self.center_frame, minsize=0, stretch="always")
+        paned_window.add(self.center_frame, minsize=2, stretch="always")
         paned_window.add(self.right_frame, minsize=400, stretch="never")
         
         # Layer options:
@@ -193,7 +193,7 @@ class Menu_LayerSelect(tk.Frame):
         preview_frame.grid_rowconfigure(0, weight=1)
         preview_frame.grid_columnconfigure(0, weight=1)
 
-        self.preview_viewportcanvas = ViewportCanvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0)
+        self.preview_viewportcanvas = ViewportCanvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0, cursor="hand2")
         # self.preview_viewportcanvas.pack(fill="both", expand=True)
         self.preview_viewportcanvas.grid(row=0, column=0, sticky="NSEW")
 
@@ -240,7 +240,7 @@ class Menu_LayerSelect(tk.Frame):
         # preview_canvas_hori_scroll = ttk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_viewportcanvas.scroll_x, style=self.style)
         preview_canvas_hori_scroll.grid(row=1, column=0, sticky="EW")
 
-        preview_canvas_vert_scroll = tk.Scrollbar(preview_frame, orient="vertical", command=self.preview_viewportcanvas.scroll_y, troughcolor=gui_shared.bg_color)
+        preview_canvas_vert_scroll = tk.Scrollbar(preview_frame, orient="vertical", command=self.preview_viewportcanvas.scroll_y)
         # preview_canvas_vert_scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=self.preview_viewportcanvas.scroll_y, style=self.style)
         preview_canvas_vert_scroll.grid(row=0, column=1, sticky="NS")
 
@@ -390,11 +390,16 @@ class Menu_LayerSelect(tk.Frame):
         # Spacing subframe
         # (This would all look a LOT better if it was gridded rather than packed. look into it)
 
-        # Grid frame
-        spacing_grid_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
-        spacing_grid_frame.pack(side="top", fill="x")
+        search_spacing_subframe.grid_anchor("center")
+        search_spacing_subframe.grid_columnconfigure(0, weight=1)
 
-        tk.Label(spacing_grid_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Grid:   Rows:").pack(side="left", padx=(10,5), pady=10)
+        # Grid frame
+        # spacing_grid_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
+        # spacing_grid_frame.pack(side="top", fill="x")
+
+        # tk.Label(spacing_grid_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Grid:   Rows:").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Grid:").grid(row=0, column=0, padx=10, pady=10, sticky="W")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Rows:").grid(row=0, column=1, pady=10, sticky="E")
         
         self.spacing_rows = tk.StringVar()
         self.spacing_rows.set("0")
@@ -405,10 +410,13 @@ class Menu_LayerSelect(tk.Frame):
         # spacing_grid_rows_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(spacing_grid_rows_entry, "How many rows does the sprite sheet have?", False, True)
         add_widget(
-            tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_rows}, {'text':"How many rows does the sprite sheet have?"}
-        ).pack(side="left", pady=10)
+        #     tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_rows}, {'text':"How many rows does the sprite sheet have?"}
+        # ).pack(side="left", pady=10)
+            tk.Entry, search_spacing_subframe, {'width':6, 'textvariable':self.spacing_rows}, {'text':"How many rows does the sprite sheet have?"}
+        ).grid(row=0, column=2, padx=5, pady=10)
 
-        tk.Label(spacing_grid_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="   Columns:").pack(side="left", padx=5, pady=10)
+        # tk.Label(spacing_grid_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="   Columns:").pack(side="left", padx=5, pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Columns:").grid(row=0, column=4, pady=10, sticky="E")
 
         self.spacing_columns = tk.StringVar()
         self.spacing_columns.set("0")
@@ -419,14 +427,18 @@ class Menu_LayerSelect(tk.Frame):
         # spacing_grid_columns_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(spacing_grid_columns_entry, "How many columns does the sprite sheet have?", False, True)
         add_widget(
-            tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_columns}, {'text':"How many columns does the sprite sheet have?"}
-        ).pack(side="left", pady=10)
+        #     tk.Entry, spacing_grid_frame, {'width':6, 'textvariable':self.spacing_columns}, {'text':"How many columns does the sprite sheet have?"}
+        # ).pack(side="left", pady=10)
+            tk.Entry, search_spacing_subframe, {'width':6, 'textvariable':self.spacing_columns}, {'text':"How many columns does the sprite sheet have?"}
+        ).grid(row=0, column=5, padx=(5,10), pady=10)
 
         # Outer padding
-        spacing_padding_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
-        spacing_padding_frame.pack(side="top", fill="x")
+        # spacing_padding_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
+        # spacing_padding_frame.pack(side="top", fill="x")
 
-        tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Padding:   Outer:").pack(side="left", padx=(10,5), pady=10)
+        # tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Padding:   Outer:").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Padding:").grid(row=1, column=0, padx=10, pady=10, sticky="W")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Outer:").grid(row=1, column=1, pady=10, sticky="E")
 
         self.spacing_outer_padding = tk.StringVar()
         self.spacing_outer_padding.set("0")
@@ -437,8 +449,10 @@ class Menu_LayerSelect(tk.Frame):
         # outer_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(outer_padding_entry, "How much space between the sprites and the edge of the sprite sheet?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
         add_widget(
-            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_outer_padding}, {'text':"""How much space between the sprites and the edge of the sprite sheet?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
-        ).pack(side="left", pady=10)
+        #     tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_outer_padding}, {'text':"""How much space between the sprites and the edge of the sprite sheet?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
+        # ).pack(side="left", pady=10)
+            tk.Entry, search_spacing_subframe, {'width':6, 'textvariable':self.spacing_outer_padding}, {'text':"""How much space between the sprites and the edge of the sprite sheet?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
+        ).grid(row=1, column=2, padx=5, pady=10)
 
         # tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
 
@@ -446,7 +460,9 @@ class Menu_LayerSelect(tk.Frame):
         # inner_padding_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
         # inner_padding_frame.pack(side="top", fill="x")
 
-        tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px   Inner:").pack(side="left", padx=5, pady=10)
+        # tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px   Inner:").pack(side="left", padx=5, pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").grid(row=1, column=3, padx=(0,10), pady=10, sticky="W")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Inner:").grid(row=1, column=4, pady=10, sticky="E")
 
         self.spacing_inner_padding = tk.StringVar()
         self.spacing_inner_padding.set("0")
@@ -456,17 +472,22 @@ class Menu_LayerSelect(tk.Frame):
         # inner_padding_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(inner_padding_entry, "How much extra padding around each sprite?\n(NOT to be confused with the automatic and custom padding - Outer and inner are\nfor the input images, automatic and custom are for the output images)", False, True)
         add_widget(
-            tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_inner_padding}, {'text':"""How much extra padding around each sprite?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
-        ).pack(side="left", pady=10)
+        #     tk.Entry, spacing_padding_frame, {'width':6, 'textvariable':self.spacing_inner_padding}, {'text':"""How much extra padding around each sprite?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
+        # ).pack(side="left", pady=10)
+            tk.Entry, search_spacing_subframe, {'width':6, 'textvariable':self.spacing_inner_padding}, {'text':"""How much extra padding around each sprite?\n\n(NOT to be confused with the automatic and custom padding - outer and inner are for the input layer images, automatic and custom are for the output pose images)"""}
+        ).grid(row=1, column=5, padx=5, pady=10)
 
 
-        tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
+        # tk.Label(spacing_padding_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").grid(row=1, column=6, padx=(0,10), pady=10, sticky="W")
 
         # Separation
-        spacing_separation_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
-        spacing_separation_frame.pack(side="top", fill="x")
+        # spacing_separation_frame = tk.Frame(search_spacing_subframe, bg=gui_shared.bg_color)
+        # spacing_separation_frame.pack(side="top", fill="x")
 
-        tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Separation:   x").pack(side="left", padx=(10,5), pady=10)
+        # tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Separation:   x").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Separation:").grid(row=2, column=0, padx=10, pady=10, sticky="W")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="x").grid(row=2, column=1, pady=10, sticky="E")
         
         self.spacing_x_separation = tk.StringVar()
         self.spacing_x_separation.set("0")
@@ -477,10 +498,14 @@ class Menu_LayerSelect(tk.Frame):
         # x_separation_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(x_separation_entry, "How much horizontal space between each sprite?", False, True)
         add_widget(
-            tk.Entry, spacing_separation_frame, {'width':6, 'textvariable':self.spacing_x_separation}, {'text':"How much horizontal space between each sprite?"}
-        ).pack(side="left", pady=10)
+        #     tk.Entry, spacing_separation_frame, {'width':6, 'textvariable':self.spacing_x_separation}, {'text':"How much horizontal space between each sprite?"}
+        # ).pack(side="left", pady=10)
+            tk.Entry, search_spacing_subframe, {'width':6, 'textvariable':self.spacing_x_separation}, {'text':"How much horizontal space between each sprite?"}
+        ).grid(row=2, column=2, padx=5, pady=10)
 
-        tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px   y").pack(side="left", padx=5, pady=10)
+        # tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px   y").pack(side="left", padx=5, pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").grid(row=2, column=3, padx=(0,10), pady=10, sticky="W")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="y").grid(row=2, column=4, pady=10, sticky="E")
 
         self.spacing_y_separation = tk.StringVar()
         self.spacing_y_separation.set("0")
@@ -490,10 +515,13 @@ class Menu_LayerSelect(tk.Frame):
         # y_separation_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(y_separation_entry, "How much vertical space between each sprite?", False, True)
         add_widget(
-            tk.Entry, spacing_separation_frame, {'width':6, 'textvariable':self.spacing_y_separation}, {'text':"How much vertical space between each sprite?"}
-        ).pack(side="left", pady=10)
+        #     tk.Entry, spacing_separation_frame, {'width':6, 'textvariable':self.spacing_y_separation}, {'text':"How much vertical space between each sprite?"}
+        # ).pack(side="left", pady=10)
+            tk.Entry, search_spacing_subframe, {'width':6, 'textvariable':self.spacing_y_separation}, {'text':"How much vertical space between each sprite?"}
+        ).grid(row=2, column=5, padx=5, pady=10)
 
-        tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
+        # tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").pack(side="left", padx=(5,10), pady=10)
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").grid(row=2, column=6, padx=(0,10), pady=10, sticky="W")
 
         # Preset Subframe
 
@@ -533,6 +561,8 @@ class Menu_LayerSelect(tk.Frame):
         # search_options_checkboxes_frame.pack(side="top", fill="x", expand=True)
         search_options_checkboxes_frame.pack(side="top", fill="x")
 
+        search_options_checkboxes_frame.grid_anchor("center")
+
         self.start_search_in_center = tk.BooleanVar()
         start_search_in_center_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Start search in center", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.start_search_in_center, command=self.set_unsaved_changes)
         start_search_in_center_checkbutton.grid(row=0, column=0, padx=10, pady=5)
@@ -553,11 +583,16 @@ class Menu_LayerSelect(tk.Frame):
 
         # When both flip_h and rotated are selected, flip_v is redundant and therefore disabled for clarity
         def check_flip_v_allowed():
-            if self.detect_rotated_images.get() and self.detect_flip_h_images.get():
+            # if self.detect_rotated_images.get() and self.detect_flip_h_images.get():
+            #     self.detect_flip_v_images.set(False)
+            #     detect_flip_v_images_checkbutton.configure(state='disabled')
+            # else:
+            #     detect_flip_v_images_checkbutton.configure(state='normal') # TODO TEST!
+            if self.detect_rotated_images.get():
                 self.detect_flip_v_images.set(False)
                 detect_flip_v_images_checkbutton.configure(state='disabled')
             else:
-                detect_flip_v_images_checkbutton.configure(state='normal') # TODO TEST!
+                detect_flip_v_images_checkbutton.configure(state='normal')
 
         # detect rotated images
         self.detect_rotated_images = tk.BooleanVar()
@@ -577,7 +612,8 @@ class Menu_LayerSelect(tk.Frame):
         self.detect_flip_v_images = tk.BooleanVar()
         detect_flip_v_images_checkbutton = tk.Checkbutton(search_options_checkboxes_frame, text="Detect vertically mirrored images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.detect_flip_v_images, state='disabled', command=self.set_unsaved_changes)
         detect_flip_v_images_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=(5,10))
-        ToolTip(detect_flip_v_images_checkbutton, """Check if poses use vertically-flipped versions of already-found pose images.\n\n(Automatically disabled when using both "detect rotated" and "detect hori. mirrored" to avoid redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-flipped image.)""")
+        # ToolTip(detect_flip_v_images_checkbutton, """Check if poses use vertically-flipped versions of already-found pose images.\n\n(Automatically disabled when using both "detect rotated" and "detect hori. mirrored" to avoid redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-flipped image.)""")
+        ToolTip(detect_flip_v_images_checkbutton, """Check if poses use vertically-flipped versions of already-found pose images.\n\n(Automatically disabled when using "detect rotated" to avoid redundancy; a horizontally-flipped, 180-degrees-rotated image is identical to a vertically-flipped image, so just use "detect rotated" with "detect h-mirrored" instead.)""")
 
         # Generation
 
@@ -602,7 +638,7 @@ class Menu_LayerSelect(tk.Frame):
         padding_type_optionmenu = tk.OptionMenu(search_options_frame, self.automatic_padding_type_option, *self.padding_types)
         padding_type_optionmenu.configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.bg_color, activeforeground=gui_shared.fg_color, width=28, anchor="w", justify="left", highlightthickness=1, highlightbackground=gui_shared.secondary_fg, bd=0, relief="flat")
         padding_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color)
-        padding_type_optionmenu.pack(side="top", padx=10, pady=10)
+        padding_type_optionmenu.pack(side="top", padx=10, pady=(0,10))
         ToolTip(padding_type_optionmenu, """
 - Show only always-visible pixels: Padding for pose images will increase to show how much space is visible in all instances of that pose image. (Recommended)
 
@@ -613,7 +649,8 @@ class Menu_LayerSelect(tk.Frame):
 
         custom_padding_frame = tk.Frame(search_options_frame, bg=gui_shared.bg_color)
         # custom_padding_frame.pack(side="top", fill="x", expand=True)
-        custom_padding_frame.pack(side="top", fill="x")
+        # custom_padding_frame.pack(side="top", fill="x")
+        custom_padding_frame.pack(side="top")
 
         tk.Label(custom_padding_frame, text="Custom padding amount:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
@@ -643,7 +680,7 @@ class Menu_LayerSelect(tk.Frame):
         # some sort of function to check if folder is empty, and warn user if not
         self.output_folder_path = tk.StringVar()
         add_widget(
-            tk.Entry, generate_options_frame, {'textvariable':self.output_folder_path}, {'text':"""Enter the path to the folder where the pose images and .json data will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""}
+            tk.Entry, generate_options_frame, {'textvariable':self.output_folder_path, 'width':1}, {'text':"""Enter the path to the folder where the pose images and .json data will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""}
         ).pack(side="left", fill="x", expand=True, pady=10)
 
         def select_output_folder_path():
@@ -1624,8 +1661,9 @@ class Menu_LayerSelect(tk.Frame):
                 # self.add_image_layers(layer_data)
 
                 # delete any current layers
-                for i in range(len(self.layer_data)):
-                    self.delete_layer(i)
+                for i in reversed(range(len(self.layer_data))):
+                    # self.delete_layer(i)
+                    del self.layer_data[i]
                 
                 # reformat layer paths if paths_are_local == True
                 curr_folder_path = os.path.dirname(path) if paths_are_local else ""
