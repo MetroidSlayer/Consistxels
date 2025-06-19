@@ -144,10 +144,12 @@ class Menu_ExportSheet(tk.Frame):
                     self.draw_layer_entries()
                     self.output_folder_entry.config(state="disabled")
                     self.output_folder_button.config(state="disabled")
+                    self.output_use_current_folder_button.config(state="disabled")
                 else:
                     self.draw_layer_checkbuttons()
                     self.output_folder_entry.config(state="normal")
                     self.output_folder_button.config(state="normal")
+                    self.output_use_current_folder_button.config(state="normal")
             
             if curr_export_type in [0,3]:
                 self.unique_pose_images_only_checkbutton.config(state="disabled")
@@ -197,16 +199,30 @@ class Menu_ExportSheet(tk.Frame):
         tk.Label(output_path_frame, text="Output folder path:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
         self.output_folder_path = tk.StringVar()
-        self.output_folder_entry = add_widget(tk.Entry, output_path_frame, {'textvariable':self.output_folder_path, 'disabledbackground':gui_shared.field_bg}, {'text':"""Enter the path to the folder where the exported images will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""})
+        self.output_folder_entry = add_widget(tk.Entry, output_path_frame, {'width':1, 'textvariable':self.output_folder_path, 'disabledbackground':gui_shared.secondary_bg}, {'text':"""Enter the path to the folder where the exported images will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""})
         self.output_folder_entry.pack(side="left", fill="x", expand=True, pady=10)
 
         # Open file dialog for output folder path
-        def select_output_folder_path():
-            self.output_folder_path.set(filedialog.askdirectory(title="Select an output folder (preferably empty)"))
+        def select_output_folder_path(use_input_path = False):
+            # self.output_folder_path.set(filedialog.askdirectory(title="Select an output folder (preferably empty)"))
+            if not use_input_path:
+                path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
+            else:
+                path = self.input_folder_path
+            
+            if (path and ((not os.listdir(path)) or
+            messagebox.askyesno("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data. Continue?")
+            )):
+                self.output_folder_path.set(path)
+                # self.output_folder_entry.xview_moveto(1.0)
 
         self.output_folder_button = tk.Button(output_path_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
         self.output_folder_button.pack(side="left", padx=10, pady=10)
         ToolTip(self.output_folder_button, """Open a file dialog and select the folder where the exported images will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)""")
+
+        self.output_use_current_folder_button = tk.Button(output_path_frame, text="Use current folder", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda p=True: select_output_folder_path(p))
+        self.output_use_current_folder_button.pack(side="left", padx=(0,10), pady=10)
+        ToolTip(self.output_use_current_folder_button, """Select this .json's folder as the output folder.\n\n(Recommended. Keep in mind that you might still overwrite previous exports, but you're very unlikely to overwrite any pose images.)""")
 
         # Progress bar, confirmation/cancellation buttons
         
@@ -321,13 +337,14 @@ class Menu_ExportSheet(tk.Frame):
             ).pack(side="left", padx=(10,5), pady=10)
             # ).grid(row=0, column=0, sticky="W", padx=(10,5), pady=10)
 
-            add_widget( # TODO: make widths of entry widgets consistent. At the moment it looks a little bad
+            entry = add_widget( # TODO: make widths of entry widgets consistent. At the moment it looks a little bad
                 tk.Entry, frame, {'textvariable':entry_var, 'width':1}, {'text':"Enter the path to the image that will update all pose images sourced from this layer."}
-            ).pack(side="left", fill="x", expand=True, pady=10)
+            )
+            entry.pack(side="left", fill="x", expand=True, pady=10)
             # ).grid(row=0, column=1, pady=10, sticky="EW")
 
             # Open filedialog, get new image, check size
-            def select_new_image(var=entry_var):
+            def select_new_image(var=entry_var):#, curr_entry=entry):
                 # Get path from filedialog
                 path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
 
@@ -338,6 +355,9 @@ class Menu_ExportSheet(tk.Frame):
                             return
                     
                     var.set(path) # Set tk.StringVar() to path
+                    # entry.after(0, entry.xview, "end")
+                    # entry.xview("end")
+                    # entry.xview_scroll(1, 'pages')
                 except Image.UnidentifiedImageError:
                     messagebox.showwarning("Warning!", "Please enter a valid image.")
                 except Exception as e:
@@ -372,7 +392,7 @@ class Menu_ExportSheet(tk.Frame):
                 self.json_data = json.load(json_file) #could unindent after this? i.e. self.json_data's been set, so we don't need to keep the actual json file open
 
                 self.input_folder_path = os.path.dirname(path)
-                self.output_folder_path.set(self.input_folder_path)
+                # self.output_folder_path.set(self.input_folder_path)
                 self.loaded_json_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
 
                 # It's *technically* possible to have a menu_exportsheet without a loaded json, and the generate buttons and stuff were disabled when that was the case.

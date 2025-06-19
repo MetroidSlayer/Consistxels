@@ -487,7 +487,7 @@ class Menu_LayerSelect(tk.Frame):
 
         # tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Separation:   x").pack(side="left", padx=(10,5), pady=10)
         tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Separation:").grid(row=2, column=0, padx=10, pady=10, sticky="W")
-        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="x").grid(row=2, column=1, pady=10, sticky="E")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="x:").grid(row=2, column=1, pady=10, sticky="E")
         
         self.spacing_x_separation = tk.StringVar()
         self.spacing_x_separation.set("0")
@@ -505,7 +505,7 @@ class Menu_LayerSelect(tk.Frame):
 
         # tk.Label(spacing_separation_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px   y").pack(side="left", padx=5, pady=10)
         tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="px").grid(row=2, column=3, padx=(0,10), pady=10, sticky="W")
-        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="y").grid(row=2, column=4, pady=10, sticky="E")
+        tk.Label(search_spacing_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="y:").grid(row=2, column=4, pady=10, sticky="E")
 
         self.spacing_y_separation = tk.StringVar()
         self.spacing_y_separation.set("0")
@@ -537,15 +537,17 @@ class Menu_LayerSelect(tk.Frame):
         # preset_path_entry.bind("<FocusIn>", self.on_entry_FocusIn)
         # preset_path_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(preset_path_entry, "Enter the preset's path. (Preset should be a .json that contains pose data.)", False, True)
-        add_widget(
+        preset_entry = add_widget(
             tk.Entry, preset_input_frame, {'textvariable':self.preset_path}, {'text':"How much vertical space between each sprite?"}
-        ).pack(side="left", pady=10, fill="x", expand=True)
+        )
+        preset_entry.pack(side="left", pady=10, fill="x", expand=True)
 
 
         def open_preset_json():
             path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
             if path:
                 self.preset_path.set(path)
+                # preset_entry.xview("end")
 
         preset_pick_button = tk.Button(preset_input_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=open_preset_json)
         preset_pick_button.pack(side="left", padx=10, pady=5)
@@ -679,12 +681,19 @@ class Menu_LayerSelect(tk.Frame):
         # checkboxes and entries and such
         # some sort of function to check if folder is empty, and warn user if not
         self.output_folder_path = tk.StringVar()
-        add_widget(
+        output_folder_entry = add_widget(
             tk.Entry, generate_options_frame, {'textvariable':self.output_folder_path, 'width':1}, {'text':"""Enter the path to the folder where the pose images and .json data will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""}
-        ).pack(side="left", fill="x", expand=True, pady=10)
+        )
+        output_folder_entry.pack(side="left", fill="x", expand=True, pady=10)
 
         def select_output_folder_path():
-            self.output_folder_path.set(filedialog.askdirectory(title="Select an output folder (preferably empty)"))
+            # self.output_folder_path.set(filedialog.askdirectory(title="Select an output folder (preferably empty)"))
+            path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
+            # if os.listdir(path):
+            #     messagebox.askyesno()
+            if path and ((not os.listdir(path)) or messagebox.askyesno("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data. Continue?")):
+                self.output_folder_path.set(path)
+                # output_folder_entry.xview("end")
 
         output_folder_button = tk.Button(generate_options_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
         output_folder_button.pack(side="left", padx=10, pady=10)
@@ -1161,6 +1170,7 @@ class Menu_LayerSelect(tk.Frame):
         def pick_search_image(entry=data, entry_widget=search_entry):
             entry_widget.delete(0, tk.END)
             entry_widget.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
+            # entry_widget.xview("end")
             save_search_image(entry=entry, entry_widget=entry_widget)
             
         search_button = tk.Button(search_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_search_image)
@@ -1191,6 +1201,7 @@ class Menu_LayerSelect(tk.Frame):
             def pick_source_image(entry=data, entry_widget=source_entry):
                 entry_widget.delete(0, tk.END)
                 entry_widget.insert(0, filedialog.askopenfilename(filetypes=[("Image File", "*.png;*.jpg;*.jpeg")]))
+                # entry_widget.xview("end")
                 save_source_image(entry=entry, entry_widget=entry_widget)
                 
             source_button = tk.Button(source_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=pick_source_image)
@@ -1548,8 +1559,11 @@ class Menu_LayerSelect(tk.Frame):
             messagebox.showerror("Error", e)
             return
 
-        path = filedialog.askdirectory(title="Choose a folder to save to (preferably empty)")
-        if path:
+        # path = filedialog.askdirectory(title="Choose a folder to save to (preferably empty)")
+        
+        path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
+        if path and ((not os.listdir(path)) or messagebox.askyesno("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data. Continue?")):
+        # if path:
             layer_data = formatted_data["layer_data"]
             for i in range(len(layer_data)):
                 if self.layer_data[i].get("search_image_path"):
