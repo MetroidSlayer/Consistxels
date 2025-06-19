@@ -31,6 +31,9 @@ class ConsistxelsApp(tk.Frame):
         # Bind widgets to a function that makes Entries change color when focused/unfocused
         root.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
 
+        root.bind("<FocusIn>", self._on_root_focus_in)
+        root.bind("<FocusOut>", self._on_root_focus_out)
+
         # Prepare different menu stuff, change menu to menu_mainmenu
         self.unsaved_changes = False
         self.curr_menu = None
@@ -135,6 +138,12 @@ class ConsistxelsApp(tk.Frame):
                         print(json.dumps({"type": "error", "val": ("Malformed output to generate stdin:", line)}), flush=True)
             except Exception as e:
                 print(json.dumps({"type": "error", "val": f"Exception in gui handle_input: {e}\nLine that caused exception: {line}"}), flush=True)
+    
+    def _on_root_focus_in(self, _event):
+        print(json.dumps({"type": "root_focus", "val": True}), flush=True)
+    
+    def _on_root_focus_out(self, _event):
+        print(json.dumps({"type": "root_focus", "val": False}), flush=True)
 
 # Main function for this subprocess
 def main():

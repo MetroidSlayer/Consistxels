@@ -5,6 +5,7 @@ import json
 
 generate_process = None
 gui_process = None
+gui_has_focus = True
 
 def main():
     global gui_process
@@ -46,6 +47,7 @@ def start_generate_process(temp_json_filepath):
 # Read GUI output
 def read_gui_stdout():
     global gui_process
+    global gui_has_focus
 
     if gui_process != None:
         for line in gui_process.stdout:
@@ -63,6 +65,8 @@ def read_gui_stdout():
                     output_generate_progress(line, True)
                 else:
                     match type: # Handle non-generation output
+                        case "root_focus":
+                            gui_has_focus = val
                         case "cancel":
                             cancel_generate_process()
                             output_generate_progress(line, True)
@@ -85,6 +89,7 @@ def read_gui_stdout():
 # Read generation output
 def read_generate_stdout():
     global generate_process
+    global gui_has_focus
 
     if generate_process != None:
         for line in generate_process.stdout:
@@ -100,7 +105,7 @@ def read_generate_stdout():
                         # in order to have pretty-much-full speed while tabbed out, have some kind of polling or whatever that prevents updates (SPECIFICALLY updates)
                         # from being processed while the window is tabbed out. will be tough, might not even help much. OR have polling to only process new stuff every
                         # few milliseconds, instead of instantly, y'know how it is
-                        output_generate_progress(line, True)
+                        if gui_has_focus: output_generate_progress(line, True)
                     case "error":
                         print(line)
                         output_generate_progress(line, True)
