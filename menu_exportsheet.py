@@ -19,8 +19,6 @@ class Menu_ExportSheet(tk.Frame):
 
         self.configure(bg=gui_shared.bg_color)
 
-        
-
         # Put setup in .after() so that program does not freeze pre-BG color change when menu changes.
         # It still DOES freeze, but it's just less ugly this way
         self.after(0, self.setup_ui, change_menu_callback, load_path)
@@ -79,8 +77,6 @@ class Menu_ExportSheet(tk.Frame):
         self.loaded_json_sheetname_label = tk.Label(layer_header, text="", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
         self.loaded_json_sheetname_label.pack(padx=10, anchor="w")
 
-        # layer_label = tk.Label(layer_header, text="Layers:", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
-        # layer_label.pack(side="top", padx=10, pady=(0,10), anchor="w")
         tk.Label(layer_header, text="Layers:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=10, anchor="w")
 
         # Layer list
@@ -171,15 +167,6 @@ class Menu_ExportSheet(tk.Frame):
         radio_layers.pack(anchor="w", padx=10)
         ToolTip(radio_layers, "Export an image for each selected layer.")
 
-#         radio_external_filetype = tk.Radiobutton(export_options_frame, text="Multi-layered file (for external editor)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=2, command=check_update_layer_list)
-#         radio_external_filetype.pack(anchor="w", padx=10)
-#         ToolTip(radio_external_filetype, """
-# (NOT IMPLEMENTED YET!!!) Export a file containing the selected layers that can be opened in an external editor of your
-# choice.
-
-# Supported filetypes: .aseprite, .psd
-#         """.strip())
-
         radio_update = tk.Radiobutton(export_options_frame, text="Update pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=3, command=check_update_layer_list)
         radio_update.pack(anchor="w", padx=10, pady=10)
         ToolTip(radio_update, """Input new versions of layer images. Existing pose images in this folder will be updated. As long as the first unique instance of a pose image has been changed, that change will be reflected in the pose images. You can then export an entire sheet with the updated pose images.\n\n(This is what the "Unique Pose Image" and "Source Image" options are generally made for, but you don't necessarily *need* to use an image that was generated with either option.)""")
@@ -207,7 +194,6 @@ class Menu_ExportSheet(tk.Frame):
 
         # Open file dialog for output folder path
         def select_output_folder_path(use_input_path = False):
-            # self.output_folder_path.set(filedialog.askdirectory(title="Select an output folder (preferably empty)"))
             if not use_input_path:
                 path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
             else:
@@ -215,7 +201,6 @@ class Menu_ExportSheet(tk.Frame):
             
             if (path and ((not os.listdir(path)) or gui_shared.warn_overwrite())):
                 self.output_folder_path.set(path)
-                # self.output_folder_entry.xview_moveto(1.0)
 
         self.output_folder_button = tk.Button(output_path_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
         self.output_folder_button.pack(side="left", padx=10, pady=10)
@@ -336,13 +321,11 @@ class Menu_ExportSheet(tk.Frame):
             tk.Label(
                 frame, text=f"{i+1}: {layer["name"]}", bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg, fg=gui_shared.fg_color
             ).pack(side="left", padx=(10,5), pady=10)
-            # ).grid(row=0, column=0, sticky="W", padx=(10,5), pady=10)
 
             entry = add_widget( # TODO: make widths of entry widgets consistent. At the moment it looks a little bad
                 tk.Entry, frame, {'textvariable':entry_var, 'width':1}, {'text':"Enter the path to the image that will update all pose images sourced from this layer."}
             )
             entry.pack(side="left", fill="x", expand=True, pady=10)
-            # ).grid(row=0, column=1, pady=10, sticky="EW")
 
             # Open filedialog, get new image, check size
             def select_new_image(var=entry_var):#, curr_entry=entry):
@@ -356,9 +339,6 @@ class Menu_ExportSheet(tk.Frame):
                             return
                     
                     var.set(path) # Set tk.StringVar() to path
-                    # entry.after(0, entry.xview, "end")
-                    # entry.xview("end")
-                    # entry.xview_scroll(1, 'pages')
                 except Image.UnidentifiedImageError:
                     messagebox.showwarning("Warning!", "Please enter a valid image.")
                 except Exception as e:
@@ -366,7 +346,6 @@ class Menu_ExportSheet(tk.Frame):
 
             output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
             output_folder_button.pack(side="left", padx=10, pady=10)
-            # output_folder_button.grid(row=0, column=2, padx=10, pady=10, sticky="E")
             ToolTip(output_folder_button, "Open a file dialog and select the image that will update all pose images sourced from this layer.")
 
             self.layer_list.append(entry_var)
@@ -393,8 +372,6 @@ class Menu_ExportSheet(tk.Frame):
                 self.json_data = json.load(json_file) #could unindent after this? i.e. self.json_data's been set, so we don't need to keep the actual json file open
 
                 self.input_folder_path = os.path.dirname(path)
-                # self.output_folder_path.set(self.input_folder_path)
-                # self.loaded_json_filename_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
                 self.loaded_json_filename_label.config(text=f"Filename: {os.path.basename(path)}")
                 self.loaded_json_sheetname_label.config(text=f"Sheet name: {self.json_data['header']['name']}")
 
@@ -418,8 +395,6 @@ class Menu_ExportSheet(tk.Frame):
                     self.draw_layer_entries()
                 else:
                     self.draw_layer_checkbuttons()
-                
-                # self.export_button.config(state="normal")
     
     # Generate button (export button, actually) has been pressed, so communicate that to main process and provide generation info
     def generate_button_pressed(self):

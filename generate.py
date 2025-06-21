@@ -253,8 +253,6 @@ def search_spacing(search_data, search_type_data, size):
             # ((inner_padding * grid_x) + inner_padding)
 
             pose_locations.append({
-                # "x_position": outer_padding + ((inner_padding + sprite_width + x_separation) * grid_x) + ((inner_padding * (grid_x - 1)) if grid_x > 0 else 0),
-                # "y_position": outer_padding + ((inner_padding + sprite_height + y_separation) * grid_y) + ((inner_padding * (grid_y - 1)) if grid_y > 0 else 0),
                 "x_position": outer_padding + inner_padding + (((inner_padding * 2) + sprite_width + x_separation) * grid_x),
                 "y_position": outer_padding + inner_padding + (((inner_padding * 2) + sprite_height + y_separation) * grid_y),
                 "width": sprite_width, "height": sprite_height
@@ -290,12 +288,6 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 layer_search_images.append(layer_image.copy()) # Prevents needing to close these images later
         else:
             layer_search_images.append(None)
-    
-    # layer_search_images = [None] * len(layer_data)
-    # for layer.get("search_image_path") in 
-    # for i, layer in enumerate(layer_data):
-    #     try:
-    #         with Image.open
     
     pose_data = []
     

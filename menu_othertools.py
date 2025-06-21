@@ -66,47 +66,26 @@ class Menu_OtherTools(tk.Frame):
 
         self.identical_img1_path = tk.StringVar()
 
-        # img1_path_frame = tk.Frame(verify_button_frame, bg=gui_shared.bg_color)
-        # img1_path_frame.pack(padx=10, pady=10, fill="x")
-
-        # img1_path_entry = add_widget(tk.Entry, img1_path_frame, {'textvariable':self.identical_img1_path}, {'text':"Enter the path to the first image, which will be compared against the second image."})
-        # img1_path_entry.pack(side="left", fill="x", expand=True, padx=(0,10))
         img1_path_entry = add_widget(tk.Entry, verify_button_frame, {'textvariable':self.identical_img1_path}, {'text':"Enter the path to the first image, which will be compared against the second image."})
         img1_path_entry.grid(row=0, column=0, padx=10, pady=10, sticky="EW")
 
         img1_path_button = tk.Button(
-        #     img1_path_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=lambda e=img1_path_entry: pick_img(e))
-        # img1_path_button.pack(side="right")
             verify_button_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=lambda e=img1_path_entry: pick_img(e))
         img1_path_button.grid(row=0, column=1, sticky="E", padx=(0,10), pady=10)
         ToolTip(img1_path_button, "Select the first image, which will be compared against the second image.")
 
         self.identical_img2_path = tk.StringVar()
 
-        # img2_path_frame = tk.Frame(verify_button_frame, bg=gui_shared.bg_color)
-        # img2_path_frame.pack(padx=10, fill="x")
-
-        # img2_path_entry = add_widget(tk.Entry, img2_path_frame, {'textvariable':self.identical_img2_path}, {'text':"Enter the path to the second image, which will be compared against the first image."})
-        # img2_path_entry.pack(side="left", fill="x", expand=True, padx=(0,10))
         img2_path_entry = add_widget(tk.Entry, verify_button_frame, {'textvariable':self.identical_img2_path}, {'text':"Enter the path to the second image, which will be compared against the first image."})
         img2_path_entry.grid(row=1, column=0, padx=10, pady=10, sticky="EW")
 
         img2_path_button = tk.Button(
-        #     img2_path_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=lambda e=img2_path_entry: pick_img(e))
-        # img2_path_button.pack(side="right")
             verify_button_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=lambda e=img2_path_entry: pick_img(e))
         img2_path_button.grid(row=1, column=1, sticky="E", padx=(0,10))
         ToolTip(img2_path_button, "Select the second image, which will be compared against the first image.")
 
-        # tk.Button(verify_button_frame, text="Select images", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
-        #           command=verify_identical).pack(padx=10, pady=(10,0), fill="x")
-
         tk.Button(verify_button_frame, text="Compare", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.verify_identical
-        # ).pack(padx=10, pady=10, fill="x")
         ).grid(padx=10, pady=10, row=2, column=0, columnspan=2, sticky="EW")
-        
-        # tk.Button(verify_button_frame, text="Generate Rotated Images", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
-        #           command=generate_rotated_images).pack(padx=10, pady=10, fill="x")
         
         verify_results_frame = tk.Frame(verify_frame, bg=gui_shared.bg_color)
         verify_results_frame.grid(row=1, column=1, padx=(0,10), pady=(0,10), sticky="W")
@@ -132,7 +111,6 @@ class Menu_OtherTools(tk.Frame):
 
                 img.save(path)
 
-
         self.verify_results_save1_button = tk.Button(
             verify_results_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Image 1", command=lambda r=0: save_verify_results_image(r), state="disabled")
         self.verify_results_save1_button.grid(row=3, column=0, padx=(0,10), pady=(10,0), sticky="EW")
@@ -147,13 +125,7 @@ class Menu_OtherTools(tk.Frame):
 
     # NOTE: would work a lot better if part of class
     # TODO TODO TODO make work better for users specifically
-    # def verify_identical(img1_path, img2_path):
     def verify_identical(self):
-        # img1_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
-        # if img1_path == None: return
-        # img2_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
-        # if img2_path == None: return
-        # img1_path = 
         img1_path = self.identical_img1_path.get()
         img2_path = self.identical_img2_path.get()
         if not img1_path or not img2_path:
@@ -181,22 +153,8 @@ class Menu_OtherTools(tk.Frame):
                         self.verify_results_save2_button.config(state="normal")
         except Exception as e:
             print("Exception:", e.__traceback__)
-    
-# def generate_rotated_images():
-#     path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")])
-#     with Image.open(path) as img:
-#         img_rot90_path = filedialog.asksaveasfilename(defaultextension=".png")
-#         img_rot180_path = filedialog.asksaveasfilename(defaultextension=".png")
-#         img_rot270_path = filedialog.asksaveasfilename(defaultextension=".png")
-#         img.transpose(Image.Transpose.ROTATE_90).save(img_rot90_path)
-#         img.transpose(Image.Transpose.ROTATE_180).save(img_rot180_path)
-#         img.transpose(Image.Transpose.ROTATE_270).save(img_rot270_path)
-
 
 def find_pixel_differences(img1, img2):
-    # img1 = img1.convert('RGB')
-    # img2 = img2.convert('RGB')
-
     if img1.size != img2.size:
         raise ValueError("Images are different sizes.") # good to know this is how this works
 
