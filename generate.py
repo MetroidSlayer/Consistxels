@@ -1,6 +1,7 @@
 import math
 import os
 import json
+import traceback
 
 from PIL import Image, ImageColor
 from itertools import chain
@@ -51,7 +52,7 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
                 pose_locations = input_pose_data # TODO: Test
             case _:
                 print(json.dumps({"type":"error", "value":0, "info_text":f"{search_type_data["search_type"]} is not a valid search type"}))
-                raise ValueError
+                raise ValueError # handle this better by putting error message in valueerror?
 
         # Output pose data. Also output some image data; I would have liked to separate them, but they're so conceptually intertwined that I don't think it's possible
         output_pose_data, image_prep_data = generate_pose_data(pose_locations, input_layer_data, search_data, generation_data)
@@ -120,7 +121,7 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
             json.dump(output_data, file, indent=4)
 
     except Exception as e:
-        update_progress("error", 0, "An error occurred", str(e.__traceback__)) # MAYBE this will work???
+        update_progress("error", 0, "An error occurred", traceback.format_exc()) # MAYBE this will work???
 
 # Gets passed layer_data and finds the border; uses said border to find and return pose locations.
 # Could DEFINITELY just pass ONE layer - just the border, we don't need any other layers necessarily.
@@ -241,15 +242,21 @@ def search_spacing(search_data, search_type_data, size):
     pose_locations = [] # return val
 
     # Calculating the poses' positions based on the data provided
-    for grid_y in rows:
+    for grid_y in range(rows):
         for grid_x in get_x_range(0, columns, start_search_in_center, search_right_to_left, 0):
             # Essentially, we're trying to find the top-left corner of every pose box.
             # Outer padding applies exactly once to all top-left corners of pose boxes, no matter what
-            # Inner padding applies twice per pose box, but only applies once for the pose that's being looked at (it hasn't gone past the inner padding yet)
+            # TODO get rid of Inner padding applies twice per pose box, but only applies once for the pose that's being looked at (it hasn't gone past the inner padding yet)
+            # Inner padding applies at least once, plus twice per previous pose box
             # Sprite height/width and x/y separation apply only for sprites that have already been counted
+
+            # ((inner_padding * grid_x) + inner_padding)
+
             pose_locations.append({
-                "x_position": outer_padding + ((inner_padding + sprite_width + x_separation) * grid_x) + ((inner_padding * (grid_x - 1)) if grid_x > 0 else 0),
-                "y_position": outer_padding + ((inner_padding + sprite_height + y_separation) * grid_y) + ((inner_padding * (grid_y - 1)) if grid_y > 0 else 0),
+                # "x_position": outer_padding + ((inner_padding + sprite_width + x_separation) * grid_x) + ((inner_padding * (grid_x - 1)) if grid_x > 0 else 0),
+                # "y_position": outer_padding + ((inner_padding + sprite_height + y_separation) * grid_y) + ((inner_padding * (grid_y - 1)) if grid_y > 0 else 0),
+                "x_position": outer_padding + inner_padding + (((inner_padding * 2) + sprite_width + x_separation) * grid_x),
+                "y_position": outer_padding + inner_padding + (((inner_padding * 2) + sprite_height + y_separation) * grid_y),
                 "width": sprite_width, "height": sprite_height
             })
             

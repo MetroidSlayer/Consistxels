@@ -320,24 +320,25 @@ class Menu_LayerSelect(tk.Frame):
         search_preset_subframe = tk.Frame(search_type_subframe_container_frame, bg=gui_shared.bg_color)
         search_preset_subframe.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-        search_type_subframes = [search_border_subframe, search_spacing_subframe, search_preset_subframe]
+        self.search_type_subframes = [search_border_subframe, search_spacing_subframe, search_preset_subframe]
 
-        def search_type_option_selected(selected_option, set_unsaved_changes = True):
-            search_type_subframes[self.search_types.index(selected_option)].lift()
+        # def search_type_option_selected(selected_option, set_unsaved_changes = True):
+        #     search_type_subframes[self.search_types.index(selected_option)].lift()
 
-            if selected_option == "Border":
-                self.add_border_layer() # TODO This should ONLY run if something has actually changed
-            else:
-                border_index = next((i for i, layer in enumerate(self.layer_data) if layer["is_border"]), None)
-                if border_index != None: self.delete_layer(border_index)
+        #     if selected_option == "Border":
+        #         self.add_border_layer() # TODO This should ONLY run if something has actually changed
+        #     else:
+        #         border_index = next((i for i, layer in enumerate(self.layer_data) if layer["is_border"]), None)
+        #         if border_index != None: self.delete_layer(border_index)
             
-            if set_unsaved_changes: # hackey solution to making this not run upon creating new menu.
-                # I'd prefer to have this ONLY if something's actually changed.
-               self.set_unsaved_changes(True)
+        #     if set_unsaved_changes: # hackey solution to making this not run upon creating new menu.
+        #         # I'd prefer to have this ONLY if something's actually changed.
+        #        self.set_unsaved_changes(True)
 
-        search_type_option_selected("Border", False)
+        self.search_type_option_selected("Border", False)
 
-        search_type_optionmenu = tk.OptionMenu(search_type_option_frame, self.search_type_option, *self.search_types, command=search_type_option_selected)
+        # search_type_optionmenu = tk.OptionMenu(search_type_option_frame, self.search_type_option, *self.search_types, command=search_type_option_selected)
+        search_type_optionmenu = tk.OptionMenu(search_type_option_frame, self.search_type_option, *self.search_types, command=self.search_type_option_selected)
         # something to make the border stuff show up in the layers section (see above, i think)
         search_type_optionmenu.configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.bg_color, activeforeground=gui_shared.fg_color, anchor="w", justify="left", highlightthickness=1, highlightbackground=gui_shared.secondary_fg, bd=0, relief="flat")
         search_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color)
@@ -525,10 +526,13 @@ class Menu_LayerSelect(tk.Frame):
 
         # Preset Subframe
 
-        preset_input_frame = tk.Frame(search_preset_subframe, bg=gui_shared.bg_color)
-        preset_input_frame.pack(side="top", fill="x")
+        # preset_input_frame = tk.Frame(search_preset_subframe, bg=gui_shared.bg_color)
+        # preset_input_frame.pack(side="top", fill="x")
 
-        tk.Label(preset_input_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Preset:").pack(side="left", padx=(10,5), pady=10)
+        search_preset_subframe.grid_columnconfigure(1, weight=1)
+
+        # tk.Label(preset_input_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Preset:").pack(side="left", padx=(10,5), pady=10)
+        tk.Label(search_preset_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Preset:").grid(row=0, column=0, sticky="W", padx=(10,5), pady=10)
 
         self.preset_path = tk.StringVar()
 
@@ -538,20 +542,30 @@ class Menu_LayerSelect(tk.Frame):
         # preset_path_entry.bind("<FocusOut>", self.on_entry_FocusOut)
         # ToolTip(preset_path_entry, "Enter the preset's path. (Preset should be a .json that contains pose data.)", False, True)
         preset_entry = add_widget(
-            tk.Entry, preset_input_frame, {'textvariable':self.preset_path}, {'text':"How much vertical space between each sprite?"}
+            # tk.Entry, preset_input_frame, {'textvariable':self.preset_path}, {'text':"How much vertical space between each sprite?"}
+            tk.Entry, search_preset_subframe, {'width':1, 'textvariable':self.preset_path}, {'text':"How much vertical space between each sprite?"}
         )
-        preset_entry.pack(side="left", pady=10, fill="x", expand=True)
+        # preset_entry.pack(side="left", pady=10, fill="x", expand=True)
+        preset_entry.grid(row=0, column=1, sticky="EW", pady=10)
+        ToolTip(preset_entry, "Enter a path of a preset.  (Preset should be a .json that contains pose data.)")
 
+        # def open_preset_json():
+        #     path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
+        #     if path:
+        #         self.preset_path.set(path)
+        #         # preset_entry.xview("end")
 
-        def open_preset_json():
-            path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
-            if path:
-                self.preset_path.set(path)
-                # preset_entry.xview("end")
+        # preset_pick_button = tk.Button(preset_input_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=open_preset_json)
+        # preset_pick_button.pack(side="left", padx=10, pady=5)
 
-        preset_pick_button = tk.Button(preset_input_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=open_preset_json)
-        preset_pick_button.pack(side="left", padx=10, pady=5)
+        self.preset_pose_data = None
+
+        preset_pick_button = tk.Button(search_preset_subframe, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁", command=self.load_preset_json)
+        preset_pick_button.grid(row=0, column=2, sticky="E", padx=10, pady=5)
         ToolTip(preset_pick_button, "Choose a preset. (Preset should be a .json that contains pose data.)", False, True)
+
+        self.preset_load_label = tk.Label(search_preset_subframe, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="No preset loaded", justify="left")
+        self.preset_load_label.grid(row=1, column=0, columnspan=3, sticky="W", padx=10, pady=(0,10))
 
         # Search options
 
@@ -691,7 +705,7 @@ class Menu_LayerSelect(tk.Frame):
             path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
             # if os.listdir(path):
             #     messagebox.askyesno()
-            if path and ((not os.listdir(path)) or messagebox.askyesno("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data. Continue?")):
+            if path and ((not os.listdir(path)) or gui_shared.warn_overwrite()):
                 self.output_folder_path.set(path)
                 # output_folder_entry.xview("end")
 
@@ -823,18 +837,27 @@ class Menu_LayerSelect(tk.Frame):
         # print("gothere3")
         return color
 
-    def check_image_valid(self, image_path):
-        try:
-            with Image.open(image_path) as image:
-                if self.image_size == None:
+    def force_get_image_size(self):
+        for layer in self.layer_data:
+            path = layer.get("search_image_path", layer.get("source_image_path")) # if no search img, get source img. if neither, it's None
+
+            if path:
+                with Image.open(path) as image:
                     self.image_size = image.size
-                elif self.image_size != image.size:
-                    messagebox.showwarning("Warning!", f"All images must be the same size.\nThe detected sprite sheet size is {self.image_size[0]}x{self.image_size[1]}, but a selected image is {image.size[0]}x{image.size[1]}.)")
-                    return False
-                return True
-        except Image.UnidentifiedImageError:
-            messagebox.showwarning("Warning!", "Please select a valid image.")
-            return False
+                    break # or mabye return new image size? idk
+
+    # def check_image_valid(self, image_path):
+    #     try:
+    #         with Image.open(image_path) as image:
+    #             if self.image_size == None:
+    #                 self.image_size = image.size
+    #             elif self.image_size != image.size:
+    #                 messagebox.showwarning("Warning!", f"All images must be the same size.\nThe detected sprite sheet size is {self.image_size[0]}x{self.image_size[1]}, but a selected image is {image.size[0]}x{image.size[1]}.)")
+    #                 return False
+    #             return True
+    #     except Image.UnidentifiedImageError:
+    #         messagebox.showwarning("Warning!", "Please select a valid image.")
+    #         return False
 
 
     def add_blank_layer(self, add_to_top = True):
@@ -983,6 +1006,19 @@ class Menu_LayerSelect(tk.Frame):
             # print("invalid border image:",e)
             self.layer_data[layer_index].update({"thumbnail":None})
 
+    def search_type_option_selected(self, selected_option, set_unsaved_changes = True):
+        self.search_type_subframes[self.search_types.index(selected_option)].lift()
+
+        if selected_option == "Border":
+            self.add_border_layer() # TODO This should ONLY run if something has actually changed
+        else:
+            border_index = next((i for i, layer in enumerate(self.layer_data) if layer["is_border"]), None)
+            if border_index != None: self.delete_layer(border_index)
+            
+        if set_unsaved_changes: # hackey solution to making this not run upon creating new menu.
+            # I'd prefer to have this ONLY if something's actually changed.
+            self.set_unsaved_changes(True)
+
     def add_border_layer(self):
         self.layer_data.append({
             "name": "border",
@@ -1021,6 +1057,29 @@ class Menu_LayerSelect(tk.Frame):
     #         self.border_label.config(text=os.path.basename(path))
     #         # self.update_preview()
     #         self.update_preview_button.configure(bg="#ffff00", fg="#000000")
+
+    def load_preset_json(self):
+        ok = True
+        if self.preset_pose_data:
+            ok = messagebox.askokcancel("Warning!", "Other pose data is already loaded. If you load another file, the current pose data will be replaced.")
+        if ok:
+            path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
+            if path:
+                try:
+                    self.preset_path.set(path)
+                    with open(path) as preset_json:
+                        # self.set_preset_pose_data(json.load(preset_json))["pose_data"] # i think i WANT the unsafe version; it'll throw an error if that doesnt exist, which is kinda what i want
+                        # self.preset_pose_data = json.load(preset_pose_json)["pose_data"] # i think i WANT the unsafe version; it'll throw an error if that doesnt exist, which is kinda what i want
+                        preset_data = json.load(preset_json)
+                    self.set_preset_pose_data(preset_data["pose_data"])
+                except json.JSONDecodeError as e:
+                    pass # print exception: json invalid
+                # other exceptions
+    
+    def set_preset_pose_data(self, preset_pose_data):
+        # self.preset_pose_data = preset_pose_data["pose_data"] # i think i WANT the unsafe version; it'll throw an error if that doesnt exist, which is kinda what i want
+        self.preset_pose_data = preset_pose_data
+        self.preset_load_label.config(text=f"Pose data loaded as preset.\nPoses: {len(self.preset_pose_data)}")
 
     def move_image(self, index, direction):
         new_index = index + direction
@@ -1156,14 +1215,21 @@ class Menu_LayerSelect(tk.Frame):
         # Will this run every time the entry is UNFOCUSED, or every time ANYTHING IS TYPED? if it's the latter, it's quite annoying, but also who is gonna type these things anyway
         def save_search_image(e = None, entry=data, entry_widget=search_entry, i=layer_index):
             new_image_path = entry_widget.get()
-            if self.check_image_valid(new_image_path): # Check that image is the proper size, and that it is a valid image according to Pillow (I think)
-                entry.update({"search_image_path":new_image_path})
+            # if self.check_image_valid(new_image_path): # Check that image is the proper size, and that it is a valid image according to Pillow (I think)
+            #     entry.update({"search_image_path":new_image_path})
                 
-                self.create_layer_thumbnail(i) # Force a thumbnail update
-                self.redraw_layer_card(i) # Only need to redraw THIS card
+            #     self.create_layer_thumbnail(i) # Force a thumbnail update
+            #     self.redraw_layer_card(i) # Only need to redraw THIS card
 
-                self.set_preview_button(True)
-                self.set_unsaved_changes(True)
+            #     self.set_preview_button(True)
+            #     self.set_unsaved_changes(True)
+            entry.update({"search_image_path":new_image_path})
+                
+            self.create_layer_thumbnail(i) # Force a thumbnail update
+            self.redraw_layer_card(i) # Only need to redraw THIS card
+
+            self.set_preview_button(True)
+            self.set_unsaved_changes(True)
 
         search_entry.bind("<FocusOut>", save_search_image, add="+")
 
@@ -1192,9 +1258,11 @@ class Menu_LayerSelect(tk.Frame):
 
             def save_source_image(e = None, entry=data, entry_widget=source_entry):
                 new_image_path = entry_widget.get()
-                if self.check_image_valid(new_image_path):
-                    entry.update({"source_image_path":new_image_path})
-                    self.set_unsaved_changes(True)
+                # if self.check_image_valid(new_image_path):
+                #     entry.update({"source_image_path":new_image_path})
+                #     self.set_unsaved_changes(True)
+                entry.update({"source_image_path":new_image_path})
+                self.set_unsaved_changes(True)
 
             source_entry.bind("<FocusOut>", save_source_image, add="+")
 
@@ -1333,12 +1401,23 @@ class Menu_LayerSelect(tk.Frame):
 
         # need a separate func for: pasting layers together into single preview image; displaying preview image
 
+        if self.image_size == None:
+            self.force_get_image_size()
+
         if self.image_size != None:
             # print(self.image_size)
             self.preview_image = Image.new("RGBA", self.image_size, ImageColor.getrgb(gui_shared.field_bg))
         else:
             print("Got to preview image creation with an image size of None, somehow")
-            raise ValueError
+            # raise ValueError
+            return
+
+        if not (gui_shared.warn_image_sizes(["Search image", "Source image"],
+            [
+                [layer.get("search_image_path") for layer in self.layer_data],
+                [layer.get("source_image_path") for layer in self.layer_data]
+            ]
+        )): return
 
         for layer in reversed(self.layer_data):
             if layer.get("search_image_path"):
@@ -1480,6 +1559,8 @@ class Menu_LayerSelect(tk.Frame):
             "search_type": search_type
         }
 
+        pose_data = None
+
         if search_type == "Border":
             search_type_data.update({
                 "border_color": self.border_color,
@@ -1504,6 +1585,8 @@ class Menu_LayerSelect(tk.Frame):
             # except:
             #     pass
         # elif padding, save pose data!
+        elif search_type == "Preset":
+            pose_data = self.preset_pose_data
         
         generation_data = {
             "automatic_padding_type": self.automatic_padding_type_option.get(),
@@ -1537,10 +1620,11 @@ class Menu_LayerSelect(tk.Frame):
             "search_data": search_data,
             "search_type_data": search_type_data,
             "generation_data": generation_data,
-            "layer_data": layer_data,
+            "layer_data": layer_data
         }
 
-        # if search_type == padding, add pose data
+        if pose_data:
+            formatted_data.update({"pose_data": pose_data})
 
         if not paths_are_local:
             output_folder_path = self.output_folder_path.get()
@@ -1562,7 +1646,7 @@ class Menu_LayerSelect(tk.Frame):
         # path = filedialog.askdirectory(title="Choose a folder to save to (preferably empty)")
         
         path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
-        if path and ((not os.listdir(path)) or messagebox.askyesno("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data. Continue?")):
+        if path and ((not os.listdir(path)) or gui_shared.warn_overwrite()):
         # if path:
             layer_data = formatted_data["layer_data"]
             for i in range(len(layer_data)):
@@ -1642,7 +1726,7 @@ class Menu_LayerSelect(tk.Frame):
                 #     self.search_types[self.search_types.index(search_type_data.get("search_type"))] # HOPEFULLY this works???
                 # )
                 self.search_type_option.set(search_type_data["search_type"]) # this should work, actually
-
+                self.search_type_option_selected(search_type_data["search_type"], False)
 
                 if search_type_data["search_type"] == "Border":
                     self.update_border_color(self.format_color_string(search_type_data["border_color"]))
@@ -1653,9 +1737,11 @@ class Menu_LayerSelect(tk.Frame):
                     self.spacing_inner_padding.set(str(search_type_data["spacing_inner_padding"]))
                     self.spacing_x_separation.set(str(search_type_data["spacing_x_separation"]))
                     self.spacing_y_separation.set(str(search_type_data["spacing_y_separation"]))
-                elif search_type_data["search_type"] == "Padding" and pose_data:
-                    self.pose_data = pose_data
+                # elif search_type_data["search_type"] == "Preset" and pose_data: # honestly, we dont NEED to do this if it's ONLY preset, right?
+                    # self.pose_data = pose_data
                     # need to think of clever way to not allow textbox entry, but to show that it's been loaded regardless? idk TODO TODO TODO TODO TODO
+                if pose_data:
+                    self.set_preset_pose_data(pose_data)
 
                 # self.add_border(header["border_path"])
                 # if header["start_search_in_center"]:
@@ -1691,14 +1777,17 @@ class Menu_LayerSelect(tk.Frame):
                     search_image_path = layer.get("search_image_path")
                     if search_image_path:
                         path = os.path.join(curr_folder_path, search_image_path)
-                        if self.check_image_valid(path):
-                            layer["search_image_path"] = path
+                        # if self.check_image_valid(path):
+                        #     layer["search_image_path"] = path
+                        layer["search_image_path"] = path
                         
                     source_image_path = layer.get("source_image_path")
                     if source_image_path:
                         path = os.path.join(curr_folder_path, source_image_path)
-                        if self.check_image_valid(path):
-                            layer["source_image_path"] = path
+                        # if self.check_image_valid(path):
+                        #     layer["source_image_path"] = path
+                        layer["source_image_path"] = path
+
                 
                 self.add_image_layers(layer_data)
 
@@ -1711,6 +1800,12 @@ class Menu_LayerSelect(tk.Frame):
                 messagebox.showerror("Error importing .json", e)
 
     def generate_button_pressed(self):
+        size_check = gui_shared.warn_image_sizes(["Search image", "Source image"],
+            [
+                [layer.get("search_image_path") for layer in self.layer_data],
+                [layer.get("source_image_path") for layer in self.layer_data]
+            ]
+        )
 
         data = self.format_layer_json(False)
 
@@ -1719,7 +1814,7 @@ class Menu_LayerSelect(tk.Frame):
         output_folder_path = self.output_folder_path.get()
 
         # if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and output_folder_path:
-        if data.get("layer_data") and (self.name_entry_input.get() and self.name_entry_input.get() != "") and output_folder_path:
+        if data.get("layer_data") and (self.name_entry_input.get() and self.name_entry_input.get() != "") and output_folder_path and size_check:
             try:
                 temp_json_data = {"data": data, "output_folder_path": output_folder_path}
 
@@ -1747,7 +1842,8 @@ class Menu_LayerSelect(tk.Frame):
                 if warning_output != "": warning_output += "\n"
                 warning_output += "You must select an output folder first"
 
-            messagebox.showwarning("Wait!", warning_output)
+            if warning_output:
+                messagebox.showwarning("Wait!", warning_output)
     
     def update_progress(self, value, header_text, info_text):
         self.progress_bar["value"] = value

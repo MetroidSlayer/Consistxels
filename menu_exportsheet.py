@@ -73,12 +73,15 @@ class Menu_ExportSheet(tk.Frame):
         layer_header.pack(side="top", fill="x")
 
         # Stored in self because it needs to change once something is loaded
-        self.loaded_json_label = tk.Label(layer_header, text="No .json loaded", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
-        self.loaded_json_label.pack(side="top", padx=10, pady=10, anchor="w")
+        self.loaded_json_filename_label = tk.Label(layer_header, text="No .json loaded", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
+        self.loaded_json_filename_label.pack(padx=10, pady=10, anchor="w")
+
+        self.loaded_json_sheetname_label = tk.Label(layer_header, text="", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
+        self.loaded_json_sheetname_label.pack(padx=10, anchor="w")
 
         # layer_label = tk.Label(layer_header, text="Layers:", bg=gui_shared.bg_color, fg=gui_shared.fg_color)
         # layer_label.pack(side="top", padx=10, pady=(0,10), anchor="w")
-        tk.Label(layer_header, text="Layers:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="top", padx=10, pady=(0,10), anchor="w")
+        tk.Label(layer_header, text="Layers:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=10, anchor="w")
 
         # Layer list
         layer_list_container_frame = tk.Frame(self.left_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
@@ -210,9 +213,7 @@ class Menu_ExportSheet(tk.Frame):
             else:
                 path = self.input_folder_path
             
-            if (path and ((not os.listdir(path)) or
-            messagebox.askyesno("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data. Continue?")
-            )):
+            if (path and ((not os.listdir(path)) or gui_shared.warn_overwrite())):
                 self.output_folder_path.set(path)
                 # self.output_folder_entry.xview_moveto(1.0)
 
@@ -348,7 +349,7 @@ class Menu_ExportSheet(tk.Frame):
                 # Get path from filedialog
                 path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
 
-                try: # Check if image's size matches sprite sheet's size
+                try: # Check if image's size matches sprite sheet's size # TODO: replace with new thing in gui_shared?
                     with Image.open(path) as image:
                         if self.image_size != image.size:
                             messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
@@ -393,13 +394,21 @@ class Menu_ExportSheet(tk.Frame):
 
                 self.input_folder_path = os.path.dirname(path)
                 # self.output_folder_path.set(self.input_folder_path)
-                self.loaded_json_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
+                # self.loaded_json_filename_label.config(text=os.path.basename(path) + " (" + self.json_data["header"]["name"] + ")")
+                self.loaded_json_filename_label.config(text=f"Filename: {os.path.basename(path)}")
+                self.loaded_json_sheetname_label.config(text=f"Sheet name: {self.json_data['header']['name']}")
 
                 # It's *technically* possible to have a menu_exportsheet without a loaded json, and the generate buttons and stuff were disabled when that was the case.
                 # Now, it's not possible through normal means, so no need to have this check.
                 #
                 # THAT SAID, the export button is still disabled upon load. i dont wanna get rid of that, so this is fine
                 self.generate_ended() # does all necessary stuff at once
+
+                # If something's been generated already, reset the progress indicators
+                self.update_progress(0, "", "")
+
+                # Empty output folder path. (In theory, might not be something people want if they're trying to export a lotta things into one place. But this seems safer, and will probably prevent more confusion than it creates)
+                self.output_folder_path.set("")
 
                 # Set image size
                 self.image_size = (self.json_data["header"]["width"], self.json_data["header"]["height"])

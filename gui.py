@@ -126,7 +126,7 @@ class ConsistxelsApp(tk.Frame):
                                 case "error":
                                     self.curr_menu.generate_ended()
                                     self.update_progress(0, "", "Error")
-                                    messagebox.showerror("Error", line)
+                                    messagebox.showerror(header_text, info_text)
                                 case "done":
                                     self.curr_menu.generate_ended()
                                     self.update_progress(value, header_text, info_text)

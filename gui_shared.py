@@ -1,5 +1,10 @@
 import tkinter as tk
+from tkinter import messagebox
+
+from PIL import Image
+
 from tooltip import ToolTip
+
 
 # Style info. Eventually, this will be modifiable by the user, probably
 bg_color = "#2e2e2e"
@@ -110,3 +115,76 @@ def bind_event_to_all_children(widget, sequence, func):
     widget.bind(sequence, func)
     for child in widget.winfo_children():
         bind_event_to_all_children(child, sequence, func)
+
+# Funcs for checking various common things in the menus
+
+# Get the size of the image at the path and return it
+def get_image_size(image_path: str) -> tuple[int, int]:
+    try:
+        with Image.open(image_path) as image:
+            return image.size
+    except AttributeError: # TODO TEST
+        return None
+
+# # Compare one image against a desired size
+# def compare_image_size(image_path, desired_size) -> bool:
+#     pass
+
+# # Compare a list of images against a desired size
+# def compare_all_image_sizes() -> bool:
+#     pass
+
+def get_all_image_sizes(image_paths: list[str]) -> list[tuple[int, int]]:
+    sizes = []
+    for image_path in image_paths:
+        sizes.append(get_image_size(image_path))
+    return sizes
+
+# Check all sizes, format output for user to view sizes
+def warn_image_sizes(category_name_list: list[str], category_paths_list: list[list[str]], accept_different_sizes: bool = False) -> bool:
+    lastsize = None
+    matching_sizes = True
+    # throw error if length of category_name and category_paths do not match?
+    category_sizes_list = []
+    
+    for i in range(len(category_name_list)):
+        category_sizes_list.append(get_all_image_sizes(category_paths_list[i]))
+    
+        for size in category_sizes_list[i]:
+            if lastsize != None:
+                if size and size != lastsize:
+                    matching_sizes = False
+                    break
+            else:
+                lastsize = size
+    
+    if not matching_sizes:
+        size_output = ""
+        for i in range(len(category_sizes_list[0])):
+            curr_output = f"Layer {i + 1}:\n"
+            # size_output += f"Layer {i + 1}:\n"
+            added_any = False
+            for j, name in enumerate(category_name_list):
+                curr_size = category_sizes_list[j][i]
+                if curr_size != None:
+                    # size_output += f"{name}: {curr_size[0]}x{curr_size[1]}\n"
+                    curr_output += f"{name}: {curr_size[0]}x{curr_size[1]}\n"
+                    added_any = True
+            # if not added_any: size_output += "(No images in this layer)\n"
+            # if not added_any: curr_output = ""
+            # size_output += "\n"
+            # else: curr_output += "\n"
+            if added_any: size_output += curr_output + "\n"
+
+        if not accept_different_sizes:
+            messagebox.showwarning("Warning!", f"Images cannot be different sizes.\nCurrent image sizes:\n\n{size_output}")
+            return False
+        else:
+            return messagebox.askyesno("Warning!",
+                f"Some images are different sizes. Performing operations on images of different sizes may lead to unintended results. Continue anyway?\nCurrent image sizes:\n\n{size_output}")
+    return True
+
+
+# Warn about possibly overwriting data
+def warn_overwrite() -> bool:
+    return messagebox.askokcancel("Warning!", "The selected folder is not empty. If you export to this folder, you may overwrite existing data.")

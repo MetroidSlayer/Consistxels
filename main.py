@@ -107,7 +107,7 @@ def read_generate_stdout():
                         # few milliseconds, instead of instantly, y'know how it is
                         if gui_has_focus: output_generate_progress(line, True)
                     case "error":
-                        print(line)
+                        print(data.get("info_text", line))
                         output_generate_progress(line, True)
                         return
                     case "done":
