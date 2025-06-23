@@ -6,10 +6,7 @@ from tkinter import filedialog, messagebox
 
 from tooltip import ToolTip
 
-# debug (MOVE to menu_othertools i think)
-from PIL import Image#, ImageChops
-
-# import numpy as np
+from PIL import Image
 
 class Menu_OtherTools(tk.Frame):
     def __init__(self, master, change_menu_callback):
@@ -34,26 +31,20 @@ class Menu_OtherTools(tk.Frame):
         self.main_frame = tk.Frame(self, bg=gui_shared.bg_color)
         self.main_frame.pack(fill="both", expand=True)
 
-        
         tk.Label(self.main_frame, text="Verify that two images are identical:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=(10,0), anchor="w")
 
         verify_frame = tk.Frame(self.main_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
         verify_frame.pack(padx=10, pady=10, anchor="w")
 
-        # verify_frame.grid_columnconfigure(0, weight=3)
-        # verify_frame.grid_columnconfigure(1, weight=1)
-
         verify_description_frame = tk.Frame(verify_frame, bg=gui_shared.bg_color)
         verify_description_frame.grid(row=0, column=0, columnspan=2, sticky="W")
 
-        # TODO REWORK DESC FOR BETTER FUNCTION
         tk.Label(verify_description_frame, text="Select two images that you want to compare. The result of the comparison will be displayed. Additionally, you can save images that contain the differences between the images.",
                  bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=10, pady=10, anchor="nw")
         
         verify_button_frame = tk.Frame(verify_frame, bg=gui_shared.bg_color)
         verify_button_frame.grid(row=1, column=0, padx=10, pady=(0,10), sticky="W")
 
-        # verify_button_frame.grid_anchor()
         verify_button_frame.grid_columnconfigure(0, weight=1)
 
         self.verify_image_size = None
@@ -122,15 +113,10 @@ class Menu_OtherTools(tk.Frame):
         self.verify_results_save2_button.grid(row=3, column=1, padx=(0,10), pady=(10,0), sticky="EW")
         ToolTip(self.verify_results_save2_button, "Save an image containing the pixels in image 2 that are different from image 1.")
 
-
-
-    # NOTE: would work a lot better if part of class
-    # TODO TODO TODO make work better for users specifically
     def verify_identical(self):
         img1_path = self.identical_img1_path.get()
         img2_path = self.identical_img2_path.get()
         if not img1_path or not img2_path:
-            # show warning box
             messagebox.showwarning("Warning", "Please enter paths for both images.")
             return
         
@@ -159,7 +145,7 @@ def find_pixel_differences(img1, img2):
     if img1.size != img2.size:
         raise ValueError("Images are different sizes.") # good to know this is how this works
 
-    width, height = img1.size
+    width = img1.size[0]
     pixels1 = list(img1.getdata())
     pixels2 = list(img2.getdata())
 

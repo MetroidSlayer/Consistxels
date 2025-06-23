@@ -90,14 +90,11 @@ class ConsistxelsApp(tk.Frame):
     # Handle closing GUI, asking if want to save, etc.
     def on_close(self, root):
         # ask if want to save if curr frame has modified work
-        # if self.curr_menu.has_unsaved_work:
-            # pass
         if self.check_quit() != None:
             root.destroy()
     
     # Handle incoming info, sent from main process through this process's stdin
-    # Will KINDA lag things a bit, since it's updating the menu CONSTANTLY.
-    # Need to think of better method - polling, etc.
+    # TODO: still need to think of a way for this to not run constantly when the menu's not focused.
     def handle_input(self):
         while True:
             try:

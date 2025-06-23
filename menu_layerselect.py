@@ -102,11 +102,10 @@ class Menu_LayerSelect(tk.Frame):
         layer_main_frame.pack(side="top", fill="both", expand=True)
 
         # Actual layer menu
-        # layer_canvas_frame = tk.Frame(layer_main_frame, bg=gui_shared.bg_color, width=0)
         self.layer_canvas_frame = tk.Frame(layer_main_frame, bg=gui_shared.bg_color, width=0)
         self.layer_canvas_frame.pack(side="left", fill="both", expand=True)
 
-        # TODO look at this canvas stuff, try to restructure in a more intuitive way if possible
+        # TODO Take another look at this canvas stuff, try to restructure in a more intuitive way if possible
         self.layer_canvas = tk.Canvas(self.layer_canvas_frame, bg=gui_shared.bg_color, highlightthickness=0, width=0)
 
         self.layer_scrollbar = tk.Scrollbar(layer_main_frame, orient="vertical", command=self.layer_canvas.yview)
@@ -123,25 +122,12 @@ class Menu_LayerSelect(tk.Frame):
 
         # Resize the scrollable frame and the layer card widths (TODO: just resize the layer cards?)
         def resize_layer_scrollable_frame(_ = None):
-            # self.left_frame.update()
-            
-            # self.scrollable_frame.configure(width = layer_canvas_frame.winfo_width())
-
-            # for i in range(len(self.layer_data)):
-            #     self.update_layer_card_width(i)
-            
-
             for i in range(len(self.layer_data)):
                 self.update_layer_card_width(i)
 
         self.left_frame.bind("<Configure>", resize_layer_scrollable_frame)
 
         self.layer_canvas.pack(side="left", fill="both", expand=True)
-        # self.layer_canvas.pack(side="left", fill="y")
-        # self.layer_scrollbar.pack(side="right", fill="y")
-
-        # # Mousewheel scrolling
-        # self.layer_canvas.bind_all("<MouseWheel>", self.on_mousewheel) # don't do bind ALL, just stuff inside layer_canvas, or maybe inside left_frame
 
         # Layer footer
         layer_footer = tk.Frame(self.left_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
@@ -487,8 +473,8 @@ class Menu_LayerSelect(tk.Frame):
 
         tk.Label(generate_options_frame, text="Output folder path:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
-        # checkboxes and entries and such
-        # some sort of function to check if folder is empty, and warn user if not
+        # checkboxes and entries and such TODO better comment
+
         self.output_folder_path = tk.StringVar()
         output_folder_entry = add_widget(
             tk.Entry, generate_options_frame, {'textvariable':self.output_folder_path, 'width':1}, {'text':"""Enter the path to the folder where the pose images and .json data will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""}
@@ -572,7 +558,6 @@ class Menu_LayerSelect(tk.Frame):
                 with Image.open(path) as image:
                     self.image_size = image.size
                     return
-                    # break # or maybe return new image size? idk # there's not REALLY a point to doing that, ya know?
 
     def add_blank_layer(self, add_to_top = True):
         blank_layer = {
@@ -614,10 +599,9 @@ class Menu_LayerSelect(tk.Frame):
                 "name": name,
                 "search_image_path": search_image_path,
                 "source_image_path": source_image_path,
-                "is_border": is_border,# == True,
-                "is_cosmetic_only": is_cosmetic_only,# == True,
-                "export_layer_images": export_layer_images,# == True
-                # "thumbnail": self.create_layer_thumbnail(search_image_path)
+                "is_border": is_border,
+                "is_cosmetic_only": is_cosmetic_only,
+                "export_layer_images": export_layer_images,
             }
 
             if add_to_top:
@@ -631,29 +615,17 @@ class Menu_LayerSelect(tk.Frame):
             self.set_preview_button(True)
 
     def create_layer_thumbnail(self, layer_index):
-    # def create_layer_thumbnail(self, image_path = None):
         try:
             if self.layer_data[layer_index].get("search_image_path") and gui_shared.check_image_valid(self.layer_data[layer_index].get("search_image_path"))[0]: # TODO make better check
-            # if image_path:
                 with Image.open(self.layer_data[layer_index].get("search_image_path")) as image:
-                # with Image.open(image_path) as image:
                     thumbnail = image.copy()
                 thumbnail.thumbnail((64,64)) # Image.Resampling.NEAREST, maybe? idk
 
                 self.layer_data[layer_index].update({"thumbnail":ImageTk.PhotoImage(thumbnail)})
                 return
-                # return ImageTk.PhotoImage(thumbnail)
-            # else:
-                # self.layer_data[layer_index].update({"thumbnail":None})
         except Exception as e:
             pass # exception is likely that image does not exist
-        # except:
-            # self.layer_data[layer_index].update({"thumbnail":None})
-            # pass
-        # finally:
-        #     # return None
-        #     self.layer_data[layer_index].update({"thumbnail":None}) # TODO TEST
-        # print("gothere")
+
         self.layer_data[layer_index].update({"thumbnail":None})
 
     def search_type_option_selected(self, selected_option, set_unsaved_changes = True):
@@ -673,7 +645,7 @@ class Menu_LayerSelect(tk.Frame):
         self.layer_data.append({
             "name": "border",
             "is_border": True,
-            "is_cosmetic_only": False, # or true? i dont remember
+            "is_cosmetic_only": True, # TODO changed. i imagine this is how it should be, but test anyway. it didnt cause issues when False
             "search_image_path": None,
             "source_image_path": None,
             "thumbnail": None
@@ -950,11 +922,15 @@ class Menu_LayerSelect(tk.Frame):
         gui_shared.bind_event_to_all_children(card_frame, "<Button-1>", gui_shared.on_global_click)
 
     def redraw_all_layer_cards(self):
+        # TODO store scroll location
+        
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
         for i in range(len(self.layer_data)):
             self.redraw_layer_card(i)
+        
+        # TODO scroll back to that location
 
     def update_layer_card_width(self, layer_index):
         if layer_index >= len(self.scrollable_frame.winfo_children()):
@@ -962,30 +938,15 @@ class Menu_LayerSelect(tk.Frame):
         else:
             # get card
             card_frame : tk.Frame = self.scrollable_frame.winfo_children()[layer_index]
-            # desired_width = self.layer_canvas_frame.winfo_width() - 18
-            # if card_frame.cget('width') != desired_width:
 
             # reset card size to what it wants to be automatically
             card_frame.configure(width=0)
             card_frame.pack_propagate(True)
-            # card_frame.update()
             card_frame.update_idletasks()
             
             card_height = card_frame.winfo_height() # get automatically-sized height
-            # card_height = card_frame.winfo_reqheight() # get automatically-sized height
             card_frame.pack_propagate(False) # stop using automatic size
-            # card_frame.configure(width=self.scrollable_frame.cget('width') - 18, height=card_height) # need to calibrate width such that padding and scrollbar is kept in mind. COULD definitely do something like the height, and only .pack() stuff with card_frame as master at the very end? but you'd need to do smth like, "save the width, then after everything's packed you can save the height and THEN turn off pack_propagate"
-            card_frame.configure(width=self.layer_canvas_frame.winfo_width() - 18, height=card_height)
-            # card_frame.update()
-            # card_frame.update_idletasks()
-
-            # reset card size to what it wants to be automatically
-            # card_frame.pack_propagate(True)
-            # card_frame.configure(width=self.layer_canvas_frame.winfo_width() - 18)
-            # card_frame.update()
-            # card_frame.update_idletasks()
-
-
+            card_frame.configure(width=self.layer_canvas_frame.winfo_width() - 18, height=card_height) # need to calibrate width such that padding and scrollbar is kept in mind. COULD definitely do something like the height, and only .pack() stuff with card_frame as master at the very end? but you'd need to do smth like, "save the width, then after everything's packed you can save the height and THEN turn off pack_propagate"
 
     def set_preview_button(self, can_update = True):
         self.update_preview_button.configure(
@@ -1014,8 +975,8 @@ class Menu_LayerSelect(tk.Frame):
         if self.image_size != None:
             self.preview_image = Image.new("RGBA", self.image_size, ImageColor.getrgb(gui_shared.field_bg))
         else:
-            print("Got to preview image creation with an image size of None, somehow")
-            # raise ValueError
+            # Getting here requires that no images are present in any layer
+            # print("Got to preview image creation with an image size of None, somehow")
             self.preview_viewportcanvas.set_image(None)
             return
 
@@ -1026,7 +987,6 @@ class Menu_LayerSelect(tk.Frame):
         
         self.preview_viewportcanvas.set_image(self.preview_image)
 
-    # def format_layer_json(self, paths_are_local = False):
     def format_layer_json(self, json_type = "layerselect_save_json"):
         name = self.name_entry_input.get() or "unnamed_sprite_sheet"
 
@@ -1053,8 +1013,6 @@ class Menu_LayerSelect(tk.Frame):
             "search_type": search_type
         }
 
-        # pose_data = None
-
         if search_type == "Border":
             search_type_data.update({
                 "border_color": self.border_color,
@@ -1067,6 +1025,7 @@ class Menu_LayerSelect(tk.Frame):
             })
         elif search_type == "Spacing":
             # try: # NO, use try/except in relevant functions so they can stop or continue accordingly
+            # I mean... it MIGHT be better to try/except here. since ALL of the export funcs use this. idk. might be better
             search_type_data.update({
                 "border_color": None,
                 "spacing_rows": int(self.spacing_rows.get()),
@@ -1078,9 +1037,6 @@ class Menu_LayerSelect(tk.Frame):
             })
             # except:
             #     pass
-        # elif padding, save pose data!
-        # elif search_type == "Preset": # replace so that pose data is saved no matter what?
-            # pose_data = self.preset_pose_data
         
         pose_data = self.preset_pose_data
         
@@ -1094,16 +1050,6 @@ class Menu_LayerSelect(tk.Frame):
         for i, layer in enumerate(self.layer_data):
             search_image_path = layer.get("search_image_path")
             if search_image_path and json_type == "layerselect_save_folder":
-            # if search_image_path and json_type == "layerselect_save_folder": search_image_path = (
-                # f"{layer.get('name') or 'unnamed_layer'}{'' if (layer.get('is_border') or layer.get('is_cosmetic_only')) else '_search'}_image.png"
-            # )
-                
-                # search_image_path = (
-                #     f"layer{i}_{layer['name']}{(
-                #     '_cosmetic_layer' if layer.get('is_cosmetic_only') else ('_search' if layer.get('source_image_path') else '')
-                #     )}_image.png"
-                # )
-
                 search_image_path = (
                     f"""layer{i + 1}_{(f'''{(
                         'border' if layer.get('is_border') else (
@@ -1116,7 +1062,6 @@ class Menu_LayerSelect(tk.Frame):
             elif search_image_path == "": search_image_path = None
 
             source_image_path = layer.get("source_image_path")
-            # if source_image_path and json_type == "layerselect_save_folder": source_image_path = f"{layer.get('name') or 'unnamed_layer'}_source_image.png"
             if source_image_path and json_type == "layerselect_save_folder": source_image_path = f"layer{i + 1}_{layer('name', 'unnamed_layer')}_source_image.png"
             elif source_image_path == "": source_image_path = None
 
@@ -1124,9 +1069,9 @@ class Menu_LayerSelect(tk.Frame):
                 "name": layer.get("name"),
                 "search_image_path": search_image_path,
                 "source_image_path": source_image_path,
-                "is_border": layer.get("is_border", False),# == True,
-                "is_cosmetic_only": layer.get("is_cosmetic_only", False),# == True,
-                "export_layer_images": layer.get("export_layer_images", False)# == True
+                "is_border": layer.get("is_border", False),
+                "is_cosmetic_only": layer.get("is_cosmetic_only", False),
+                "export_layer_images": layer.get("export_layer_images", False)
             })
         
         formatted_data = {
@@ -1157,18 +1102,14 @@ class Menu_LayerSelect(tk.Frame):
             messagebox.showerror("Error", e)
             return
 
-        # path = filedialog.askdirectory(title="Choose a folder to save to (preferably empty)")
-        
         path = filedialog.askdirectory(title="Select an output folder (preferably empty)")
         if path and ((not os.listdir(path)) or gui_shared.warn_overwrite()):
-        # if path:
             layer_data = formatted_data["layer_data"]
             for i in range(len(layer_data)):
                 if self.layer_data[i].get("search_image_path") and gui_shared.check_image_valid(self.layer_data[i].get("search_image_path"))[0]: # TODO make better check
                     with Image.open(self.layer_data[i].get("search_image_path")) as search_image:
                         search_image.save(os.path.join(path, layer_data[i]["search_image_path"]))
                 
-                # if self.layer_data[i].get("source_image_path"):
                 if self.layer_data[i].get("source_image_path") and gui_shared.check_image_valid(self.layer_data[i].get("source_image_path"))[0]: #TODO make better check
                     with Image.open(self.layer_data[i].get("source_image_path")) as source_image:
                         source_image.save(os.path.join(path, layer_data[i]["source_image_path"]))
@@ -1224,9 +1165,7 @@ class Menu_LayerSelect(tk.Frame):
                 # in the future, if things are different between versions, do such checks and changes here
                 # version = header.get("consistxels_version")
 
-                # paths_are_local = header["paths_are_local"] # will probably want to rename at some point. or just switch to a set Type val in the header. will just do that actually
-
-                # json_type = header.get("type")
+                # json_type = header.get("type") # TODO use in final release
                 json_type = header.get("type", ("layerselect_save_folder" if header.get("paths_are_local") else "layerselect_save_json")) # TODO TEMP FOR TESTING, GET RID OF
 
                 self.start_search_in_center.set(search_data.get("start_search_in_center", False))
@@ -1256,7 +1195,6 @@ class Menu_LayerSelect(tk.Frame):
                     ):
                         new_search_type = "Preset"
                 
-                # self.search_type_option.set(search_type_data["search_type"])
                 self.search_type_option.set(new_search_type)
                 self.search_type_option_selected(new_search_type, False)
 
@@ -1268,11 +1206,7 @@ class Menu_LayerSelect(tk.Frame):
                 # delete any current layers
                 for i in reversed(range(len(self.layer_data))):
                     del self.layer_data[i]
-                
-                # # reformat layer paths if paths_are_local == True
-                # curr_folder_path = os.path.dirname(path) if paths_are_local else ""
 
-                # if json_type == "layerselect_save_json":
                 if json_type in ["layerselect_save_json", "sheetdata_generated"]:
                     # Reformat layer image paths to have absolute path if this json's paths are relative
                     # (because we do NEED an absolute path, it's just not SAVED that way so this is adding to that JUST FOR READING the data.
@@ -1374,38 +1308,6 @@ class Menu_LayerSelect(tk.Frame):
 
             except Exception as e:
                 print(json.dumps({"type": "error", "val": e}), flush=True)
-
-        # # if len(layer_data) > 0 and header["name"] != "" and not duplicate_layer_name and output_folder_path:
-        # if data.get("layer_data") and (self.name_entry_input.get() and self.name_entry_input.get() != "") and output_folder_path and size_check:
-        #     try:
-        #         temp_json_data = {"data": data, "output_folder_path": output_folder_path}
-
-        #         with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
-        #             json.dump(temp_json_data, temp_json_file)
-        #             print(json.dumps({"type": "generate_sheet_data", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
-
-        #     except Exception as e:
-        #         print(json.dumps({"type": "error", "val": e}), flush=True)
-        # else:
-        #     warning_output = ""
-
-        #     # if self.border_path == None: warning_output += "Please add a border image"
-        #     # if len(layer_data) <= 0:
-        #     if not data.get("layer_data"):
-        #         if warning_output != "": warning_output += "\n"
-        #         warning_output += "Please add at least one layer"
-        #     if not (self.name_entry_input.get() and self.name_entry_input.get() != ""):
-        #         if warning_output != "": warning_output += "\n"
-        #         warning_output += "Please enter a name for this sprite sheet"
-        #     # if duplicate_layer_name: # do we NEED this???
-        #     #     if warning_output != "": warning_output += "\n"
-        #     #     warning_output += "Ensure all layers have unique names"
-        #     if not output_folder_path:
-        #         if warning_output != "": warning_output += "\n"
-        #         warning_output += "You must select an output folder first"
-
-        #     if warning_output:
-        #         messagebox.showwarning("Wait!", warning_output)
     
     def update_progress(self, value, header_text, info_text):
         self.progress_bar["value"] = value
@@ -1429,7 +1331,6 @@ class Menu_LayerSelect(tk.Frame):
         self.back_button.configure(state="normal")
         self.cancel_button.configure(state="disabled")
 
-        # Is this fine? It IS, right??? Like, the user WILL have the .json by now, so it's fine, right?????
         self.set_unsaved_changes(False)
     
     def set_unsaved_changes(self, new_unsaved_changes = True):

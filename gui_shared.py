@@ -28,9 +28,6 @@ def add_widget(widget_class, master, config_args = {}, tooltip_args = None):
     widget = widget_class(master)
 
     match widget_class:
-        # case tk.Label:
-        #     if not config_args.get("bg"): config_args.update({"bg": bg_color})
-        #     if not config_args.get("fg"): config_args.update({"fg": fg_color})
         case tk.Entry:
             if not config_args.get("bg"): config_args.update({"bg": field_bg})
             if not config_args.get("fg"): config_args.update({"fg": fg_color})
@@ -38,52 +35,6 @@ def add_widget(widget_class, master, config_args = {}, tooltip_args = None):
             # For changing color while focused
             widget.bind("<FocusIn>", on_entry_FocusIn, add='+')
             widget.bind("<FocusOut>", on_entry_FocusOut, add='+')
-        # case tk.Button:
-        #     if not config_args.get("bg"): config_args.update({"bg": button_bg})
-        #     if not config_args.get("fg"): config_args.update({"fg": fg_color})
-        # case tk.OptionMenu:
-        #     if not config_args.get("bg"): config_args.update({"bg": field_bg})
-        #     if not config_args.get("fg"): config_args.update({"fg": fg_color})
-        #     if not config_args.get("activebackground"): config_args.update({"activebackground": bg_color})
-        #     if not config_args.get("activeforeground"): config_args.update({"activeforeground": fg_color})
-        #     if not config_args.get("anchor"): config_args.update({"anchor": "w"})
-        #     if not config_args.get("justify"): config_args.update({"justify": "left"})
-        #     if not config_args.get("highlightthickness"): config_args.update({"highlightthickness": 1})
-        #     if not config_args.get("highlightbackground"): config_args.update({"highlightbackground": secondary_fg})
-        #     if not config_args.get("bd"): config_args.update({"bd": 0})
-        #     if not config_args.get("relief"): config_args.update({"relief": "flat"})
-
-        #     # Presumably, I'm not ever gonna wanna change this manually
-        #     widget["menu"].configure(bg=field_bg, fg=fg_color, activebackground=secondary_bg, activeforeground=fg_color)
-        # case tk.Frame:
-        #     if not config_args.get("bg"): config_args.update({"bg": bg_color})
-            # print(config_args)
-        # case tk.PanedWindow:
-        #     # if widget_class != tk.Frame:
-        #         if not config_args.get("bg"): config_args.update({"bg": field_bg})
-        #         if not config_args.get("opaqueresize"): config_args.update({"opaqueresize": False})
-        #         if not config_args.get("sashrelief"): config_args.update({"sashrelief": "flat"})
-        #         if not config_args.get("sashwidth"): config_args.update({"sashwidth": 16})
-        #         if not config_args.get("bd"): config_args.update({"bd": 0})
-            
-        # case _:
-        #     # will throw an error if bg does not exist for that widget! so maybe do smth else idk
-        #     if not config_args.get("bg"): config_args.update({"bg": bg_color})
-    
-    # # Temporarily create a dummy widget to fetch allowed option keys
-    # dummy = widget_class(master)
-    # valid_keys = dummy.keys()
-    # dummy.destroy()
-
-    # # Filter out invalid widget options
-    # filtered_widget_kwargs = {k: v for k, v in config_args.items() if k in valid_keys}
-
-    # # Create the actual widget
-    # # (WOULDN'T HAVE WORKED ANYWAY, as I already created widget above)
-    # widget = widget_class(master, **filtered_widget_kwargs)
-
-    # if widget_class == tk.Frame and config_args.get("opaqueresize") != None:
-    #     raise Exception
 
     widget.configure(**config_args)
 
@@ -117,6 +68,7 @@ def bind_event_to_all_children(widget, sequence, func):
         bind_event_to_all_children(child, sequence, func)
 
 # Funcs for checking various common things in the menus
+# TODO TODO TODO: revise all of these. none of them are very good
 
 def check_image_valid(image_path: str) -> tuple[bool, str]:
     try:
@@ -138,14 +90,6 @@ def get_image_size(image_path: str) -> tuple[int, int]:
     except AttributeError: # TODO TEST
         # print("gothere")
         return None
-
-# # Compare one image against a desired size
-# def compare_image_size(image_path, desired_size) -> bool:
-#     pass
-
-# # Compare a list of images against a desired size
-# def compare_all_image_sizes() -> bool:
-#     pass
 
 def get_all_image_sizes(image_paths: list[str]) -> list[tuple[int, int]]:
     sizes = []

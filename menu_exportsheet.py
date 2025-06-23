@@ -107,7 +107,6 @@ class Menu_ExportSheet(tk.Frame):
         # (Work on this a little more - it works, but this one's a bit clunky I think)
         def resize_layer_list(_ = None):
             self.layer_canvas_frame.update_idletasks()
-            # self.left_frame.update() # Also go through and test if we're calling .update() too much
             self.scrollable_frame.configure(width = self.layer_canvas_frame.winfo_width())
             for widget in self.scrollable_frame.winfo_children():
                 widget.configure(width=self.layer_canvas_frame.winfo_width())
@@ -328,7 +327,7 @@ class Menu_ExportSheet(tk.Frame):
             entry.pack(side="left", fill="x", expand=True, pady=10)
 
             # Open filedialog, get new image, check size
-            def select_new_image(var=entry_var):#, curr_entry=entry):
+            def select_new_image(var=entry_var):
                 # Get path from filedialog
                 path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
 
@@ -340,18 +339,6 @@ class Menu_ExportSheet(tk.Frame):
                             return
                     
                     var.set(path) # Set tk.StringVar() to path
-
-                # try: # Check if image's size matches sprite sheet's size # TODO: replace with new thing in gui_shared?
-                #     with Image.open(path) as image:
-                #         if self.image_size != image.size:
-                #             messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
-                #             return
-                    
-                #     var.set(path) # Set tk.StringVar() to path
-                # except Image.UnidentifiedImageError:
-                #     messagebox.showwarning("Warning!", "Please enter a valid image.")
-                # except Exception as e:
-                #     messagebox.showerror("Error", e.__traceback__) # HOPEFULLY this works and I understand what it's doing???
 
             output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
             output_folder_button.pack(side="left", padx=10, pady=10)

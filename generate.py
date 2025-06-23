@@ -82,22 +82,10 @@ def generate_sheet_data(input_data, output_folder_path): #input_data is already 
                     image_path = output_layer_data[i]["source_image_path"]
                     source_images[i].save(os.path.join(output_dir, image_path))
 
-        # for i in range(len(search_images)):
-        #     if search_images[i]:
-        #         image_path = output_layer_data[i]["search_image_path"] # see but THIS isn't right tho!!! BECAUSE it's using an index that does not match. the output_layer_data and search_images WILL mismatch IF there is a layer that is/isn't exporting images, and all the others aren't/are.
-        #         search_images[i].save(os.path.join(output_dir, image_path))
-
-        # for i in range(len(source_images)):
-        #     if source_images[i]:
-        #         image_path = output_layer_data[i]["source_image_path"]
-        #         source_images[i].save(os.path.join(output_dir, image_path))
-
         # Structure output
         output_header = {
             "name": input_header["name"],
             "consistxels_version": consistxels_version,
-            # "paths_are_local": input_header["paths_are_local"],
-            # "paths_are_local": True, # Paths are DEFINITELY local here, no matter whether the input's paths were local
             "type": "sheetdata_generated",
             "width": size[0],
             "height": size[1]
@@ -136,7 +124,6 @@ def search_border(search_data, search_type_data, layer_data):
     with Image.open(border_layer["search_image_path"]) as border_image:
         # Get image size (technically, we could take it from earlier, but I'd like this to operate on its own)
         width, height = border_image.size
-        # print(width, height)
 
         curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
 
@@ -250,8 +237,6 @@ def search_spacing(search_data, search_type_data, size):
             # TODO get rid of Inner padding applies twice per pose box, but only applies once for the pose that's being looked at (it hasn't gone past the inner padding yet)
             # Inner padding applies at least once, plus twice per previous pose box
             # Sprite height/width and x/y separation apply only for sprites that have already been counted
-
-            # ((inner_padding * grid_x) + inner_padding)
 
             pose_locations.append({
                 "x_position": outer_padding + inner_padding + (((inner_padding * 2) + sprite_width + x_separation) * grid_x),
@@ -607,24 +592,9 @@ def generate_layer_data(input_layer_data):
         search_image_path = None
         source_image_path = None
 
-        # is_cosmetic_only = layer.get("is_cosmetic_only", False)
-        # is_border = layer.get("is_cosmetic_only", False)
-
         if layer["export_layer_images"]: # Now TECHNICALLY redundant, since this check is done when the images are saved in generate_sheet_data(), but idk I like it in both places. (IT MIGHT NOT BE THERE ANY MORE???)
 
             if layer["search_image_path"]:
-                # search_image_path = (
-                #     (f"layer{i}_{layer['name']}_original" + (("" if not layer["is_cosmetic_only"] else "_cosmetic_layer") if not layer["source_image_path"] else "_search") + "_image_copy.png") # changed cosmetic-only check to has-source-image check. might want to do another to further separate layer images and cosmetic layer images
-                #     if not layer["is_border"] else
-                #     f"layer{i}_border_original_image_copy.png" # could DEFINITELY do this part better
-                # )
-
-                # search_image_path = (
-                #     f"layer{i}_{'border' if layer.get('is_border') else layer['name'] + '_original'}{(
-                #     ('_cosmetic_layer') if layer.get('is_border') else ('_search' if layer.get('source_image_path') else '')
-                #     )}_image_copy.png"
-                # )
-
                 search_image_path = (
                     f"""layer{i + 1}_{(f'''{(
                         'border' if layer.get('is_border') else (
@@ -649,7 +619,7 @@ def generate_layer_data(input_layer_data):
                 source_images.append(None)
         else:
             search_images.append(None)
-            source_images.append(None) # THIS should fix layer index mismatch issue
+            source_images.append(None) 
 
         output_layer_data.append({
             "name": layer["name"],
@@ -741,7 +711,7 @@ def generate_sheet_image(selected_layers, data, input_folder_path, output_folder
     for layer_image in reversed(layer_images):
         sheet_image.alpha_composite(layer_image)
 
-    # TODO need to ask if want to overwrite somewhere
+    # TODO need to ask if want to overwrite somewhere # I THINK i did this??? like, warn_image_overwrite or whatever in gui_shared? idk, i need to be more consistent with those kinds of functions
     sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png"))
 
 # Generate an image for each selected layer
@@ -768,12 +738,6 @@ def generate_external_filetype(selected_layers, unique_only, data, input_folder_
 def generate_image_placement_data(selected_layers, unique_only, pose_data, layer_data, image_data):
     layer_names = [layer.get("name") for layer in layer_data]
 
-    # image_placement_data format:
-    # [
-    #   ["x_offset", "y_offset", "layer_index", "flip_h", "rotation_amount"],
-    #   ["x_offset", "y_offset", "layer_index", "flip_h", "rotation_amount"],
-    #   [...], ...
-    # ]
     image_placement_data = []
     for _ in range(len(image_data)):
         image_placement_data.append([])
@@ -845,9 +809,6 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
     
 # updated_layers in format [{"new_image_path"}, {...}...] or something to that effect
 def generate_updated_pose_images(new_image_paths, data, input_folder_path):
-
-    # layer_names = [layer.get("name") for layer in data["layer_data"]] # so we WILL need to EITHER prevent identical layer names, OR fill pose limb_data with empty limbs for each unused layer. (OR!!!! store layer_index in limb_data, rather than the layer's name. we can still store the name, but ALSO the layer index - i like this plan best)
-
     new_layer_images = [None] * len(new_image_paths)
     for i, new_image_path in enumerate(new_image_paths):
         if new_image_path:

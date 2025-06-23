@@ -125,56 +125,8 @@ class ViewportCanvas(tk.Canvas):
             draw_y = -int((self.offset_y % 1) * self.zoom)
 
         self.coords(self._image_id, draw_x, draw_y)
-
-        # if self._x_scroll:
-        #     img_w = self.full_image.width
-        #     view_w = self.winfo_width() / self.zoom
-            
-        #     scrollable_w = max(img_w - view_w, 1)
-
-        #     # scrollhandle_w = 
-
-        #     # scrollable_w = max(img_w * self.zoom, 1)
-        #     lo = self.offset_x / scrollable_w
-        #     # lo = (self.offset_x - view_w) / scrollable_w
-        #     # hi = (self.offset_x + view_w) / img_w  # hi is usually lo + visible_fraction, but clamped to 1
-
-        #     # Clamp hi to 1.0 max
-        #     # hi = min(1.0, lo + view_w / img_w)
-        #     hi = min(1.0, (self.offset_x + view_w) / scrollable_w)
-
-        #     # lo = 0
-        #     # hi = view_w
-
-        #     self._x_scroll.set(lo, hi)
-
-        # if self._y_scroll:
-        #     img_h = self.full_image.height
-        #     view_h = self.winfo_height() / self.zoom
-            
-        #     scrollable_h = max(img_h - view_h, 1)
-        #     lo = self.offset_y / scrollable_h
-        #     hi = min(1.0, lo + view_h / img_h)
-
-        #     self._y_scroll.set(lo, hi)
         
-        # if self._x_scroll:
-        #     img_w = self.full_image.width
-        #     view_w = self.winfo_width() / self.zoom
-        #     scrollable_w = max(img_w - view_w, 1)
-        #     lo = self.offset_x / scrollable_w
-        #     hi = min(1.0, lo + view_w / img_w)
-        #     self._x_scroll.set(lo, hi)
-
-        # if self._y_scroll:
-        #     img_h = self.full_image.height
-        #     view_h = self.winfo_height() / self.zoom
-        #     scrollable_h = max(img_h - view_h, 1)
-        #     lo = self.offset_y / scrollable_h
-        #     hi = min(1.0, lo + view_h / img_h)
-        #     self._y_scroll.set(lo, hi)
-        
-        if self._x_scroll:
+        if self._x_scroll: # Not perfect; dragging the scrollbar leads to weird, unintuitive results. Realistically, scrollbar size should only be modified if a zoom happens, not if any scrolling happens, right?
             img_w = self.full_image.width
             view_w = self.winfo_width() / self.zoom
             
@@ -223,8 +175,6 @@ class ViewportCanvas(tk.Canvas):
             elif args[0] == 'scroll':
                 units = int(args[1])
                 self.offset_x += units * view_w * 0.1
-            
-            # self.offset_x = max(0, min(self.offset_x, img_w - view_w))
 
             self.redraw()
 
@@ -239,8 +189,6 @@ class ViewportCanvas(tk.Canvas):
             elif args[0] == 'scroll':
                 units = int(args[1])
                 self.offset_y += units * view_h * 0.1
-            
-            # self.offset_y = max(0, min(self.offset_y, img_h - view_h))
 
             self.redraw()
 
