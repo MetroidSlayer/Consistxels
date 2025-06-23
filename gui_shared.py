@@ -128,7 +128,6 @@ def check_image_valid(image_path: str) -> tuple[bool, str]:
         # print("image invalid: file not found")
         return False, "File not found"
     except Exception as e:
-        # print("image invalid:", traceback.format_exc())
         return False, traceback.format_exc()
 
 # Get the size of the image at the path and return it

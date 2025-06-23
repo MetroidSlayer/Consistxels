@@ -1,3 +1,4 @@
+import traceback
 import tkinter as tk
 import gui_shared
 from gui_shared import add_widget
@@ -152,7 +153,7 @@ class Menu_OtherTools(tk.Frame):
                         self.verify_results_save1_button.config(state="normal")
                         self.verify_results_save2_button.config(state="normal")
         except Exception as e:
-            print("Exception:", e.__traceback__)
+            print("Exception:", traceback.format_exc())
 
 def find_pixel_differences(img1, img2):
     if img1.size != img2.size:
