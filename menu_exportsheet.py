@@ -83,10 +83,10 @@ class Menu_ExportSheet(tk.Frame):
         layer_list_container_frame = tk.Frame(self.left_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
         layer_list_container_frame.pack(side="top", fill="both", expand=True)
 
-        layer_canvas_frame = tk.Frame(layer_list_container_frame, bg=gui_shared.bg_color, width=0)
-        layer_canvas_frame.pack(side="left", fill="both", expand=True)
+        self.layer_canvas_frame = tk.Frame(layer_list_container_frame, bg=gui_shared.bg_color, width=0)
+        self.layer_canvas_frame.pack(side="left", fill="both", expand=True)
         
-        self.layer_canvas = tk.Canvas(layer_canvas_frame, bg=gui_shared.bg_color, highlightthickness=0, width=0)
+        self.layer_canvas = tk.Canvas(self.layer_canvas_frame, bg=gui_shared.bg_color, highlightthickness=0, width=0)
 
         self.layer_scrollbar = tk.Scrollbar(layer_list_container_frame, orient="vertical", command=self.layer_canvas.yview)
         self.layer_scrollbar.pack(side="left", fill="y", padx=(2,0), pady=0)
@@ -106,11 +106,11 @@ class Menu_ExportSheet(tk.Frame):
         # For resizing the layer widgets so they fit in the canvas.
         # (Work on this a little more - it works, but this one's a bit clunky I think)
         def resize_layer_list(_ = None):
-            self.left_frame.update() # Also go through and test if we're calling .update() too much
-            self.scrollable_frame.configure(width = layer_canvas_frame.winfo_width())
-
+            self.layer_canvas_frame.update_idletasks()
+            # self.left_frame.update() # Also go through and test if we're calling .update() too much
+            self.scrollable_frame.configure(width = self.layer_canvas_frame.winfo_width())
             for widget in self.scrollable_frame.winfo_children():
-                widget.configure(width=layer_canvas_frame.winfo_width())
+                widget.configure(width=self.layer_canvas_frame.winfo_width())
 
         self.left_frame.bind("<Configure>", resize_layer_list)
 
@@ -288,7 +288,7 @@ class Menu_ExportSheet(tk.Frame):
             self.layer_list.append(checkbutton_var)
 
             # Configure height and width manually
-            checkbutton_frame.update()
+            checkbutton_frame.update_idletasks()
             checkbutton_frame.configure(width=self.scrollable_frame.cget('width'), height=checkbutton_frame.winfo_height())
             checkbutton_frame.pack_propagate(False)
 
@@ -332,17 +332,26 @@ class Menu_ExportSheet(tk.Frame):
                 # Get path from filedialog
                 path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
 
-                try: # Check if image's size matches sprite sheet's size # TODO: replace with new thing in gui_shared?
+                if path and gui_shared.warn_image_valid(path):
+                    
                     with Image.open(path) as image:
                         if self.image_size != image.size:
                             messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
                             return
                     
                     var.set(path) # Set tk.StringVar() to path
-                except Image.UnidentifiedImageError:
-                    messagebox.showwarning("Warning!", "Please enter a valid image.")
-                except Exception as e:
-                    messagebox.showerror("Error", e.__traceback__) # HOPEFULLY this works and I understand what it's doing???
+
+                # try: # Check if image's size matches sprite sheet's size # TODO: replace with new thing in gui_shared?
+                #     with Image.open(path) as image:
+                #         if self.image_size != image.size:
+                #             messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
+                #             return
+                    
+                #     var.set(path) # Set tk.StringVar() to path
+                # except Image.UnidentifiedImageError:
+                #     messagebox.showwarning("Warning!", "Please enter a valid image.")
+                # except Exception as e:
+                #     messagebox.showerror("Error", e.__traceback__) # HOPEFULLY this works and I understand what it's doing???
 
             output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
             output_folder_button.pack(side="left", padx=10, pady=10)
@@ -351,7 +360,7 @@ class Menu_ExportSheet(tk.Frame):
             self.layer_list.append(entry_var)
 
             # Configure height and width manually
-            frame.update()
+            frame.update_idletasks()
             frame.configure(width=self.scrollable_frame.cget('width'), height=frame.winfo_height())
             frame.pack_propagate(False)
 
@@ -398,11 +407,12 @@ class Menu_ExportSheet(tk.Frame):
     
     # Generate button (export button, actually) has been pressed, so communicate that to main process and provide generation info
     def generate_button_pressed(self):
+
         output_folder_path = self.output_folder_path.get()
 
         # folder path needs to be treated differently depending on the export type chosen
 
-        if output_folder_path:
+        if output_folder_path or self.export_type.get() == 3:
             try:
                 # Data that will be saved to a temporary file for easy transfer to main process
                 temp_json_data = {"data": self.json_data, "input_folder_path": self.input_folder_path, "output_folder_path": output_folder_path} # technically dont need input in generate_sheet, or output in update
@@ -421,6 +431,11 @@ class Menu_ExportSheet(tk.Frame):
                     for entry_var in self.layer_list: # Append path to list
                         new_image_path = entry_var.get()
                         if new_image_path == "": new_image_path = None # Still not sure what's given if an entry is empty. Ought to test sometime
+
+                        if new_image_path and not gui_shared.check_image_valid(new_image_path)[0]:
+                            messagebox.showwarning("Warning!", "At least one image is invalid. Check that they exist and are the correct filetype.")
+                            return
+
                         new_image_paths.append(new_image_path)
 
                     # Update export-type-specific data to temp_json_data

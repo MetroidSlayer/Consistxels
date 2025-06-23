@@ -1,3 +1,5 @@
+import os
+import traceback
 import tkinter as tk
 from tkinter import messagebox
 from PIL import Image
@@ -116,12 +118,26 @@ def bind_event_to_all_children(widget, sequence, func):
 
 # Funcs for checking various common things in the menus
 
+def check_image_valid(image_path: str) -> tuple[bool, str]:
+    try:
+        with Image.open(image_path):
+            return True, ""
+    except Image.UnidentifiedImageError:
+        return False, "File is not a valid image"
+    except FileNotFoundError:
+        # print("image invalid: file not found")
+        return False, "File not found"
+    except Exception as e:
+        # print("image invalid:", traceback.format_exc())
+        return False, traceback.format_exc()
+
 # Get the size of the image at the path and return it
 def get_image_size(image_path: str) -> tuple[int, int]:
     try:
         with Image.open(image_path) as image:
             return image.size
     except AttributeError: # TODO TEST
+        # print("gothere")
         return None
 
 # # Compare one image against a desired size
@@ -138,7 +154,8 @@ def get_all_image_sizes(image_paths: list[str]) -> list[tuple[int, int]]:
         sizes.append(get_image_size(image_path))
     return sizes
 
-# Check all sizes, format output for user to view sizes
+# Check all sizes, format output for user to view sizes.
+# Return True if action should continue, or False if it shouldn't.
 def warn_image_sizes(category_name_list: list[str], category_paths_list: list[list[str]], accept_different_sizes: bool = False) -> bool:
     lastsize = None
     matching_sizes = True
@@ -182,6 +199,13 @@ def warn_image_sizes(category_name_list: list[str], category_paths_list: list[li
                 f"Some images are different sizes. Performing operations on images of different sizes may lead to unintended results. Continue anyway?\nCurrent image sizes:\n\n{size_output}")
     return True
 
+# Warn about invalid image
+def warn_image_valid(image_path):
+    valid, result = check_image_valid(image_path)
+    if not valid:
+        messagebox.showwarning("Warning!", f"Image {os.path.basename(image_path)} is invalid: {result}")
+        return False
+    return True
 
 # Warn about possibly overwriting data
 def warn_overwrite() -> bool:
