@@ -11,7 +11,7 @@ import tempfile
 from PIL import Image
 
 class Menu_ExportSheet(tk.Frame):
-    def __init__(self, master, change_menu_callback, load_path = None):
+    def __init__(self, master, change_menu_callback, load_path = None): # TODO change load to only accept sheetdata_generated json type
         super().__init__(master)
 
         # Input folder path must be stored so images can be loaded later
@@ -35,7 +35,7 @@ class Menu_ExportSheet(tk.Frame):
         # Load button
         self.load_button = tk.Button(self.header, text="📁 Load", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.load_json)
         self.load_button.pack(padx=(12,10), pady=10, side="left")
-        ToolTip(self.load_button, "Load a .json file containing pose data. Must be located in the same folder as its pose images.")
+        ToolTip(self.load_button, "Load a .json file containing sprite sheet data. Must be located in the same folder as its pose images.")
 
         # Header right:
 
@@ -139,7 +139,7 @@ class Menu_ExportSheet(tk.Frame):
             
             # Should be made more modular, and expanded to enable/disable relevant fields/buttons
             if (curr_export_type < 3) != (self.last_export_type < 3):
-                if curr_export_type == 3:
+                if curr_export_type == 3: # TODO TODO TODO probably replace with a variable, in case i wanna mess with the indexes later at any point
                     self.draw_layer_entries()
                     self.output_folder_entry.config(state="disabled")
                     self.output_folder_button.config(state="disabled")
@@ -176,7 +176,7 @@ class Menu_ExportSheet(tk.Frame):
         self.unique_pose_images_only_checkbutton = tk.Checkbutton(export_options_frame, text="Only show unique pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color,
             selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.unique_pose_images_only, state="disabled")
         self.unique_pose_images_only_checkbutton.pack(anchor="w", padx=10, pady=10)
-        ToolTip(self.unique_pose_images_only_checkbutton,"""Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Pose Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
+        ToolTip(self.unique_pose_images_only_checkbutton,"""Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Sprite Sheet Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
 
         # Eventually, file type option menu should go here.
         # The options should be different depending on if external_filetype is chosen;
@@ -366,7 +366,7 @@ class Menu_ExportSheet(tk.Frame):
     # Load the json specified at the given or selected path
     def load_json(self, path = None):
         # If a path was not passed as parameter, ask for one
-        if not path: path = filedialog.askopenfilename(title="Select a .json with pose data and pose images", defaultextension=".json", filetypes=[("Json File", "*.json")]) # TODO: make sure file dialogs are consistent with filetypes, titles, etc.
+        if not path: path = filedialog.askopenfilename(title="Select a sheet data .json, in the same folder as its pose images", defaultextension=".json", filetypes=[("Json File", "*.json")]) # TODO: make sure file dialogs are consistent with filetypes, titles, etc.
         if path: # If a path was not passed as param nor given through filedialog, don't continue
             with open(path) as json_file:
                 self.json_data = json.load(json_file) #could unindent after this? i.e. self.json_data's been set, so we don't need to keep the actual json file open

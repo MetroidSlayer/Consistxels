@@ -30,8 +30,8 @@ def main():
     type = input_data.get("type", "")
 
     match type:
-        case "generate_pose_data":
-            generate_pose_data(temp_json_data)
+        case "generate_sheet_data":
+            generate_sheet_data(temp_json_data)
         case "generate_sheet_image":
             generate_sheet_image(temp_json_data)
         case "generate_layer_images":
@@ -53,14 +53,14 @@ def main():
     # Output that the generation has finished.
     generate.update_progress("done", 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
 
-# Generate pose data (from menu_layerselect)
-def generate_pose_data(temp_json_data):
+# Generate sprite sheet data (from menu_layerselect)
+def generate_sheet_data(temp_json_data):
     # Get vars
     data = temp_json_data.get("data", {})
     output_folder_path = temp_json_data.get("output_folder_path", "")
 
     # Generate
-    generate.generate_all_pose_data(data, output_folder_path)
+    generate.generate_sheet_data(data, output_folder_path)
 
 # Generate single sprite sheet image, with all selected layers merged (from menu_loadjson)
 def generate_sheet_image(temp_json_data):

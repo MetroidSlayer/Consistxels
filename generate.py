@@ -14,7 +14,7 @@ def update_progress(type="update", value = None, header_text = None, info_text =
     print(json.dumps(update), flush=True)
 
 # Generate and save a full .json output file, and save all generated pose images
-def generate_all_pose_data(input_data, output_folder_path): #input_data is already in proper structure for consistxels .json
+def generate_sheet_data(input_data, output_folder_path): #input_data is already in proper structure for consistxels .json
     try:
         # Do we really need this? I dunno
         output_dir = os.path.abspath(output_folder_path)
@@ -97,7 +97,8 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
             "name": input_header["name"],
             "consistxels_version": consistxels_version,
             # "paths_are_local": input_header["paths_are_local"],
-            "paths_are_local": True, # Paths are DEFINITELY local here, no matter whether the input's paths were local
+            # "paths_are_local": True, # Paths are DEFINITELY local here, no matter whether the input's paths were local
+            "type": "sheetdata_generated",
             "width": size[0],
             "height": size[1]
         }
@@ -113,7 +114,7 @@ def generate_all_pose_data(input_data, output_folder_path): #input_data is alrea
         }
 
         # Prep to save json
-        json_filename = "consistxels_pose_output_" + output_header["name"] + ".json"
+        json_filename = "consistxels_sheet_data_" + output_header["name"] + ".json"
         json_path = os.path.join(output_dir, json_filename)
 
         # Save json
@@ -268,7 +269,6 @@ def search_spacing(search_data, search_type_data, size):
 
 # Generate all-new pose data, as well as data necessary to generate images for that pose data.
 # Returns pose_data and image_prep_data.
-# TODO: think of renaming? shares name with some other functions that EVENTUALLY lead to this one, so it might help with clarity
 def generate_pose_data(pose_locations, layer_data, search_data, generation_data):
 
     # Stores image padding. indexes will match final image data
@@ -607,14 +607,32 @@ def generate_layer_data(input_layer_data):
         search_image_path = None
         source_image_path = None
 
-        if layer["export_layer_images"]: # Now TECHNICALLY redundant, since this check is done when the images are saved in generate_all_pose_data(), but idk I like it in both places. (IT MIGHT NOT BE THERE ANY MORE???)
+        # is_cosmetic_only = layer.get("is_cosmetic_only", False)
+        # is_border = layer.get("is_cosmetic_only", False)
+
+        if layer["export_layer_images"]: # Now TECHNICALLY redundant, since this check is done when the images are saved in generate_sheet_data(), but idk I like it in both places. (IT MIGHT NOT BE THERE ANY MORE???)
 
             if layer["search_image_path"]:
+                # search_image_path = (
+                #     (f"layer{i}_{layer['name']}_original" + (("" if not layer["is_cosmetic_only"] else "_cosmetic_layer") if not layer["source_image_path"] else "_search") + "_image_copy.png") # changed cosmetic-only check to has-source-image check. might want to do another to further separate layer images and cosmetic layer images
+                #     if not layer["is_border"] else
+                #     f"layer{i}_border_original_image_copy.png" # could DEFINITELY do this part better
+                # )
+
+                # search_image_path = (
+                #     f"layer{i}_{'border' if layer.get('is_border') else layer['name'] + '_original'}{(
+                #     ('_cosmetic_layer') if layer.get('is_border') else ('_search' if layer.get('source_image_path') else '')
+                #     )}_image_copy.png"
+                # )
+
                 search_image_path = (
-                    (f"layer{i}_{layer['name']}_original" + (("" if not layer["is_cosmetic_only"] else "_cosmetic_layer") if not layer["source_image_path"] else "_search") + "_image_copy.png") # changed cosmetic-only check to has-source-image check. might want to do another to further separate layer images and cosmetic layer images
-                    if not layer["is_border"] else
-                    f"layer{i}_border_original_image_copy.png" # could DEFINITELY do this part better
-                )
+                    f"""layer{i + 1}_{(f'''{(
+                        'border' if layer.get('is_border') else (
+                        f"{layer['name']}_original{(
+                            '_cosmetic_layer' if layer.get('is_cosmetic_only') else ('_search' if layer.get('source_image_path') else '')
+                        )}")
+                    )}''')}_image_copy.png"""
+                ) # TODO TEST
 
                 with Image.open(layer["search_image_path"]) as search_image:
                     search_images.append(search_image.copy())
@@ -622,7 +640,7 @@ def generate_layer_data(input_layer_data):
             else:
                 search_images.append(None)
             if layer["source_image_path"]:
-                source_image_path = f"layer{i}_{layer['name']}_original_source_image_copy.png"
+                source_image_path = f"layer{i + 1}_{layer['name']}_original_source_image_copy.png"
 
                 with Image.open(layer["source_image_path"]) as source_image:
                     source_images.append(source_image.copy())

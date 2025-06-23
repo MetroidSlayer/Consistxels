@@ -60,7 +60,7 @@ def read_gui_stdout():
                 val = data.get("val")
 
                 # No matter the type of generation, main acts the same
-                if type in ["generate_pose_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
+                if type in ["generate_sheet_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
                     start_generate_process(line)
                     output_generate_progress(line, True)
                 else:

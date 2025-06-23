@@ -13,7 +13,7 @@ import gui_shared
 from gui_shared import add_widget
 from shared import consistxels_version
 
-# Menu for selecting layers and options in order to generate pose data
+# Menu for selecting layers and options in order to generate sprite sheet data
 class Menu_LayerSelect(tk.Frame):
     def __init__(self, master, change_menu_callback, set_unsaved_changes_callback, load_path = None):
         super().__init__(master)
@@ -51,7 +51,7 @@ class Menu_LayerSelect(tk.Frame):
         # Load button
         self.load_button = tk.Button(self.header, text="📁 Load", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=self.import_layerselect_json)
         self.load_button.pack(padx=(0,10), pady=10, side="left")
-        ToolTip(self.load_button, """Load a .json file and restore previous search options and layer data.\n\n(Works with both of the previous 'Save' options, as well as generated pose data output.)""")
+        ToolTip(self.load_button, """Load a .json file and restore previous search options and layer data.\n\n(Works with both of the previous 'Save' options, as well as generated sheet data output.)""")
 
         # Clear button
         self.clear_button = tk.Button(self.header, text="✏️ Clear", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: change_menu_callback("LayerSelect"))
@@ -172,7 +172,7 @@ class Menu_LayerSelect(tk.Frame):
         preview_frame.grid_rowconfigure(0, weight=1)
         preview_frame.grid_columnconfigure(0, weight=1)
 
-        self.preview_viewportcanvas = ViewportCanvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0, cursor="hand2")
+        self.preview_viewportcanvas = ViewportCanvas(preview_frame, bg=gui_shared.field_bg, highlightthickness=0) # TODO move highlightthickness into ViewportCanvas declaration maybe? might be nice
         self.preview_viewportcanvas.grid(row=0, column=0, sticky="NSEW")
 
         preview_canvas_hori_scroll = tk.Scrollbar(preview_frame, orient="horizontal", command=self.preview_viewportcanvas.scroll_x)
@@ -225,7 +225,7 @@ class Menu_LayerSelect(tk.Frame):
 
 - Spacing: Poses are assumed to be spaced out equally from each other.
 
-- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate Pose Data..." button) to search for poses in already-known locations.
+- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate Sheet Data..." button) to search for poses in already-known locations.
         """.strip(), False, True)
 
         self.search_type_option = tk.StringVar(value=self.search_types[0])
@@ -255,7 +255,7 @@ class Menu_LayerSelect(tk.Frame):
 
 - Spacing: Poses are assumed to be spaced out equally from each other.
 
-- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate Pose Data..." button) to search for poses in already-known locations.
+- Preset: Use a valid .json file that contains pose data (i.e., one generated with the "Generate Sheet Data..." button) to search for poses in already-known locations.
         """.strip(), False, True)
 
         # Border subframe
@@ -505,13 +505,13 @@ class Menu_LayerSelect(tk.Frame):
         generate_buttons_frame = tk.Frame(generate_container_frame, bg=gui_shared.bg_color)
         generate_buttons_frame.pack(side="left")
 
-        self.generate_button = tk.Button(generate_buttons_frame, text="Generate Pose Data...", command=self.generate_button_pressed, bg=gui_shared.button_bg, fg=gui_shared.fg_color)
+        self.generate_button = tk.Button(generate_buttons_frame, text="Generate Sheet Data...", command=self.generate_button_pressed, bg=gui_shared.button_bg, fg=gui_shared.fg_color)
         self.generate_button.pack(side="top", padx=10, pady=10)
-        ToolTip(self.generate_button, "Generate data! (May take a while)", True)
+        ToolTip(self.generate_button, "Search the sprite sheet according to the selected search options. Then, generate sprite sheet data and pose images.\n\n(Depending on how many layers the sheet has, this may take a while.)", True)
 
         self.cancel_button = tk.Button(generate_buttons_frame, text="Cancel", command=self.cancel_generate, fg=gui_shared.danger_fg, bg=gui_shared.button_bg, state="disabled")
         self.cancel_button.pack(side="top", padx=10, pady=(0,10), fill="x")
-        ToolTip(self.cancel_button, "Cancel pose image generation", True)
+        ToolTip(self.cancel_button, "Cancel search and/or generation", True)
         
         generate_progress_frame = tk.Frame(generate_container_frame, bg=gui_shared.bg_color)
         generate_progress_frame.pack(side="left", fill="x", expand=True)
@@ -566,15 +566,18 @@ class Menu_LayerSelect(tk.Frame):
             if path:
                 with Image.open(path) as image:
                     self.image_size = image.size
-                    break # or maybe return new image size? idk
+                    return
+                    # break # or maybe return new image size? idk # there's not REALLY a point to doing that, ya know?
 
     def add_blank_layer(self, add_to_top = True):
         blank_layer = {
             "name": None,
-            "is_border": None,
-            "is_cosmetic_only": None,
             "search_image_path": None,
-            "source_image_path": None
+            "source_image_path": None,
+            "is_border": False,
+            "is_cosmetic_only": False,
+            "export_layer_images": False,
+            "thumbnail": None
         }
         
         if add_to_top:
@@ -596,19 +599,20 @@ class Menu_LayerSelect(tk.Frame):
 
         for d in (reversed(data) if add_to_top else data):
             name = d.get("name")
-            is_border = d.get("is_border")
-            is_cosmetic_only = d.get("is_cosmetic_only")
             search_image_path = d.get("search_image_path")
             source_image_path = d.get("source_image_path")
-            export_layer_images = d.get("export_layer_images")
+            is_border = d.get("is_border", False)
+            is_cosmetic_only = d.get("is_cosmetic_only", False)
+            export_layer_images = d.get("export_layer_images", False)
             
             new_layer = {
                 "name": name,
                 "search_image_path": search_image_path,
                 "source_image_path": source_image_path,
-                "is_border": is_border == True,
-                "is_cosmetic_only": is_cosmetic_only == True,
-                "export_layer_images": export_layer_images == True
+                "is_border": is_border,# == True,
+                "is_cosmetic_only": is_cosmetic_only,# == True,
+                "export_layer_images": export_layer_images,# == True
+                # "thumbnail": self.create_layer_thumbnail(search_image_path)
             }
 
             if add_to_top:
@@ -622,15 +626,30 @@ class Menu_LayerSelect(tk.Frame):
             self.set_preview_button(True)
 
     def create_layer_thumbnail(self, layer_index):
+    # def create_layer_thumbnail(self, image_path = None):
         try:
             if self.layer_data[layer_index].get("search_image_path"):
+            # if image_path:
                 with Image.open(self.layer_data[layer_index].get("search_image_path")) as image:
+                # with Image.open(image_path) as image:
                     thumbnail = image.copy()
-                thumbnail.thumbnail((64,64))
+                thumbnail.thumbnail((64,64)) # Image.Resampling.NEAREST, maybe? idk
 
                 self.layer_data[layer_index].update({"thumbnail":ImageTk.PhotoImage(thumbnail)})
+                return
+                # return ImageTk.PhotoImage(thumbnail)
+            # else:
+                # self.layer_data[layer_index].update({"thumbnail":None})
         except Exception as e:
-            self.layer_data[layer_index].update({"thumbnail":None})
+            pass # exception is likely that image does not exist
+        # except:
+            # self.layer_data[layer_index].update({"thumbnail":None})
+            # pass
+        # finally:
+        #     # return None
+        #     self.layer_data[layer_index].update({"thumbnail":None}) # TODO TEST
+        print("gothere")
+        self.layer_data[layer_index].update({"thumbnail":None})
 
     def search_type_option_selected(self, selected_option, set_unsaved_changes = True):
         self.search_type_subframes[self.search_types.index(selected_option)].lift()
@@ -651,7 +670,8 @@ class Menu_LayerSelect(tk.Frame):
             "is_border": True,
             "is_cosmetic_only": False, # or true? i dont remember
             "search_image_path": None,
-            "source_image_path": None
+            "source_image_path": None,
+            "thumbnail": None
         })
         
         self.redraw_all_layer_cards()
@@ -699,11 +719,11 @@ class Menu_LayerSelect(tk.Frame):
         # could theoretically just do all layer cards *after* the deleted index, but also .redraw_all_layer_cards() has the necessary delete functionality
         self.redraw_all_layer_cards()
 
-        if had_search_image: self.set_preview_button(True) # probably only set this if HAD a search image
+        if had_search_image: self.set_preview_button(True)
 
     def redraw_layer_card(self, layer_index):
         # If card frame doesn't exist, create a new one. If it does, might as well use the existing one so we don't have to worry about re-ordering everything.
-        card_frame = None
+        card_frame : tk.Frame = None
         if layer_index >= len(self.scrollable_frame.winfo_children()):
             card_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg, pady=0)
             card_frame.pack(side="top", fill="x", expand=True, padx=10)
@@ -719,11 +739,11 @@ class Menu_LayerSelect(tk.Frame):
         card_frame.pack_configure(pady=((10 if (layer_index == 0) else 0), 10))
 
         # Get this layer's data, for convenience
-        data = self.layer_data[layer_index]
+        data : dict = self.layer_data[layer_index]
 
         # Lots of things are formatted differently based on chosen settings 
-        is_border = data.get("is_border") == True
-        is_cosmetic_only = data.get("is_cosmetic_only") == True
+        is_border = data.get("is_border", False)# == True
+        is_cosmetic_only = data.get("is_cosmetic_only", False)# == True
 
         # Contains everything but the buttons on the right
         content_frame = tk.Frame(card_frame, bg=gui_shared.secondary_bg)
@@ -739,11 +759,31 @@ class Menu_LayerSelect(tk.Frame):
 
         tk.Label(content_left_frame, text=f"Layer {layer_index+1}", bg=gui_shared.secondary_bg, fg=gui_shared.fg_color).pack(side="top", fill="x", padx=10, pady=(10,0))
 
-        if data.get("search_image_path") and not ("thumbnail" in data): # If a thumbnail could exist and does not, create it
+        # thumbnail = None
+        if data.get("search_image_path") and not data.get("thumbnail"): # If a thumbnail could exist and does not, create it
+            # thumbnail = self.create_thumbnail(layer_index) # TODO does not work, because it relies on the indexes in self.layer_data. upon an initial load, self.layer_data has not been filled with info yet, so there's nothing there # NOT true, not sure what the issue is actually? WELL ACTUALLY YEAH it just wouldnt have the "thumbnail" key pair i think?
             self.create_layer_thumbnail(layer_index)
+        # else:
+            # thumbnail = data.get("thumbnail")
+
+        # thumbnail = data.get("thumbnail")
+        # if thumbnail:
+        #     # print("gothere")
+        #     if data.get("name") == "border": ImageTk.getimage(thumbnail).show()
+
+        # thumbnail = data.get("thumbnail", (self.create_thumbnail(data.get("search_image_path"))))
+
+        # thumbnail = data.get("thumbnail")
+        # if not thumbnail:
+        #     thumbnail = self.create_layer_thumbnail(data.get("search_image_path"))
+        #     if thumbnail:
+        #         data.update({"thumbnail": thumbnail})
+        #         if data.get("name") == "border": ImageTk.getimage(thumbnail).show()
+            # print("gothere")
 
         # Place thumbnail. (I eventually want a checkerboard background for better visibility, but I don't know if it would actually help since the imgs are so small)
         tk.Label(content_left_frame, image=data.get("thumbnail"), bg=gui_shared.field_bg).pack(side="top", fill="both", expand=True, padx=10, pady=10)
+        # tk.Label(content_left_frame, image=thumbnail, bg=gui_shared.field_bg).pack(side="top", fill="both", expand=True, padx=10, pady=10)
 
         # Contains the entries, plus their respective buttons and labels
         content_right_frame = tk.Frame(content_top_frame, bg=gui_shared.secondary_bg, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
@@ -792,6 +832,10 @@ class Menu_LayerSelect(tk.Frame):
             entry.update({"search_image_path":new_image_path})
                 
             self.create_layer_thumbnail(i) # Force a thumbnail update
+            
+            # entry.update({"thumbnail":self.create_layer_thumbnail(new_image_path)}) # Force a thumbnail update
+            
+            
             self.redraw_layer_card(i) # Only need to redraw THIS card
 
             self.set_preview_button(True)
@@ -904,7 +948,7 @@ class Menu_LayerSelect(tk.Frame):
             return # idk PROBABLY raise exception? idk!!!
         else:
             # get card
-            card_frame = self.scrollable_frame.winfo_children()[layer_index]
+            card_frame : tk.Frame = self.scrollable_frame.winfo_children()[layer_index]
 
             # reset card size to what it wants to be automatically
             card_frame.configure(width=0)
@@ -928,13 +972,6 @@ class Menu_LayerSelect(tk.Frame):
         if self.image_size == None:
             self.force_get_image_size()
 
-        if self.image_size != None:
-            self.preview_image = Image.new("RGBA", self.image_size, ImageColor.getrgb(gui_shared.field_bg))
-        else:
-            print("Got to preview image creation with an image size of None, somehow")
-            # raise ValueError
-            return
-
         if not (gui_shared.warn_image_sizes(["Search image", "Source image"],
             [
                 [layer.get("search_image_path") for layer in self.layer_data],
@@ -942,20 +979,29 @@ class Menu_LayerSelect(tk.Frame):
             ]
         )): return
 
+        if self.image_size != None:
+            self.preview_image = Image.new("RGBA", self.image_size, ImageColor.getrgb(gui_shared.field_bg))
+        else:
+            print("Got to preview image creation with an image size of None, somehow")
+            # raise ValueError
+            self.preview_viewportcanvas.set_image(None)
+            return
+
         for layer in reversed(self.layer_data):
             if layer.get("search_image_path"):
-                with Image.open(layer["search_image_path"]) as image:
+                with Image.open(layer["search_image_path"]) as image: # TODO at some point, could have an alt version for source images? maybe a button on preview footer chooses which to look at
                     self.preview_image.alpha_composite(image)
         
         self.preview_viewportcanvas.set_image(self.preview_image)
 
-    def format_layer_json(self, paths_are_local = False):
+    # def format_layer_json(self, paths_are_local = False):
+    def format_layer_json(self, json_type = "layerselect_save_json"):
         name = self.name_entry_input.get() or "unnamed_sprite_sheet"
 
         header = {
             "name": name,
             "consistxels_version": consistxels_version,
-            "paths_are_local": paths_are_local,
+            "type": json_type,
             # "width": None,
             # "height": None
         }
@@ -975,7 +1021,7 @@ class Menu_LayerSelect(tk.Frame):
             "search_type": search_type
         }
 
-        pose_data = None
+        # pose_data = None
 
         if search_type == "Border":
             search_type_data.update({
@@ -1001,8 +1047,11 @@ class Menu_LayerSelect(tk.Frame):
             # except:
             #     pass
         # elif padding, save pose data!
-        elif search_type == "Preset":
-            pose_data = self.preset_pose_data
+        # elif search_type == "Preset": # replace so that pose data is saved no matter what?
+            # pose_data = self.preset_pose_data
+        
+        pose_data = self.preset_pose_data
+
         
         generation_data = {
             "automatic_padding_type": self.automatic_padding_type_option.get(),
@@ -1011,24 +1060,42 @@ class Menu_LayerSelect(tk.Frame):
         }
 
         layer_data = []
-        for layer in self.layer_data:
+        for i, layer in enumerate(self.layer_data):
             search_image_path = layer.get("search_image_path")
-            if search_image_path and paths_are_local: search_image_path = (
-                f"{layer.get('name') or 'unnamed_layer'}{'' if (layer.get('is_border') or layer.get('is_cosmetic_only')) else '_search'}_image.png"
-            )
+            if search_image_path and json_type == "layerselect_save_folder":
+            # if search_image_path and json_type == "layerselect_save_folder": search_image_path = (
+                # f"{layer.get('name') or 'unnamed_layer'}{'' if (layer.get('is_border') or layer.get('is_cosmetic_only')) else '_search'}_image.png"
+            # )
+                
+                # search_image_path = (
+                #     f"layer{i}_{layer['name']}{(
+                #     '_cosmetic_layer' if layer.get('is_cosmetic_only') else ('_search' if layer.get('source_image_path') else '')
+                #     )}_image.png"
+                # )
+
+                search_image_path = (
+                    f"""layer{i + 1}_{(f'''{(
+                        'border' if layer.get('is_border') else (
+                        f"{layer.get('name', 'unnamed_layer')}{(
+                            '_cosmetic_layer' if layer.get('is_cosmetic_only') else ('_search' if layer.get('source_image_path') else '')
+                        )}")
+                    )}''')}_image.png"""
+                ) # TODO TEST
+
             elif search_image_path == "": search_image_path = None
 
             source_image_path = layer.get("source_image_path")
-            if source_image_path and paths_are_local: source_image_path = f"{layer.get('name') or 'unnamed_layer'}_source_image.png"
+            # if source_image_path and json_type == "layerselect_save_folder": source_image_path = f"{layer.get('name') or 'unnamed_layer'}_source_image.png"
+            if source_image_path and json_type == "layerselect_save_folder": source_image_path = f"layer{i + 1}_{layer('name', 'unnamed_layer')}_source_image.png"
             elif source_image_path == "": source_image_path = None
 
             layer_data.append({
                 "name": layer.get("name"),
                 "search_image_path": search_image_path,
                 "source_image_path": source_image_path,
-                "is_border": layer.get("is_border") == True,
-                "is_cosmetic_only": layer.get("is_cosmetic_only") == True,
-                "export_layer_images": layer.get("export_layer_images") == True
+                "is_border": layer.get("is_border", False),# == True,
+                "is_cosmetic_only": layer.get("is_cosmetic_only", False),# == True,
+                "export_layer_images": layer.get("export_layer_images", False)# == True
             })
         
         formatted_data = {
@@ -1042,16 +1109,16 @@ class Menu_LayerSelect(tk.Frame):
         if pose_data:
             formatted_data.update({"pose_data": pose_data})
 
-        if not paths_are_local:
+        if json_type == "layerselect_save_json":
             output_folder_path = self.output_folder_path.get()
             if output_folder_path and output_folder_path != "":
-                formatted_data.update({"output_folder_path":output_folder_path})
+                formatted_data.update({"output_folder_path": output_folder_path})
 
         return formatted_data
 
     def export_layerselect_all(self):
         try:
-            formatted_data = self.format_layer_json(True)
+            formatted_data = self.format_layer_json("layerselect_save_folder")
         except ValueError:
             messagebox.showwarning("Warning!", "Please ensure all text input boxes are filled out correctly.\nIf a number is required, don't enter anything else.")
             return
@@ -1085,7 +1152,7 @@ class Menu_LayerSelect(tk.Frame):
 
     def export_layerselect_json(self):
         try:
-            formatted_data = self.format_layer_json(False)
+            formatted_data = self.format_layer_json("layerselect_save_json")
         except ValueError:
             messagebox.showwarning("Warning!", "Please ensure all text input boxes are filled out correctly.\nIf a number is required, don't enter anything else.")
             return
@@ -1104,36 +1171,38 @@ class Menu_LayerSelect(tk.Frame):
         return False # If nothing was actually saved, and it's intending to quit, assume this is a cancellation, not a close-without-saving
 
     # Import a valid .json file.
-    def import_layerselect_json(self, path = None):
+    def import_layerselect_json(self, path: str = None):
         if not path: path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
         if path:
             with open(path) as json_file:
-                json_data = json.load(json_file)
+                json_data: dict = json.load(json_file)
                 
             try:
-                header = json_data.get("header")
-                search_data = json_data.get("search_data")
-                search_type_data = json_data.get("search_type_data")
-                generation_data = json_data.get("generation_data")
-                layer_data = json_data.get("layer_data")
-                pose_data = json_data.get("pose_data")
-                output_folder_path = json_data.get("output_folder_path")
+                header: dict = json_data.get("header")
+                search_data: dict = json_data.get("search_data")
+                search_type_data: dict = json_data.get("search_type_data")
+                generation_data: dict = json_data.get("generation_data")
+                layer_data: list = json_data.get("layer_data")
+                pose_data: list = json_data.get("pose_data")
+                output_folder_path: str = json_data.get("output_folder_path")
 
                 # header
                 self.name_entry_input.set(header["name"])
 
                 # in the future, if things are different between versions, do such checks and changes here
-                paths_are_local = header["paths_are_local"]
+                # version = header.get("consistxels_version")
 
-                self.start_search_in_center.set(search_data.get("start_search_in_center"))
-                self.search_right_to_left.set(search_data.get("search_right_to_left"))
-                self.detect_identical_images.set(search_data.get("detect_identical_images"))
-                self.detect_rotated_images.set(search_data.get("detect_rotated_images"))
-                self.detect_flip_h_images.set(search_data.get("detect_flip_h_images"))
-                self.detect_flip_v_images.set(search_data.get("detect_flip_v_images"))
+                # paths_are_local = header["paths_are_local"] # will probably want to rename at some point. or just switch to a set Type val in the header. will just do that actually
 
-                self.search_type_option.set(search_type_data["search_type"]) # this should work, actually
-                self.search_type_option_selected(search_type_data["search_type"], False)
+                # json_type = header.get("type")
+                json_type = header.get("type", ("layerselect_save_folder" if header.get("paths_are_local") else "layerselect_save_json")) # TODO TEMP FOR TESTING, GET RID OF
+
+                self.start_search_in_center.set(search_data.get("start_search_in_center", False))
+                self.search_right_to_left.set(search_data.get("search_right_to_left", False))
+                self.detect_identical_images.set(search_data.get("detect_identical_images", False))
+                self.detect_rotated_images.set(search_data.get("detect_rotated_images", False))
+                self.detect_flip_h_images.set(search_data.get("detect_flip_h_images", False))
+                self.detect_flip_v_images.set(search_data.get("detect_flip_v_images", False))
 
                 if search_type_data["search_type"] == "Border":
                     self.update_border_color(self.format_color_string(search_type_data["border_color"]))
@@ -1144,8 +1213,21 @@ class Menu_LayerSelect(tk.Frame):
                     self.spacing_inner_padding.set(str(search_type_data["spacing_inner_padding"]))
                     self.spacing_x_separation.set(str(search_type_data["spacing_x_separation"]))
                     self.spacing_y_separation.set(str(search_type_data["spacing_y_separation"]))
+                
+                new_search_type = search_type_data["search_type"]
+
                 if pose_data:
                     self.set_preset_pose_data(pose_data)
+                    
+                    if (search_type_data["search_type"] != "Preset" and
+                    messagebox.askyesno("Wait!", "Pose data was found in this file, but the specified search type ignores it.\nSwitch search type to Preset and use existing pose data?")
+                    ):
+                        new_search_type = "Preset"
+                
+                # self.search_type_option.set(search_type_data["search_type"])
+                self.search_type_option.set(new_search_type)
+                self.search_type_option_selected(new_search_type, False)
+
 
                 self.automatic_padding_type_option.set(generation_data.get("automatic_padding_type"))
 
@@ -1155,21 +1237,25 @@ class Menu_LayerSelect(tk.Frame):
                 for i in reversed(range(len(self.layer_data))):
                     del self.layer_data[i]
                 
-                # reformat layer paths if paths_are_local == True
-                curr_folder_path = os.path.dirname(path) if paths_are_local else ""
+                # # reformat layer paths if paths_are_local == True
+                # curr_folder_path = os.path.dirname(path) if paths_are_local else ""
 
-                for layer in layer_data:
-                    search_image_path = layer.get("search_image_path")
-                    if search_image_path:
-                        path = os.path.join(curr_folder_path, search_image_path)
-                        layer["search_image_path"] = path
-                        
-                    source_image_path = layer.get("source_image_path")
-                    if source_image_path:
-                        path = os.path.join(curr_folder_path, source_image_path)
-                        layer["source_image_path"] = path
+                # if json_type == "layerselect_save_json":
+                if json_type in ["layerselect_save_json", "sheetdata_generated"]:
+                    # Reformat layer image paths to have absolute path if this json's paths are relative
+                    # (because we do NEED an absolute path, it's just not SAVED that way so this is adding to that JUST FOR READING the data.
+                    # hope this makes sense to me later)
+                    curr_folder_path = os.path.dirname(path)
 
-                
+                    for layer in layer_data:
+                        search_image_path = layer.get("search_image_path")
+                        if search_image_path:
+                            layer["search_image_path"] = os.path.join(curr_folder_path, search_image_path)
+                            
+                        source_image_path = layer.get("source_image_path")
+                        if source_image_path:
+                            layer["source_image_path"] = os.path.join(curr_folder_path, source_image_path)
+
                 self.add_image_layers(layer_data)
 
                 if output_folder_path: self.output_folder_path.set(output_folder_path)
@@ -1201,7 +1287,7 @@ class Menu_LayerSelect(tk.Frame):
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
                     json.dump(temp_json_data, temp_json_file)
-                    print(json.dumps({"type": "generate_pose_data", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
+                    print(json.dumps({"type": "generate_sheet_data", "val": temp_json_file.name.replace('\\', '/')}), flush=True)
 
             except Exception as e:
                 print(json.dumps({"type": "error", "val": e}), flush=True)

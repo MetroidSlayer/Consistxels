@@ -25,8 +25,11 @@ class ViewportCanvas(tk.Canvas):
 
         self._pan_start = None
 
-    def set_image(self, pil_image):
-        self.full_image = pil_image.convert("RGBA")
+    def set_image(self, pil_image = None):
+        if pil_image: self.full_image = pil_image.convert("RGBA")
+        else: self.full_image = None
+
+        # Maybe check if image is a diff size and only change zoom/offset if so? idk
         self.zoom = 1.0
         self.offset_x = 0.0
         self.offset_y = 0.0
@@ -66,7 +69,14 @@ class ViewportCanvas(tk.Canvas):
 
     def redraw(self):
         if not self.full_image:
+            # print(self.cget('cursor'))
+            # self.config(cursor="")
+            # self.config(cursor=None)
+            # self.config(cursor="arrow")
+            # TODO: make cursor revert to normal if no image is drawn. (none of the above methods work)
             return
+        
+        self.config(cursor="hand2")
 
         canvas_w = self.winfo_width()
         canvas_h = self.winfo_height()
