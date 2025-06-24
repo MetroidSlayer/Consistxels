@@ -17,15 +17,18 @@ class ToolTip:
         self.widget.bind("<Enter>", self.schedule_show)
         self.widget.bind("<Leave>", self.hide_tooltip)
 
+    # Set the tooltip to show after a certain amount of time
     def schedule_show(self, event=None):
-        self.unschedule()
+        self.unschedule() # If the tooltip's already scheduled, unschedule it
         self.id = self.widget.after(self.delay, self.show_tooltip)
 
+    # Stop the tooltip from showing up
     def unschedule(self):
         if self.id:
             self.widget.after_cancel(self.id)
             self.id = None
 
+    # Show the tooltip
     def show_tooltip(self):
         if self.tooltip_window or not self.text:
             return
@@ -64,12 +67,14 @@ class ToolTip:
         # Final placement
         tw.wm_geometry(f"+{x}+{y}")
     
+    # Hide the tooltip
     def hide_tooltip(self, event=None):
-        self.unschedule()
+        self.unschedule() # If the tooltip's set to show up, don't let it
         if self.tooltip_window:
             self.tooltip_window.destroy()
             self.tooltip_window = None
 
+    # Unused, I think. Was going to have the tooltip follow the mouse cursor, but it looked annoying
     def move_tooltip(self, event):
         if self.tooltip_window:
             x = event.x_root + 20

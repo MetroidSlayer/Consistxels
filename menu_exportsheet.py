@@ -1,28 +1,23 @@
-
+import json
+import os
+import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+from PIL import Image
+
 import gui_shared
 from gui_shared import add_widget
 from tooltip import ToolTip
 
-import json
-import os
-import tempfile
-from PIL import Image
-
+# Menu for exporting sprite sheets, layers, and pose images for already-generated sheet data
 class Menu_ExportSheet(tk.Frame):
     def __init__(self, master, change_menu_callback, load_path = None): # TODO change load to only accept sheetdata_generated json type
-        super().__init__(master)
-
-        # Input folder path must be stored so images can be loaded later
-        self.input_folder_path = None
-
-        self.configure(bg=gui_shared.bg_color)
-
-        # Put setup in .after() so that program does not freeze pre-BG color change when menu changes.
-        # It still DOES freeze, but it's just less ugly this way
-        self.after(0, self.setup_ui, change_menu_callback, load_path)
+        super().__init__(master) # Initialize menu's tkinter widget
+        self.input_folder_path = None # Input folder path must be stored so images can be loaded later
+        self.configure(bg=gui_shared.bg_color) # Change bg color
+        self.after(0, self.setup_ui, change_menu_callback, load_path) # .setup_ui() in .after() to prevent ugly flickering
     
+    # Setup UI
     def setup_ui(self, change_menu_callback, load_path = None):
 
         # Header
@@ -458,7 +453,7 @@ class Menu_ExportSheet(tk.Frame):
         print(json.dumps({"type": "cancel"}), flush=True)
     
     # Disable export/quit buttons, enable cancel button
-    def generate_began(self):
+    def generate_begun(self):
         self.export_button.configure(state="disabled")
         self.load_button.configure(state="disabled")
         self.back_button.configure(state="disabled")

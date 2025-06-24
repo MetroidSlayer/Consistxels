@@ -70,6 +70,7 @@ def bind_event_to_all_children(widget, sequence, func):
 # Funcs for checking various common things in the menus
 # TODO TODO TODO: revise all of these. none of them are very good
 
+# Check that an image at the specified path is a valid PIL image that really exists
 def check_image_valid(image_path: str) -> tuple[bool, str]:
     try:
         with Image.open(image_path):
@@ -91,6 +92,7 @@ def get_image_size(image_path: str) -> tuple[int, int]:
         # print("gothere")
         return None
 
+# Get all image sizes from paths in a list
 def get_all_image_sizes(image_paths: list[str]) -> list[tuple[int, int]]:
     sizes = []
     for image_path in image_paths:

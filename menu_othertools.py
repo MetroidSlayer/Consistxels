@@ -91,12 +91,13 @@ class Menu_OtherTools(tk.Frame):
         verify_results_save_label = tk.Label(verify_results_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Save results images:")
         verify_results_save_label.grid(row=2, column=0, columnspan=2, sticky="W")
 
+        # Save the pixels in the specified image that differ from the pixels in the other image as its own image. Geez I could probably rewrite this huh
         def save_verify_results_image(whichresult): # whichresult: 0 = differences in first image, 1 = differences in second image
             path = filedialog.asksaveasfilename(defaultextension=".png", title="Save image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
             if path:
                 img = Image.new("RGBA", self.verify_image_size, (0,0,0,0))
 
-                whichcolor = whichresult + 2
+                whichcolor = whichresult + 2 # As seen below, img1 color is index 2, and img2 color is index 3, so just add 2 to 0 or 1 respectively and it should be fine
                 
                 for pixel_difference in self.verify_results: # 0 = x pos, 1 = y pos, 2 = img1 color, 3 = img2 color
                     img.putpixel((pixel_difference[0], pixel_difference[1]), pixel_difference[whichcolor])
@@ -113,6 +114,7 @@ class Menu_OtherTools(tk.Frame):
         self.verify_results_save2_button.grid(row=3, column=1, padx=(0,10), pady=(10,0), sticky="EW")
         ToolTip(self.verify_results_save2_button, "Save an image containing the pixels in image 2 that are different from image 1.")
 
+    # Verify that the two images at the specified paths are identical
     def verify_identical(self):
         img1_path = self.identical_img1_path.get()
         img2_path = self.identical_img2_path.get()
@@ -141,9 +143,10 @@ class Menu_OtherTools(tk.Frame):
         except Exception as e:
             print("Exception:", traceback.format_exc())
 
+# Find differences between two images, and return the exact positions and colors of the differing pixels in a list
 def find_pixel_differences(img1, img2):
     if img1.size != img2.size:
-        raise ValueError("Images are different sizes.") # good to know this is how this works
+        raise ValueError("Images are different sizes.")
 
     width = img1.size[0]
     pixels1 = list(img1.getdata())

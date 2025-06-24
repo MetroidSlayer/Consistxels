@@ -6,8 +6,8 @@ import json
 import threading
 
 import tkinter as tk
-import gui_shared
 from tkinter import messagebox
+import gui_shared
 
 from menu_mainmenu import Menu_MainMenu
 from menu_layerselect import Menu_LayerSelect
@@ -17,7 +17,7 @@ from menu_othertools import Menu_OtherTools
 # Class containing GUI
 class ConsistxelsApp(tk.Frame):
     def __init__(self, root):
-        super().__init__()
+        super().__init__() # Initialize window's tkinter widget
         
         # Set window attributes
         root.title("Consistxels") # Title
@@ -31,6 +31,8 @@ class ConsistxelsApp(tk.Frame):
         # Bind widgets to a function that makes Entries change color when focused/unfocused
         root.bind_all("<Button-1>", gui_shared.on_global_click, add="+")
 
+        # Keeps track of whether or not the window is focused, and sends this info to main process. That way, the main process can avoid sending gui updates
+        # unless absolutely necessary.
         root.bind("<FocusIn>", self._on_root_focus_in)
         root.bind("<FocusOut>", self._on_root_focus_out)
 
@@ -44,17 +46,17 @@ class ConsistxelsApp(tk.Frame):
         self.handle_input_thread.start()
 
     # Change menu
-    def change_menu(self, new_menu = "Main", arg = None):
-        if self.check_quit() != None:
+    def change_menu(self, new_menu = "Main", arg = None): # Parameter 'arg' usually (or rather, always, at least for now) refers to a path for the menu to load
+        if self.check_quit() != None: # Check that the current menu does not have unsaved changes
             
-            self.unsaved_changes = False
+            self.unsaved_changes = False # Ensure that the new menu is not 
             
             for widget in self.container.winfo_children(): # Destroy current menu entirely
                 widget.destroy()
             
-            new_menu_widget = None
+            new_menu_widget : tk.Frame = None # TODO test. added ': tk.Frame', don't know if it's gonna cause issues. It SHOULDN'T, but idk how Python works
 
-            match new_menu:
+            match new_menu: # Create new menu widget
                 case "Main":
                     new_menu_widget = Menu_MainMenu(self.container, self.change_menu)
                 case "LayerSelect":
@@ -65,16 +67,16 @@ class ConsistxelsApp(tk.Frame):
                     new_menu_widget = Menu_OtherTools(self.container, self.change_menu)
                 case _:
                     print("nonexistent menu chosen")
-                    raise Exception
+                    raise Exception # I don't know which specific exception to raise 
             
-            new_menu_widget.place(relwidth=1, relheight=1)
-            self.curr_menu = new_menu_widget
+            new_menu_widget.place(relwidth=1, relheight=1) # Place menu
+            self.curr_menu = new_menu_widget # Assign class variable
 
     # Set self.unsaved_changes, so that GUI can properly avoid losing work
     def set_unsaved_changes(self, new_unsaved_changes):
         self.unsaved_changes = new_unsaved_changes
 
-    # True = save and quit, False = don't save, do quit, None = don't save, don't quit
+    # True = 'save and quit', False = 'don't save, do quit', None = 'don't save, don't quit'
     def check_quit(self):
         if self.unsaved_changes:
             ans = messagebox.askyesnocancel("Warning! Unsaved changes", "Save changes before closing?")
@@ -94,7 +96,7 @@ class ConsistxelsApp(tk.Frame):
             root.destroy()
     
     # Handle incoming info, sent from main process through this process's stdin
-    # TODO: still need to think of a way for this to not run constantly when the menu's not focused.
+    # TODO: still need to think of a way for this to not run constantly when the menu's not focused. It works FINE for now, but there's likely still a performance hit, since this is running constantly.
     def handle_input(self):
         while True:
             try:
@@ -113,7 +115,7 @@ class ConsistxelsApp(tk.Frame):
                         info_text = data.get("info_text") # Used to show secondary information if there is a header, and primary information if there isn't
                         
                         if type in ["generate_sheet_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
-                            self.curr_menu.generate_began() # Format current menu; disable generate button, enable cancel button, etc.
+                            self.curr_menu.generate_begun() # Format current menu; disable generate button, enable cancel button, etc.
                             self.update_progress(0, "", "Initializing...")
                         else:
                             match type:
@@ -136,6 +138,8 @@ class ConsistxelsApp(tk.Frame):
             except Exception as e:
                 print(json.dumps({"type": "error", "val": f"Exception in gui handle_input: {e}\nLine that caused exception: {line}"}), flush=True)
     
+    # Inform main process of window focus
+
     def _on_root_focus_in(self, _event):
         print(json.dumps({"type": "root_focus", "val": True}), flush=True)
     
@@ -149,11 +153,11 @@ def main():
     app = ConsistxelsApp(root)
     app.pack(fill="both", expand=True)
 
-    root.protocol("WM_DELETE_WINDOW", lambda r=root: app.on_close(r))
+    root.protocol("WM_DELETE_WINDOW", lambda r=root: app.on_close(r)) # Connect window closing to relevant function
 
-    root.mainloop()
+    root.mainloop() # Start main loop
 
-# run main
-# is there some way to make it raise an exception if ran as the main process? idk
+# Run main
+# TODO is there some way to make it raise an exception if ran as the main process? idk, maybe if I pass a command line arg, but this isn't a huge deal
 if __name__ == "__main__":
     main()

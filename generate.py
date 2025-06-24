@@ -234,7 +234,6 @@ def search_spacing(search_data, search_type_data, size):
         for grid_x in get_x_range(0, columns, start_search_in_center, search_right_to_left, 0):
             # Essentially, we're trying to find the top-left corner of every pose box.
             # Outer padding applies exactly once to all top-left corners of pose boxes, no matter what
-            # TODO get rid of Inner padding applies twice per pose box, but only applies once for the pose that's being looked at (it hasn't gone past the inner padding yet)
             # Inner padding applies at least once, plus twice per previous pose box
             # Sprite height/width and x/y separation apply only for sprites that have already been counted
 
@@ -456,7 +455,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 # and undo the padding flip/rotation a few times, but this way we make sure we're ONLY saving the sides that are actually being used on a
                 # per-limb basis.  
 
-                # Rotation and flipping done in reverse order from last time, because we're effectively undoing the calculations from earlier.
+                # Rotation and flipping done in reverse order from last time, because we're effectively undoing the calculations from earlier (I think?).
 
                 # Rotate padding values clockwise by 90-degree steps
                 for _ in range(limb["rotation_amount"]):
@@ -587,7 +586,7 @@ def generate_layer_data(input_layer_data):
     search_images = []
     source_images = []
     
-    # for layer in input_layer_data: # Could probably do most of this better
+    # Check every single layer for search and source image paths, and format them according to the layer's settings
     for i, layer in enumerate(input_layer_data): # Could probably do most of this better
         search_image_path = None
         source_image_path = None
@@ -633,7 +632,7 @@ def generate_layer_data(input_layer_data):
 
 # Compare images. Return whether the two images are identical; if they are, also return image's flip and rotation relative to compare_to
 # Return vals: is_unique, is_flipped, rotation_amount
-def compare_images(image:Image, compare_to:Image, detect_identical_images = True, detect_rotated_images = True, detect_flip_h_images = True, detect_flip_v_images = False):
+def compare_images(image : Image.Image, compare_to : Image.Image, detect_identical_images = True, detect_rotated_images = True, detect_flip_h_images = True, detect_flip_v_images = False):
     if detect_identical_images and image.tobytes() == compare_to.tobytes(): # the image is already stored; move on
         return False, False, 0
 
@@ -742,6 +741,7 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
     for _ in range(len(image_data)):
         image_placement_data.append([])
 
+    # Look through all poses for limbs; add the pose's position/size to each limb's referenced image index
     for pose_index, pose in enumerate(pose_data):
         x_position = pose["x_position"]
         y_position = pose["y_position"]
@@ -826,7 +826,6 @@ def generate_updated_pose_images(new_image_paths, data, input_folder_path):
             # Get a limb from this pose that's part of the correct layer. It would be fairly trivial to prevent an error from happening if no limb
             # is found, but on the other hand, maybe it SHOULD raise an error if limbs are not found where they're expected. After all, this is
             # searching for the ORIGINAL limb locations, so there can only NOT be something there if the data was modified in some way.
-            # limb = next(l for l in pose["limb_data"] if l["name"] == layer_names[image_datum["original_layer_index"]])
             limb = next(l for l in pose["limb_data"] if l["layer_index"] == layer_index)
 
             with Image.open(os.path.join(input_folder_path, image_datum["path"])) as image:

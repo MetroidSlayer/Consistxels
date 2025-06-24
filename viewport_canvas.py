@@ -1,19 +1,21 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 
-
+# A modified Canvas that supports panning with the mouse and zooming with the mousewheel.
+# Attempts to make this light performance-wise by only upscaling the visible portion of the image.
 class ViewportCanvas(tk.Canvas):
     def __init__(self, master=None, **kwargs):
         super().__init__(master, **kwargs)#, cursor="hand2"
 
+        # For displaying the image
         self.full_image = None
         self._tk_image = None
         self._image_id = None
 
+        # Zoom/position vals
         self.zoom = 1.0
         self.min_zoom = 0.25
         self.max_zoom = 10.0
-
         self.offset_x = 0.0  # in image-space units
         self.offset_y = 0.0
 
@@ -25,6 +27,7 @@ class ViewportCanvas(tk.Canvas):
 
         self._pan_start = None
 
+    # Set the image. If none, clear current image.
     def set_image(self, pil_image = None):
         if pil_image: self.full_image = pil_image.convert("RGBA")
         else: self.full_image = None
@@ -35,13 +38,16 @@ class ViewportCanvas(tk.Canvas):
         self.offset_y = 0.0
         self.redraw()
 
+    # Runs upon mousewheel input, and zooms
     def _on_mousewheel(self, event):
         factor = 1.1 if event.delta > 0 else 1 / 1.1
         self.zoom_at(factor, event.x, event.y)
 
+    # Runs upon mouse click; stores initial mouse position
     def _start_pan(self, event):
         self._pan_start = (event.x, event.y)
 
+    # By looking at both the initial mouse position, as set above, and the amount of dragging being done by the mouse, modify position
     def _do_pan(self, event):
         if self._pan_start:
             dx = (event.x - self._pan_start[0]) / self.zoom
@@ -51,6 +57,7 @@ class ViewportCanvas(tk.Canvas):
             self._pan_start = (event.x, event.y)
             self.redraw()
 
+    # Zoom in, and do so relative to the mouse position
     def zoom_at(self, factor, canvas_x, canvas_y):
         if not self.full_image:
             return
@@ -67,6 +74,7 @@ class ViewportCanvas(tk.Canvas):
         self.offset_y = image_y - canvas_y / self.zoom
         self.redraw()
 
+    # Redraw the stored image
     def redraw(self):
         if not self.full_image:
             # print(self.cget('cursor'))
@@ -76,34 +84,40 @@ class ViewportCanvas(tk.Canvas):
             # TODO: make cursor revert to normal if no image is drawn. (none of the above methods work)
             return
         
-        self.config(cursor="hand2")
+        self.config(cursor="hand2") # Set cursor. (Now that I think about it, could probably go in set_image(), huh)
 
+        # Get the canvas's total size
         canvas_w = self.winfo_width()
         canvas_h = self.winfo_height()
 
+        # Get the image's size
         img_w, img_h = self.full_image.size
+
+        # Get the amount of the image that will be visible given the current zoom
         view_w = canvas_w / self.zoom
         view_h = canvas_h / self.zoom
 
+        # Clamp the offsets based on how much of the image is visible
         self.offset_x = max(0, min(self.offset_x, img_w - view_w))
         self.offset_y = max(0, min(self.offset_y, img_h - view_h))
 
+        # Find the edges of the view
         x0 = int(self.offset_x)
         y0 = int(self.offset_y)
         x1 = int(min(img_w, self.offset_x + view_w))
         y1 = int(min(img_h, self.offset_y + view_h))
 
-        if x1 <= x0 or y1 <= y0:
+        if x1 <= x0 or y1 <= y0: # i.e. if the edges are really messed up
             return
 
-        region = self.full_image.crop((x0, y0, x1, y1))
-        scaled = region.resize(
+        region = self.full_image.crop((x0, y0, x1, y1)) # The actual image inside the visible portion
+        scaled = region.resize( # Resize the visible image according to the zoom
             (int((x1 - x0) * self.zoom), int((y1 - y0) * self.zoom)),
             Image.Resampling.NEAREST
         )
-        self._tk_image = ImageTk.PhotoImage(scaled)
+        self._tk_image = ImageTk.PhotoImage(scaled) # Set the stored ImageTk.PhotoImage for display
 
-        if self._image_id is None:
+        if self._image_id is None: # Create or replace the image
             self._image_id = self.create_image(0, 0, image=self._tk_image, anchor="nw")
         else:
             self.itemconfig(self._image_id, image=self._tk_image)
@@ -178,6 +192,7 @@ class ViewportCanvas(tk.Canvas):
 
             self.redraw()
 
+    # Same as above
     def scroll_y(self, *args):
         if self.full_image:
             canvas_h = self.winfo_height()

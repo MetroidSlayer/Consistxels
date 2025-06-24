@@ -1,16 +1,18 @@
 import tkinter as tk
-import gui_shared
 from tkinter import filedialog
-from gif_player import GifPlayer
 from PIL import Image
 
+import gui_shared
+from gif_player import GifPlayer
+
+# Menu containing buttons that navigate to other menus
 class Menu_MainMenu(tk.Frame):
     def __init__(self, master, change_menu_callback):
-        super().__init__(master)
+        super().__init__(master) # Initialize menu's tkinter widget
 
         self.configure(bg=gui_shared.bg_color) # Change bg color
 
-        # Gif player is put inside canvas to allow clipping when window is resized to be smaller than logo
+        # Canvas containing gif player. Exists to allow clipping when window is resized to be smaller than logo
         gif_player_canvas = tk.Canvas(self, bg=gui_shared.bg_color, highlightthickness=0)
         gif_player_canvas.pack(anchor="w", padx=(10,0), pady=(10,0), fill="x")
 
@@ -18,7 +20,7 @@ class Menu_MainMenu(tk.Frame):
         gif_player = GifPlayer(gif_player_canvas, "logo anim.gif", False, 100, 8, Image.Resampling.NEAREST, bg=gui_shared.bg_color)
         
         gif_player_canvas.config(height=gif_player.winfo_reqheight()) # Change height, because otherwise it's way too tall
-        gif_player_canvas.create_window((0, 0), window=gif_player, anchor="nw")
+        gif_player_canvas.create_window((0, 0), window=gif_player, anchor="nw") # Create window containing gif
 
         tk.Label(self, text="A tool for more consistent pixel art", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(anchor="w", padx=(30), pady=(0,10))
 
@@ -38,7 +40,7 @@ class Menu_MainMenu(tk.Frame):
         generate_sheet_data_frame = tk.Frame(content_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
         generate_sheet_data_frame.pack(padx=10, anchor="w", fill="x")
         
-        generate_sheet_data_frame.grid_columnconfigure(0, weight=3)
+        generate_sheet_data_frame.grid_columnconfigure(0, weight=3) # For consistent formatting
         generate_sheet_data_frame.grid_columnconfigure(1, weight=1)
 
         generate_sheet_data_buttons_frame = tk.Frame(generate_sheet_data_frame, bg=gui_shared.bg_color)

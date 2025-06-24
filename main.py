@@ -3,11 +3,13 @@ import threading
 import sys
 import json
 
-generate_process = None
-gui_process = None
-gui_has_focus = True
+# Global vars
+generate_process : subprocess.Popen = None
+gui_process : subprocess.Popen = None
+gui_has_focus : bool = True
 
 def main():
+    # Global var
     global gui_process
 
     # Start GUI process
@@ -25,8 +27,7 @@ def main():
     read_gui_stdout_thread = threading.Thread(target=read_gui_stdout, daemon=True)
     read_gui_stdout_thread.start()
 
-    # Join, so that main() does not end until GUI ends
-    read_gui_stdout_thread.join()
+    read_gui_stdout_thread.join() # Join, so that main() does not end until GUI ends
 
     cancel_generate_process(True) # Cancel any generations that are currently going on
 
@@ -46,6 +47,7 @@ def start_generate_process(temp_json_filepath):
 
 # Read GUI output
 def read_gui_stdout():
+    # Global vars
     global gui_process
     global gui_has_focus
 
@@ -88,6 +90,7 @@ def read_gui_stdout():
 
 # Read generation output
 def read_generate_stdout():
+    # Global vars
     global generate_process
     global gui_has_focus
 
@@ -102,16 +105,12 @@ def read_generate_stdout():
                 
                 match type:
                     case "update":
-                        # in order to have pretty-much-full speed while tabbed out, have some kind of polling or whatever that prevents updates (SPECIFICALLY updates)
-                        # from being processed while the window is tabbed out. will be tough, might not even help much. OR have polling to only process new stuff every
-                        # few milliseconds, instead of instantly, y'know how it is
                         if gui_has_focus: output_generate_progress(line, True)
                     case "error":
                         print(data.get("info_text", line))
                         output_generate_progress(line, True)
                         return
                     case "done":
-                        # print(line)
                         output_generate_progress(line, True)
                         return
                     case "print":
