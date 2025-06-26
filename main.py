@@ -1,12 +1,12 @@
-import subprocess
-import threading
 import sys
 import json
+import subprocess
+import threading
 
 # Global vars
-generate_process : subprocess.Popen = None
-gui_process : subprocess.Popen = None
-gui_has_focus : bool = True
+gui_process : subprocess.Popen = None # Process that handles the GUI
+generate_process : subprocess.Popen = None # Process that handes image/data generation
+gui_has_focus : bool = True # Based on output from gui_process, prevents updates from being sent to the GUI if the window is unfocused
 
 def main():
     # Global var
@@ -14,7 +14,7 @@ def main():
 
     # Start GUI process
     gui_process = subprocess.Popen(
-        [sys.executable, "-u", "gui.py"],
+        [sys.executable, "-u", "scripts/gui_main.py"],
         stdout=subprocess.PIPE,
         stdin=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -32,11 +32,12 @@ def main():
     cancel_generate_process(True) # Cancel any generations that are currently going on
 
 def start_generate_process(temp_json_filepath):
+    # Global var
     global generate_process
 
     # Start generation process, with temp_json_filepath (which contains generation details) as a parameter
     generate_process = subprocess.Popen(
-        [sys.executable, "-u", "generate_main.py", temp_json_filepath],
+        [sys.executable, "-u", "scripts/generate_main.py", temp_json_filepath],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
@@ -125,6 +126,7 @@ def read_generate_stdout():
             
 # Either send the GUI the generate process's progress, or just print it
 def output_generate_progress(line, use_gui_process = False):
+    # Global var
     global gui_process
     
     if use_gui_process and gui_process != None:
@@ -147,16 +149,15 @@ def output_generate_progress(line, use_gui_process = False):
 
 # Cancel the current generation process
 def cancel_generate_process(app_closing = False):
+    # Global var
     global generate_process
 
-    if generate_process != None:
+    if generate_process != None: # If there's a process, order it to close, then wait for it to close
         generate_process.terminate()
         generate_process.wait()
-    elif not app_closing:
-        # It's meant to try to cancel if it doesn't exist, but only if the app is closing.
-        # If the app is NOT closing, this can only run if a cancel button is pressed, and
-        # cancel buttons shouldn't be available at all if a process doesn't exist
+    elif not app_closing: # If there's not a process, but the user DELIBERATELY tried to cancel the process, something probably went wrong.
         print("Tried to cancel generate_process, but it does not exist")
 
+# Run main
 if __name__ == "__main__":
     main()

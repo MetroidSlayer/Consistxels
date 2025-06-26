@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import messagebox
 from PIL import Image
 
-from tooltip import ToolTip
+from classes.tooltip import ToolTip
 
 # Style info. Eventually, this will be modifiable by the user, probably
 bg_color = "#2e2e2e"

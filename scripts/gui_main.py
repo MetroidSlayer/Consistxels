@@ -7,12 +7,12 @@ import threading
 
 import tkinter as tk
 from tkinter import messagebox
-import gui_shared
 
-from menu_mainmenu import Menu_MainMenu
-from menu_layerselect import Menu_LayerSelect
-from menu_exportsheet import Menu_ExportSheet
-from menu_othertools import Menu_OtherTools
+import gui.gui_shared as gui_shared
+from gui.menu_mainmenu import Menu_MainMenu
+from gui.menu_layerselect import Menu_LayerSelect
+from gui.menu_exportsheet import Menu_ExportSheet
+from gui.menu_othertools import Menu_OtherTools
 
 # Class containing GUI
 class ConsistxelsApp(tk.Frame):

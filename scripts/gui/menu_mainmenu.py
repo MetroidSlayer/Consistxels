@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image
 
-import gui_shared
-from gif_player import GifPlayer
+import gui.gui_shared as gui_shared
+from classes.gif_player import GifPlayer
 
 # Menu containing buttons that navigate to other menus
 class Menu_MainMenu(tk.Frame):
@@ -17,7 +17,7 @@ class Menu_MainMenu(tk.Frame):
         gif_player_canvas.pack(anchor="w", padx=(10,0), pady=(10,0), fill="x")
 
         # Gif player containing logo, which is an animation
-        gif_player = GifPlayer(gif_player_canvas, "logo anim.gif", False, 100, 8, Image.Resampling.NEAREST, bg=gui_shared.bg_color)
+        gif_player = GifPlayer(gif_player_canvas, "resources/logo anim.gif", False, 100, 8, Image.Resampling.NEAREST, bg=gui_shared.bg_color)
         
         gif_player_canvas.config(height=gif_player.winfo_reqheight()) # Change height, because otherwise it's way too tall
         gif_player_canvas.create_window((0, 0), window=gif_player, anchor="nw") # Create window containing gif

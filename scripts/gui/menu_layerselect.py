@@ -7,10 +7,10 @@ import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox, ttk
 from PIL import Image, ImageTk, ImageColor
 
-from tooltip import ToolTip
-from viewport_canvas import ViewportCanvas
-import gui_shared
-from gui_shared import add_widget
+from classes.tooltip import ToolTip
+from classes.viewport_canvas import ViewportCanvas
+import gui.gui_shared as gui_shared
+from gui.gui_shared import add_widget
 from shared import consistxels_version
 
 # Menu for selecting layers and options in order to generate sprite sheet data

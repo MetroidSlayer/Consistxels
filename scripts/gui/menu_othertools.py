@@ -1,10 +1,10 @@
 import traceback
 import tkinter as tk
-import gui_shared
-from gui_shared import add_widget
 from tkinter import filedialog, messagebox
 
-from tooltip import ToolTip
+import gui.gui_shared as gui_shared
+from gui.gui_shared import add_widget
+from classes.tooltip import ToolTip
 
 from PIL import Image
 

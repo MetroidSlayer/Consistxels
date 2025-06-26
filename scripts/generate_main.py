@@ -3,7 +3,7 @@ import sys
 import json
 from datetime import datetime
 
-import generate
+import generate.generate as generate
 
 # Main function. Loads temporary json, starts specified generation
 def main():
