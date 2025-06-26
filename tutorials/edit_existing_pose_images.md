@@ -1,13 +1,13 @@
 # Editing existing pose images:
 
-_NOTE: if you **do not yet have pose data**, go to the "Generating pose data" section first._
+_NOTE: if you **do not yet have sprite sheet data**, go to the ["Generating new sprite sheet data" section](generate_new_sheet_data.md) first._
 
 ## Method 1:
 
 This method should be easy-to-understand, but I find it tedious and time-consuming.
 
 1. Open pose images in an external editor and make edits. (Depending on how many pose images there are, opening each individually can be VERY ANNOYING! If you find this tedious, try Method 2 instead. Future versions will have a better workflow.)
-2. In the Consistxels main menu, in the "Load & Export Sprite Sheet with Pose Data" section, load a pose data file (in .json format, generated beforehand).
+2. In the Consistxels main menu, in the "Load & Export Sprite Sheet with Data" section, load a sprite sheet data file (in .json format, generated beforehand).
 3. Select which layers you want to export, and whether you want them to be merged into a single image, or whether you'd prefer multiple individual layers.
 4. Select an output folder and export. Shouldn't take long at all. (Images will be named something like "export_{sprite sheet name}_{layer name, or just "sheet" if it's all merged into one}")
 
@@ -17,7 +17,7 @@ From here, check the exported image, if you want - every single instance of the 
 
 This method is faster and lets you update many pose images at once! ...But at the moment, it's kinda unintuitive. I'll work on that.
 
-1. In the Consistxels main menu, in the "Load & Export Sprite Sheet with Pose Data" section, load a pose data file (in .json format, generated beforehand).
+1. In the Consistxels main menu, in the "Load & Export Sprite Sheet with Data" section, load a sprite sheet data file (in .json format, generated beforehand).
 2. Select the layers you want to export, and select the "Individual layer image(s)" export type.
 3. Select the "Only show unique pose images" checkbox.
 4. Select an output folder and export.

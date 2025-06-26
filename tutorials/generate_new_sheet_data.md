@@ -1,6 +1,6 @@
-# Generating new pose data:
+# Generating new sprite sheet data:
 
-_NOTE: if you **already have pose data**, you can skip this section completely! This only matters if you want to make edits to a fully- or mostly-completed sprite sheet that does not yet have pose data._
+_NOTE: if you **already have sprite sheet data**, you can [skip this section completely](edit_existing_pose_images.md)! This only matters if you want to make edits to a fully- or mostly-completed sprite sheet that does not yet have sprite sheet data._
 
 1. **Format your sprite sheet**
     - Go through your sprite sheet, ensuring that every pose is separate, and every limb (or whatever your character has) is actually identical to every other limb like it. Even the smallest, most minute differences will cause the program to identify them as completely different pose images. If possible, remove such differences; if doing so would change the art in any meaningful way, and you want to avoid doing that, you'll just have to deal with needing to edit multiple similar-looking pose images later.
@@ -9,7 +9,7 @@ _NOTE: if you **already have pose data**, you can skip this section completely! 
     - If the sprite sheet _doesn't_ have a border, that's okay - if all sprites are spaced evenly in a grid, they can still be searched.
 
 2. **Select layers**
-    - In Consistxels, navigate to the "Generate Pose Data" menu.
+    - In Consistxels, navigate to the "Generate Sprite Sheet Data" menu.
     - Look at the left side of the window. Add your images as layers.
         - Choose name, folder, etc. Some of this info may autofill.
         - Unless you already have a second, updated spritesheet, you can completely ignore the "Source img" part of each layer.
@@ -24,7 +24,7 @@ _NOTE: if you **already have pose data**, you can skip this section completely! 
     - Select the search type:
         - *Border:* Searches a border image for boxes that contain poses. When selected, a border layer will be automatically created. Add a valid image, with *perfectly rectangular* pose boxes.
         - *Spacing:* Poses are assumed to be spaced out equally from each other.
-        - *Preset:* Use a valid .json file that contains pose data (i.e., one generated with the "Generate Pose Data..." button) to search for poses in already-known locations. *(You likely won't have such a file yet. In the next update, you'll be able to create them manually in another menu.)*
+        - *Preset:* Use a valid .json file that contains pose locations (i.e., one generated with the "Generate Sheet Data..." button) to search for poses in already-known locations. *(You likely won't have such a file yet. In the next update, you'll be able to create them manually in another menu.)*
     - For your selected search type, fill out the appropriate information. If you select Border, remember that you have to add the image yourself on the left side of the window.
     - Select miscellaneous options:
         - *Start search-in-center:* For each row of the sprite sheet, the middle of the image will be searched, then move rightward until it reaches the edge, at which point it'll return to the center and move leftward.
@@ -43,11 +43,7 @@ _NOTE: if you **already have pose data**, you can skip this section completely! 
         - Generation will almost definitely take longer if you have an older device, but that's a given.
         - You MIGHT notice, like, a 1-second performance dip if you don't keep the window open and in the foreground the entire time. PLEASE tell me if you notice anything more than that, I should be able to do something about it.
 
-**All done!** Now that you have your pose images, you can start editing them.
-
-## Generating updated pose data:
-
-Gonna need to work on this description. In case I don't get to it, it's basically the same process, but you should load a .json file either from a previous generation or from a previous session that was saved manually. From here, you can fiddle with stuff some more if you were dissatisfied with the search method or the padding amount or something.
+**All done!** Now that you have your pose images, you can [start editing them](edit_existing_pose_images.md).
 
 #
 [Back](tutorial_intro.md)
