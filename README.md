@@ -15,7 +15,7 @@ This program _should_ work for any given sprite sheet as long as it's formatted 
 
 ### What it can do:
 - Find poses on a sprite sheet, either by looking for pose boxes on a border, or by searching set spaces in a uniform pattern
-- Save discovered pose data to one .json file, and save pose images to many, many individual .png files
+- Save sprite sheet data to one .json file, and save pose images to many, many individual .png files
 - Update every instance of a given pose once the relevant pose image has been modified
 - Export .png files containing layers with updated poses
 - Export .png files containing layers with only _unique_ poses - useful for modifying and updating multiple pose images at once
@@ -26,7 +26,7 @@ This program _should_ work for any given sprite sheet as long as it's formatted 
 
 ## Future planned functionality:
 - Currently, common multi-layer filetypes (i.e. .tiff, .psd, .aseprite) are not supported, so you'll need to export each layer as its own image, which is a bit clunky and time-consuming. Next update, you should be able to:
-    - Import multi-layered files when searching for pose data
+    - Import multi-layered files when preparing to generate sprite sheet data
     - Export updated layers to multi-layered filetypes
 - All generated poses and images have automatically-generated names, and at the moment, renaming any of these will usually break things. Next update will feature a way to rename poses and images, as well as add layers and poses manually post-generation. This should ease clarity when either opening images for editing or sharing generated data with others.
 - Not every sprite sheet has even spacing or a perfect border. Next update will feature a way to select poses on a sprite sheet manually, allowing images to be searched no matter how they're formatted. Support for irregularly-sized pose boxes during border searches will also happen at some point.

@@ -30,3 +30,6 @@ This method is faster and lets you update many pose images at once! ...But at th
 11. Export one last time.
 
 Once again, every single instance of the modified pose images should be updated, with the same caveat as before.
+
+#
+[Back](tutorial_intro.md)

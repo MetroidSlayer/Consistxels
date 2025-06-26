@@ -48,3 +48,6 @@ _NOTE: if you **already have pose data**, you can skip this section completely! 
 ## Generating updated pose data:
 
 Gonna need to work on this description. In case I don't get to it, it's basically the same process, but you should load a .json file either from a previous generation or from a previous session that was saved manually. From here, you can fiddle with stuff some more if you were dissatisfied with the search method or the padding amount or something.
+
+#
+[Back](tutorial_intro.md)
