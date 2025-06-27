@@ -1,6 +1,8 @@
 # Generating new sprite sheet data:
 
-_NOTE: if you **already have sprite sheet data**, you can [skip this section completely](edit_existing_pose_images.md)! This only matters if you want to make edits to a fully- or mostly-completed sprite sheet that does not yet have sprite sheet data._
+_NOTE: if you **already have sprite sheet data**, you can skip this section completely! This only matters if you want to make edits to a fully- or mostly-completed sprite sheet that does not yet have sprite sheet data._
+
+[Video demonstration here](https://youtu.be/fnl0EclJATg)
 
 1. **Format your sprite sheet**
     - Go through your sprite sheet, ensuring that every pose is separate, and every limb (or whatever your character has) is actually identical to every other limb like it. Even the smallest, most minute differences will cause the program to identify them as completely different pose images. If possible, remove such differences; if doing so would change the art in any meaningful way, and you want to avoid doing that, you'll just have to deal with needing to edit multiple similar-looking pose images later.
@@ -39,7 +41,7 @@ _NOTE: if you **already have sprite sheet data**, you can [skip this section com
     - Select an output folder. (WARNING: You should probably create a new folder to export into! Depending on your sprite sheet, there might be a LOT of pose images, and you don't want to clutter up your files. Additionally, keep in mind that this process WILL overwrite any .json data or pose images from previous generations!!! Sometimes, that's actually want you *want*, though, like if the previous generation went wrong.)
     - Press the "Generate" button to begin generation.
         - This can be cancelled at any time.
-        - It will take a noticeable amount of time to complete, but not too long - on my device, when generating data for a sprite sheet with ~650 poses, ~700 pose images, and ~10 layers, generation takes 36 seconds consistently.
+        - It will take a noticeable amount of time to complete, but not too long - on my device, when generating data for a sprite sheet with ~650 poses, ~700 pose images, and ~10 layers, generation takes around 35 seconds on average.
         - Generation will almost definitely take longer if you have an older device, but that's a given.
         - You MIGHT notice, like, a 1-second performance dip if you don't keep the window open and in the foreground the entire time. PLEASE tell me if you notice anything more than that, I should be able to do something about it.
 

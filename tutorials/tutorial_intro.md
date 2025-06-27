@@ -8,4 +8,4 @@ I've found it difficult to actually explain what this thing does or why you shou
 [Generating new sprite sheet data](generate_new_sheet_data.md)
 
 ## Video demonstrations
-(YouTube playlist)
+[Playlist](https://www.youtube.com/playlist?list=PLUqkVRqogXgFU8ffQ7MntZ9ZZrrjmF5MM)
