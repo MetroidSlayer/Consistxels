@@ -633,61 +633,65 @@ def generate_layer_data(input_layer_data):
 # Compare images. Return whether the two images are identical; if they are, also return image's flip and rotation relative to compare_to
 # Return vals: is_unique, is_flipped, rotation_amount
 def compare_images(image : Image.Image, compare_to : Image.Image, detect_identical_images = True, detect_rotated_images = True, detect_flip_h_images = True, detect_flip_v_images = False):
-    if detect_identical_images and image.tobytes() == compare_to.tobytes(): # the image is already stored; move on
-        return False, False, 0
+    if detect_identical_images and image.tobytes() == compare_to.tobytes(): # If the images have identical bytes:
+        # .tobytes() comparisons can give false positives if the compared images have identical pixels but are different sizes. This prevents such situations.
+        if image.size == compare_to.size:
+            return False, False, 0 # Images are identical, so this image is already stored
 
     # Declared here to remain in-scope later. A bit clunky, but ehh
     flip_h = None
 
     if detect_flip_h_images:
-        # prepare a flipped version of the img, since it'll commonly be an already-stored img, and it's in a lotta checks
+        # Prepare a flipped version of the img, since it'll commonly be an already-stored img, and it's in a lotta checks
         flip_h = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        if flip_h.tobytes() == compare_to.tobytes(): # the flipped image is already stored; move on
-            return False, True, 0
+        if flip_h.tobytes() == compare_to.tobytes():
+            if flip_h.size == compare_to.size:
+                return False, True, 0 # Images are identical, so this image is already stored
 
-    if detect_rotated_images:                    
-        # rotate normal image 90 degrees
-        if image.transpose(Image.Transpose.ROTATE_90).tobytes() == compare_to.tobytes():
-            return False, False, 1
+    if detect_rotated_images:
+        # Rotate normal image 90 degrees
+        rotated_image = image.transpose(Image.Transpose.ROTATE_90)
+        if rotated_image.tobytes() == compare_to.tobytes():
+            if rotated_image.size == compare_to.size:
+                return False, False, 1 # Images are identical, so this image is already stored
 
-        # rotate normal image 180 degrees
-        if image.transpose(Image.Transpose.ROTATE_180).tobytes() == compare_to.tobytes():
-            return False, False, 2
+        # Rotate normal image 180 degrees
+        rotated_image = image.transpose(Image.Transpose.ROTATE_180)
+        if rotated_image.tobytes() == compare_to.tobytes():
+            if rotated_image.size == compare_to.size:
+                return False, False, 2 # Images are identical, so this image is already stored
 
-        # rotate normal image 270 degrees
-        if image.transpose(Image.Transpose.ROTATE_270).tobytes() == compare_to.tobytes():
-            return False, False, 3
+        # Rotate normal image 270 degrees
+        rotated_image = image.transpose(Image.Transpose.ROTATE_270)
+        if rotated_image.tobytes() == compare_to.tobytes():
+            if rotated_image.size == compare_to.size:
+                return False, False, 3 # Images are identical, so this image is already stored
 
     if detect_flip_h_images and detect_rotated_images:
-        # rotate flipped image 270 degrees (i.e. -90 degrees, 'cause it's flipped)
-        if flip_h.transpose(Image.Transpose.ROTATE_270).tobytes() == compare_to.tobytes():
-            return False, True, 3
+        # Rotate flipped image 270 degrees (i.e. -90 degrees, 'cause it's flipped)
+        rotated_image = image.transpose(Image.Transpose.ROTATE_270)
+        if rotated_image.tobytes() == compare_to.tobytes():
+            if rotated_image.size == compare_to.size:
+                return False, True, 3 # Images are identical, so this image is already stored
 
-        # rotate flipped image 180 degrees
-        if flip_h.transpose(Image.Transpose.ROTATE_180).tobytes() == compare_to.tobytes():
-            return False, True, 2
+        # Rotate flipped image 180 degrees
+        rotated_image = image.transpose(Image.Transpose.ROTATE_180)
+        if rotated_image.tobytes() == compare_to.tobytes():
+            if rotated_image.size == compare_to.size:
+                return False, True, 2 # Images are identical, so this image is already stored
 
-        # rotate flipped image 90 degrees (i.e. -270 degrees, 'cause it's flipped)
-        if flip_h.transpose(Image.Transpose.ROTATE_90).tobytes() == compare_to.tobytes():
-            return False, True, 1
-
+        # Rotate flipped image 90 degrees (i.e. -270 degrees, 'cause it's flipped)
+        rotated_image = image.transpose(Image.Transpose.ROTATE_90)
+        if rotated_image.tobytes() == compare_to.tobytes():
+            if rotated_image.size == compare_to.size:
+                return False, True, 1 # Images are identical, so this image is already stored
+        
     elif detect_flip_v_images:
+        # Like flip_h, but just add 2 to rotation (180 degrees)
         flip_v = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-        if flip_v.tobytes() == compare_to.tobytes(): # the flipped image is already stored; move on
-            return False, True, 2 # like flip_h, but just add 2 to rotation (180 degrees) & flip back around if necessary (4 = 0, 5 = 1)
-
-        if detect_rotated_images:
-            # rotate flipped image 270 degrees (i.e. -90 degrees, 'cause it's flipped)
-            if flip_v.transpose(Image.Transpose.ROTATE_270).tobytes() == compare_to.tobytes():
-                return False, True, 1 # so, in total, rotate 270 + 180 = 90 degrees
-
-            # rotate flipped image 180 degrees
-            if flip_v.transpose(Image.Transpose.ROTATE_180).tobytes() == compare_to.tobytes():
-                return False, True, 0 # so, in total, rotate 180 + 180 = 0 degrees
-
-            # rotate flipped image 90 degrees (i.e. -270 degrees, 'cause it's flipped)
-            if flip_v.transpose(Image.Transpose.ROTATE_90).tobytes() == compare_to.tobytes():
-                return False, True, 3 # so, in total, rotate 90 + 180 = 270 degrees
+        if flip_v.tobytes() == compare_to.tobytes():
+            if flip_v.size == compare_to.size():
+                return False, True, 2 # Images are identical, so this image is already stored
     
     # Getting here doesn't mean the image IS unique OVERALL - it still likely has to check against many more images
     return True, False, 0

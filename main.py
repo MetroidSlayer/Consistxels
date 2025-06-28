@@ -8,6 +8,7 @@ gui_process : subprocess.Popen = None # Process that handles the GUI
 generate_process : subprocess.Popen = None # Process that handes image/data generation
 gui_has_focus : bool = True # Based on output from gui_process, prevents updates from being sent to the GUI if the window is unfocused
 
+# Main function. Starts the GUI process and the listener thread
 def main():
     # Global var
     global gui_process
@@ -31,6 +32,7 @@ def main():
 
     cancel_generate_process(True) # Cancel any generations that are currently going on
 
+# Start the generate process
 def start_generate_process(temp_json_filepath):
     # Global var
     global generate_process
