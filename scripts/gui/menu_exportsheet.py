@@ -151,6 +151,8 @@ class Menu_ExportSheet(tk.Frame):
 
             self.last_export_type = curr_export_type
 
+            self.check_reset_progress()
+
         # Export type radio buttons
 
         radio_single = tk.Radiobutton(export_options_frame, text="Single merged image", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=0, command=check_update_layer_list)
@@ -168,7 +170,7 @@ class Menu_ExportSheet(tk.Frame):
         # Controls whether only unique images are exported. Does not work for single image or update pose images
         self.unique_pose_images_only = tk.BooleanVar()
         self.unique_pose_images_only_checkbutton = tk.Checkbutton(export_options_frame, text="Only show unique pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color,
-            selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.unique_pose_images_only, state="disabled")
+            selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.unique_pose_images_only, state="disabled", command=self.check_reset_progress)
         self.unique_pose_images_only_checkbutton.pack(anchor="w", padx=10, pady=10)
         ToolTip(self.unique_pose_images_only_checkbutton,"""Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Sprite Sheet Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
 
@@ -195,6 +197,8 @@ class Menu_ExportSheet(tk.Frame):
             
             if (path and ((not os.listdir(path)) or gui_shared.warn_overwrite())):
                 self.output_folder_path.set(path)
+
+                self.check_reset_progress()
 
         self.output_folder_button = tk.Button(output_path_frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_output_folder_path)
         self.output_folder_button.pack(side="left", padx=10, pady=10)
@@ -253,6 +257,8 @@ class Menu_ExportSheet(tk.Frame):
             for var in self.layer_list:
                 var.set(all_checkbutton_var.get())
 
+            self.check_reset_progress()
+
         # ALL checkbutton selectcolors are now field_bg, as it probably looks better. but CONSIDER changing it back to button_bg
         all_checkbutton = tk.Checkbutton(all_checkbutton_frame, text=f"ALL", bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=all_checkbutton_var, command=set_all)
         all_checkbutton.pack(side="left", padx=10, pady=10)
@@ -274,6 +280,8 @@ class Menu_ExportSheet(tk.Frame):
             # (Just to make it more satisfying, maybe make it also update the ALL checkbutton if layers are enabled manually? idk not necessary)
             def update_deselect(var=checkbutton_var):
                 if not var.get(): all_checkbutton_var.set(False)
+
+                self.check_reset_progress()
             
             checkbutton = tk.Checkbutton(checkbutton_frame, text=f"{i+1}: {layer["name"]}", bg=gui_shared.secondary_bg if i % 2 else gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=checkbutton_var, command=update_deselect)
             checkbutton.pack(side="left", padx=10, pady=10)
@@ -334,6 +342,7 @@ class Menu_ExportSheet(tk.Frame):
                             return
                     
                     var.set(path) # Set tk.StringVar() to path
+                    self.check_reset_progress()
 
             output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
             output_folder_button.pack(side="left", padx=10, pady=10)
@@ -386,7 +395,9 @@ class Menu_ExportSheet(tk.Frame):
                     self.draw_layer_entries()
                 else:
                     self.draw_layer_checkbuttons()
-    
+            
+            self.check_reset_progress()
+
     # Generate button (export button, actually) has been pressed, so communicate that to main process and provide generation info
     def generate_button_pressed(self):
 
@@ -465,3 +476,9 @@ class Menu_ExportSheet(tk.Frame):
         self.load_button.configure(state="normal")
         self.back_button.configure(state="normal")
         self.cancel_button.configure(state="disabled")
+    
+    # After an export, sometimes another export is in order. However, because the progress bar remains filled, I often get confused about
+    # what I'm supposed to be doing.
+    def check_reset_progress(self):
+        if self.back_button.cget('state') == 'normal':
+            self.update_progress(0, "", "")

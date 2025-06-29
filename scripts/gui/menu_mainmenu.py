@@ -17,7 +17,7 @@ class Menu_MainMenu(tk.Frame):
         gif_player_canvas.pack(anchor="w", padx=(10,0), pady=(10,0), fill="x")
 
         # Gif player containing logo, which is an animation
-        gif_player = GifPlayer(gif_player_canvas, "resources/logo anim.gif", False, 100, 8, Image.Resampling.NEAREST, bg=gui_shared.bg_color)
+        gif_player = GifPlayer(gif_player_canvas, "resources/logo_anim.gif", False, 100, 8, Image.Resampling.NEAREST, bg=gui_shared.bg_color)
         
         gif_player_canvas.config(height=gif_player.winfo_reqheight()) # Change height, because otherwise it's way too tall
         gif_player_canvas.create_window((0, 0), window=gif_player, anchor="nw") # Create window containing gif
@@ -92,7 +92,7 @@ class Menu_MainMenu(tk.Frame):
         other_tools_buttons_frame = tk.Frame(other_tools_frame, bg=gui_shared.bg_color)
         other_tools_buttons_frame.grid(row=0, column=0, sticky="EW")
 
-        tk.Button(other_tools_buttons_frame, text="Other Tools", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
+        tk.Button(other_tools_buttons_frame, text="Other tools", bg=gui_shared.button_bg, fg=gui_shared.fg_color,
                   command=lambda: change_menu_callback("OtherTools")).pack(padx=10, pady=10, fill="x", expand=True)
         
         other_tools_description_frame = tk.Frame(other_tools_frame, bg=gui_shared.bg_color)

@@ -298,7 +298,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 # We already opened the layer images provided, so that we don't have to open and close them every time
 
                 # Get the full image inside the pose box for this layer. "Unbound" because it still has empty space at the edges
-                unbound_image = layer_search_images[layer_index].crop(pose_box)
+                unbound_image : Image.Image = layer_search_images[layer_index].crop(pose_box)
 
                 # The rectangle inside the image that actually contains a sprite (everything outside the bbox is just transparent pixels)
                 bbox = unbound_image.getbbox()
@@ -325,7 +325,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                             # a copy, right? Is that bad? I have no idea. I was using a method where I stored the actual images before, so I could definitely
                             # switch back if necessary. The switch was made because generate_pose_data() does not need to *export* images, so I figured it
                             # didn't need to work with them as directly in general.
-                            compare_to = layer_search_images[image_prep["original_layer_index"]].crop((
+                            compare_to : Image.Image = layer_search_images[image_prep["original_layer_index"]].crop((
                                 image_prep["original_pose_location"]["x_position"],
                                 image_prep["original_pose_location"]["y_position"],
                                 image_prep["original_pose_location"]["width"] + image_prep["original_pose_location"]["x_position"],
@@ -586,6 +586,8 @@ def generate_layer_data(input_layer_data):
     search_images = []
     source_images = []
     
+    number_of_characters = len(str(len(input_layer_data)))
+
     # Check every single layer for search and source image paths, and format them according to the layer's settings
     for i, layer in enumerate(input_layer_data): # Could probably do most of this better
         search_image_path = None
@@ -595,13 +597,13 @@ def generate_layer_data(input_layer_data):
 
             if layer["search_image_path"]:
                 search_image_path = (
-                    f"""layer{i + 1}_{(f'''{(
+                    f"""layer{str(i + 1).rjust(number_of_characters, '0')}_{(f'''{(
                         'border' if layer.get('is_border') else (
                         f"{layer['name']}_original{(
                             '_cosmetic_layer' if layer.get('is_cosmetic_only') else ('_search' if layer.get('source_image_path') else '')
                         )}")
                     )}''')}_image_copy.png"""
-                ) # TODO TEST
+                )
 
                 with Image.open(layer["search_image_path"]) as search_image:
                     search_images.append(search_image.copy())
@@ -609,7 +611,7 @@ def generate_layer_data(input_layer_data):
             else:
                 search_images.append(None)
             if layer["source_image_path"]:
-                source_image_path = f"layer{i + 1}_{layer['name']}_original_source_image_copy.png"
+                source_image_path = f"layer{str(i + 1).rjust(number_of_characters, '0')}_{layer['name']}_original_source_image_copy.png"
 
                 with Image.open(layer["source_image_path"]) as source_image:
                     source_images.append(source_image.copy())
@@ -669,19 +671,19 @@ def compare_images(image : Image.Image, compare_to : Image.Image, detect_identic
 
     if detect_flip_h_images and detect_rotated_images:
         # Rotate flipped image 270 degrees (i.e. -90 degrees, 'cause it's flipped)
-        rotated_image = image.transpose(Image.Transpose.ROTATE_270)
+        rotated_image = flip_h.transpose(Image.Transpose.ROTATE_270)
         if rotated_image.tobytes() == compare_to.tobytes():
             if rotated_image.size == compare_to.size:
                 return False, True, 3 # Images are identical, so this image is already stored
 
         # Rotate flipped image 180 degrees
-        rotated_image = image.transpose(Image.Transpose.ROTATE_180)
+        rotated_image = flip_h.transpose(Image.Transpose.ROTATE_180)
         if rotated_image.tobytes() == compare_to.tobytes():
             if rotated_image.size == compare_to.size:
                 return False, True, 2 # Images are identical, so this image is already stored
 
         # Rotate flipped image 90 degrees (i.e. -270 degrees, 'cause it's flipped)
-        rotated_image = image.transpose(Image.Transpose.ROTATE_90)
+        rotated_image = flip_h.transpose(Image.Transpose.ROTATE_90)
         if rotated_image.tobytes() == compare_to.tobytes():
             if rotated_image.size == compare_to.size:
                 return False, True, 1 # Images are identical, so this image is already stored
@@ -714,8 +716,8 @@ def generate_sheet_image(selected_layers, data, input_folder_path, output_folder
     for layer_image in reversed(layer_images):
         sheet_image.alpha_composite(layer_image)
 
-    # TODO need to ask if want to overwrite somewhere # I THINK i did this??? like, warn_image_overwrite or whatever in gui_shared? idk, i need to be more consistent with those kinds of functions
-    sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png"))
+    # sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png")) # changing how filenames are formatted at the last second, hopefully it's fine. i do like it better this way
+    sheet_image.save(os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.png"))
 
 # Generate an image for each selected layer
 def generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path):
@@ -728,9 +730,12 @@ def generate_layer_images(selected_layers, unique_only, data, input_folder_path,
         input_folder_path
     )
 
+    number_of_characters = len(str(len(layer_images)))
+
     for i, layer_image in enumerate(layer_images):
         if i in selected_layers:
-            path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
+            # path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
+            path = (f"{data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{data["layer_data"][i]["name"]}_export.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
             layer_image.save(os.path.join(output_folder_path, path))
 
 # Not implemented yet
@@ -744,6 +749,8 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
     image_placement_data = []
     for _ in range(len(image_data)):
         image_placement_data.append([])
+    
+    curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
 
     # Look through all poses for limbs; add the pose's position/size to each limb's referenced image index
     for pose_index, pose in enumerate(pose_data):
@@ -768,6 +775,12 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
                         "flip_h": limb["flip_h"],
                         "rotation_amount": limb["rotation_amount"]
                     })
+        
+        # For updating progress bar. To prevent being called constantly, does a little math
+        new_percent = math.floor((pose_index / len(pose_data)) * 100)
+        if new_percent > curr_percent:
+            curr_percent = new_percent
+            update_progress("update", new_percent, "Formatting...", f"Poses formatted: {pose_index + 1}/{len(pose_data)}")
 
     # dawning on me that we can check for original pose index if we simply look through pose data for the first instance. we're kinda doing that anyway. think abt this
     return image_placement_data
@@ -819,7 +832,9 @@ def generate_updated_pose_images(new_image_paths, data, input_folder_path):
             with Image.open(new_image_path) as new_layer_image:
                 new_layer_images[i] = new_layer_image.copy()
 
-    for image_datum in data["image_data"]:
+    curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
+
+    for i, image_datum in enumerate(data["image_data"]):
 
         layer_index = image_datum["original_layer_index"]
         if new_layer_images[layer_index] != None:
@@ -842,6 +857,12 @@ def generate_updated_pose_images(new_image_paths, data, input_folder_path):
             generate_image_from_source_layer(
                 new_layer_images[image_datum["original_layer_index"]], pose_box, size, offset
             ).save(os.path.join(input_folder_path, image_datum["path"]))
+
+        # For updating progress bar. To prevent being called constantly, does a little math
+        new_percent = math.floor((i / len(data["image_data"])) * 100)
+        if new_percent > curr_percent:
+            curr_percent = new_percent
+            update_progress("update", new_percent, "Updating pose images...", f"({i + 1}/{len(data['image_data'])})")
 
 # Given the search settings, calculate the range or ranges to search.
 def get_x_range(start = 0, end = 10, start_search_in_center = False, search_right_to_left = False, edge_offset = 0): # edge_offset modifies the end value without changing the original midpoint

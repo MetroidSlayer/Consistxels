@@ -856,7 +856,10 @@ class Menu_LayerSelect(tk.Frame):
         def pick_search_image(entry=data, entry_widget=search_entry):
             new_path = filedialog.askopenfilename(title="Select an image for this layer", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
             if new_path and gui_shared.warn_image_valid(new_path):
-                entry_widget.delete(0, tk.END)
+                if entry_widget.get():
+                    # Ran into weird error relating to this line, so into an if statement it goes. No idea if this helps
+                    entry_widget.delete(0, tk.END)
+                
                 entry_widget.insert(0, new_path)
                 save_search_image(entry=entry, entry_widget=entry_widget)
 
@@ -889,7 +892,8 @@ class Menu_LayerSelect(tk.Frame):
             def pick_source_image(entry=data, entry_widget=source_entry):
                 new_path = filedialog.askopenfilename(title="Select an image for this layer", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
                 if new_path and gui_shared.warn_image_valid(new_path):
-                    entry_widget.delete(0, tk.END)
+                    if entry_widget.get():
+                        entry_widget.delete(0, tk.END)
                     entry_widget.insert(0, new_path)
                     save_source_image(entry=entry, entry_widget=entry_widget)
             
@@ -1001,8 +1005,7 @@ class Menu_LayerSelect(tk.Frame):
                 messagebox.showwarning("Warning!", "At least one image is invalid. Check that they exist and are the correct filetype.")
                 return
 
-        if self.image_size == None: # Get the image size
-            self.force_get_image_size()
+        self.force_get_image_size() # Get the image size, even if one already exists, as the size may have changed.
 
         if not (gui_shared.warn_image_sizes(["Search image", "Source image"], # If the images are different sizes, warn the user and do not continue
             [
@@ -1379,6 +1382,9 @@ class Menu_LayerSelect(tk.Frame):
     def set_unsaved_changes(self, new_unsaved_changes = True):
         self.back_button.config(fg=(gui_shared.danger_fg if new_unsaved_changes else gui_shared.fg_color))
         self.set_unsaved_changes_callback(new_unsaved_changes)
+
+        if new_unsaved_changes and self.back_button.cget('state') == 'normal':
+            self.update_progress(0, "", "")
 
     # Called by gui.py
     def save_changes(self):

@@ -16,11 +16,8 @@ def main():
     # Start GUI process
     gui_process = subprocess.Popen(
         [sys.executable, "-u", "scripts/gui_main.py"],
-        stdout=subprocess.PIPE,
-        stdin=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=1,
-        universal_newlines=True,
+        stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT,
+        universal_newlines=True, bufsize=1,
         creationflags=subprocess.DETACHED_PROCESS
     )
 
@@ -41,7 +38,7 @@ def start_generate_process(temp_json_filepath):
     generate_process = subprocess.Popen(
         [sys.executable, "-u", "scripts/generate_main.py", temp_json_filepath],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True,
+        universal_newlines=True, bufsize=1,
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
     )
 

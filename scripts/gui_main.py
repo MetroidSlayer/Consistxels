@@ -24,6 +24,9 @@ class ConsistxelsApp(tk.Frame):
         root.geometry("1680x968") # Window size
         root.configure(bg=gui_shared.bg_color) # BG color
 
+        # Set window icon
+        root.iconbitmap("resources/consistxels_icon.ico")
+
         # Main container 
         self.container = tk.Frame(self, bg=gui_shared.bg_color) # TEST! didn't need bg= before? not sure why
         self.container.pack(fill="both", expand=True)
