@@ -1,5 +1,5 @@
 import tkinter as tk
-import gui.gui_shared as gui_shared
+import scripts.gui.gui_shared as gui_shared
 
 # A tooltip that shows up by the mouse cursor after a specified amount of time.
 class ToolTip:

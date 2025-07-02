@@ -6,7 +6,7 @@ import traceback
 from PIL import Image, ImageColor
 from itertools import chain
 
-from shared import consistxels_version
+from scripts.shared import consistxels_version
 
 # Output progress to main process
 def update_progress(type="update", value = None, header_text = None, info_text = None):

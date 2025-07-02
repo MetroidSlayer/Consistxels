@@ -2,9 +2,9 @@ import traceback
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-import gui.gui_shared as gui_shared
-from gui.gui_shared import add_widget
-from classes.tooltip import ToolTip
+import scripts.gui.gui_shared as gui_shared
+from scripts.gui.gui_shared import add_widget
+from scripts.classes.tooltip import ToolTip
 
 from PIL import Image
 

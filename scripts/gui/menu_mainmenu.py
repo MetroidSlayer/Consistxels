@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image
 
-import gui.gui_shared as gui_shared
-from classes.gif_player import GifPlayer
+import scripts.gui.gui_shared as gui_shared
+from scripts.classes.gif_player import GifPlayer
 
 # Menu containing buttons that navigate to other menus
 class Menu_MainMenu(tk.Frame):

@@ -2,6 +2,7 @@ import sys
 import json
 import subprocess
 import threading
+import runpy
 
 # Global vars
 gui_process : subprocess.Popen = None # Process that handles the GUI
@@ -14,12 +15,20 @@ def main():
     global gui_process
 
     # Start GUI process
-    gui_process = subprocess.Popen(
-        [sys.executable, "-u", "scripts/gui_main.py"],
-        stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT,
-        universal_newlines=True, bufsize=1,
-        creationflags=subprocess.DETACHED_PROCESS
-    )
+    if not getattr(sys, 'frozen', False): # If running from script:
+        gui_process = subprocess.Popen(
+            [sys.executable, "-m", "scripts.gui_main"],
+            stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT,
+            universal_newlines=True, bufsize=1,
+            creationflags=subprocess.DETACHED_PROCESS
+        )
+    else: # If running from .exe:
+        gui_process = subprocess.Popen(
+            [sys.executable, "--run-gui"],
+            stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT,
+            universal_newlines=True, bufsize=1,
+            creationflags=subprocess.DETACHED_PROCESS
+        )
 
     # Start thread for reading GUI output
     read_gui_stdout_thread = threading.Thread(target=read_gui_stdout, daemon=True)
@@ -34,13 +43,20 @@ def start_generate_process(temp_json_filepath):
     # Global var
     global generate_process
 
-    # Start generation process, with temp_json_filepath (which contains generation details) as a parameter
-    generate_process = subprocess.Popen(
-        [sys.executable, "-u", "scripts/generate_main.py", temp_json_filepath],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        universal_newlines=True, bufsize=1,
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-    )
+    if not getattr(sys, 'frozen', False): # If running from script:
+        generate_process = subprocess.Popen(
+            [sys.executable, "-m", "scripts.generate_main", temp_json_filepath],
+            stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT,
+            universal_newlines=True, bufsize=1,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        )
+    else: # If running from .exe:
+        generate_process = subprocess.Popen(
+            [sys.executable, "--run-generate", temp_json_filepath],
+            stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT,
+            universal_newlines=True, bufsize=1,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+        )
 
     # Start thread from reading generation output
     threading.Thread(target=read_generate_stdout, daemon=True).start()
@@ -159,4 +175,11 @@ def cancel_generate_process(app_closing = False):
 
 # Run main
 if __name__ == "__main__":
-    main()
+    # In order for the .exe to work, it has to call itself. This ensures that the created processes actually end up doing the correct thing,
+    # rather than just running main() again.
+    if "--run-gui" in sys.argv:
+        runpy.run_module("scripts.gui_main", run_name="__main__")
+    elif "--run-generate" in sys.argv:
+        runpy.run_module("scripts.generate_main", run_name="__main__")
+    else:
+        main()

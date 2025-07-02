@@ -8,11 +8,13 @@ import threading
 import tkinter as tk
 from tkinter import messagebox
 
-import gui.gui_shared as gui_shared
-from gui.menu_mainmenu import Menu_MainMenu
-from gui.menu_layerselect import Menu_LayerSelect
-from gui.menu_exportsheet import Menu_ExportSheet
-from gui.menu_othertools import Menu_OtherTools
+import scripts.gui.gui_shared as gui_shared
+from scripts.gui.menu_mainmenu import Menu_MainMenu
+from scripts.gui.menu_layerselect import Menu_LayerSelect
+from scripts.gui.menu_exportsheet import Menu_ExportSheet
+from scripts.gui.menu_othertools import Menu_OtherTools
+
+from scripts.shared import consistxels_version
 
 # Class containing GUI
 class ConsistxelsApp(tk.Frame):
@@ -20,7 +22,7 @@ class ConsistxelsApp(tk.Frame):
         super().__init__() # Initialize window's tkinter widget
         
         # Set window attributes
-        root.title("Consistxels") # Title
+        root.title(f"Consistxels v{consistxels_version}") # Title
         root.geometry("1680x968") # Window size
         root.configure(bg=gui_shared.bg_color) # BG color
 

@@ -5,9 +5,9 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image
 
-import gui.gui_shared as gui_shared
-from gui.gui_shared import add_widget
-from classes.tooltip import ToolTip
+import scripts.gui.gui_shared as gui_shared
+from scripts.gui.gui_shared import add_widget
+from scripts.classes.tooltip import ToolTip
 
 # Menu for exporting sprite sheets, layers, and pose images for already-generated sheet data
 class Menu_ExportSheet(tk.Frame):
