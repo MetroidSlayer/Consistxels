@@ -104,8 +104,8 @@ class ViewportCanvas(tk.Canvas):
         # Find the edges of the view
         x0 = int(self.offset_x)
         y0 = int(self.offset_y)
-        x1 = int(min(img_w, self.offset_x + view_w))
-        y1 = int(min(img_h, self.offset_y + view_h))
+        x1 = int(min(img_w, self.offset_x + view_w)) + (1 if view_w < img_w else 0) # 1 is added if zoomed in enough that the whole img isn't visible, to prevent
+        y1 = int(min(img_h, self.offset_y + view_h)) + (1 if view_h < img_h else 0) # the right/bottom edges of the visible portion from being noticeably cut off
 
         if x1 <= x0 or y1 <= y0: # i.e. if the edges are really messed up
             return
