@@ -26,11 +26,14 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# UPX
+upx/
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-*.spec
+# *.spec # I WANT the .spec to go along!
 
 # Installer logs
 pip-log.txt

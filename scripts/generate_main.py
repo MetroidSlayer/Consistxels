@@ -2,17 +2,11 @@ import os
 import sys
 import json
 from datetime import datetime
-# from multiprocessing import freeze_support
 
 import scripts.generate.generate as generate
-# from PIL import features
 
-# Main function. Loads temporary json, starts specified generation
+# Main function. Loads temporary json, starts specified generation.
 def main():
-    
-    # print("libjpeg:", features.check("jpg"))
-    # print("zlib:", features.check("zlib"))
-    # print("freetype2:", features.check("freetype2"))
 
     start_time = datetime.now() # Time taken to generate is tracked and shown at the end
 
@@ -21,17 +15,12 @@ def main():
         print("Missing argument", file=sys.stderr, flush=True)
         sys.exit(1)
 
-    # print("argv 1:", sys.argv[1])
-    # print("argv 2:", sys.argv[2])
-    # return
-
     input_data = None
     if "--run-generate" in sys.argv:
         input_data = json.loads(sys.argv[2])
     else:
         input_data = json.loads(sys.argv[1])
 
-    # input_data = json.loads(sys.argv[1])
     temp_json_path = input_data.get("val")
 
     if not os.path.exists(temp_json_path):
@@ -45,7 +34,6 @@ def main():
 
     # Using the type passed in the json, choose which generation to run
     type = input_data.get("type", "")
-
     match type:
         case "generate_sheet_data":
             generate_sheet_data(temp_json_data)
@@ -126,5 +114,4 @@ def generate_updated_pose_images(temp_json_data):
 
 # Run main()
 if __name__ == "__main__":
-    # freeze_support()
     main()

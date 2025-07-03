@@ -254,10 +254,18 @@ def search_spacing(search_data, search_type_data, size):
 # Generate all-new pose data, as well as data necessary to generate images for that pose data.
 # Returns pose_data and image_prep_data.
 def generate_pose_data(pose_locations, layer_data, search_data, generation_data):
+    detect_identical_images = search_data["detect_identical_images"]
+    detect_rotated_images = search_data["detect_rotated_images"]
+    detect_flip_h_images = search_data["detect_flip_h_images"]
+    detect_flip_v_images = search_data["detect_flip_v_images"]
 
     # Stores image padding. indexes will match final image data
     # Format: [(left_padding, top_padding, right_padding, bottom_padding)]
     image_prep_data = []
+
+    # Store some info about images for comparisons. These remain empty if no detect types are selected
+    image_bytes_data : list[bytes] = []
+    image_bound_sizes_data : list[tuple[int, int]] = []
 
     # Opening layer images here so that we don't have to re-open and -close them over and over 
     layer_search_images = []
@@ -316,34 +324,86 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                     # Could not figure out a more efficient way to make this persist and be accurate. It works, so I'm not gonna complain.
                     image_index = 0
 
-                    if (search_data["detect_identical_images"] or search_data["detect_rotated_images"] or
-                        search_data["detect_flip_v_images"] or search_data["detect_flip_v_images"]):
-                        # Checks against every single stored image, using flip_h, flip_v, & rotate. So like 12 checks per limb at worst :(
-                        for image_prep in image_prep_data:
-                            # Since we're not storing images, just image positions, we have to crop from the layer image. I'm not sure if it would be better
-                            # to just store all of the images in memory; this seems FINE, but I'm not sure how intensive .crop() is. It's essentially just
-                            # a copy, right? Is that bad? I have no idea. I was using a method where I stored the actual images before, so I could definitely
-                            # switch back if necessary. The switch was made because generate_pose_data() does not need to *export* images, so I figured it
-                            # didn't need to work with them as directly in general.
-                            compare_to : Image.Image = layer_search_images[image_prep["original_layer_index"]].crop((
-                                image_prep["original_pose_location"]["x_position"],
-                                image_prep["original_pose_location"]["y_position"],
-                                image_prep["original_pose_location"]["width"] + image_prep["original_pose_location"]["x_position"],
-                                image_prep["original_pose_location"]["height"] + image_prep["original_pose_location"]["y_position"]
-                            ))
-                            compare_to = compare_to.crop(compare_to.getbbox()) # Crop to bbox
+                    # If any detect types are selected:
+                    if (detect_identical_images or detect_rotated_images or
+                        detect_flip_h_images or detect_flip_v_images):
 
+                        # Could probably move this stuff into its own function, so as to not clog up generate_pose_data(), but whatever I can do that later
+
+                        # Initialize a new list for this image's variation's bytes and sizes
+                        curr_image_bytes_set : list[bytes] = [None] * 9
+                        curr_image_sizes_set : list[tuple[int, int]] = [None] * 9
+                        
+                        # Unmodified image
+                        if detect_identical_images:
+                            curr_image_bytes_set[0] = bound_image.tobytes()
+                            curr_image_sizes_set[0] = bound_image.size                        
+
+                        # Horizontally-flipped image
+                        if detect_flip_h_images:
+                            flip_h_image = bound_image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                            curr_image_bytes_set[1] = flip_h_image.tobytes()
+                            curr_image_sizes_set[1] = flip_h_image.size
+
+                            # Flipped & rotated images (it makes more intuitive sense to do them later, but this way we don't have to re-transpose flip_h)
+                            if detect_rotated_images:
+                                # Flipped & rotated 90 degrees (i.e. -270 degrees, I think)
+                                flip_h_rot90_image = flip_h_image.transpose(Image.Transpose.ROTATE_90)
+                                curr_image_bytes_set[5] = flip_h_rot90_image.tobytes()
+                                curr_image_sizes_set[5] = flip_h_rot90_image.size
+                                
+                                # Flipped & rotated 180 degrees
+                                flip_h_rot180_image = flip_h_image.transpose(Image.Transpose.ROTATE_180)
+                                curr_image_bytes_set[6] = flip_h_rot180_image.tobytes()
+                                curr_image_sizes_set[6] = flip_h_rot180_image.size
+                                
+                                # Flipped & rotated 270 degrees
+                                flip_h_rot270_image = flip_h_image.transpose(Image.Transpose.ROTATE_270)
+                                curr_image_bytes_set[7] = flip_h_rot270_image.tobytes()
+                                curr_image_sizes_set[7] = flip_h_rot270_image.size
+
+                        # Rotated images
+                        if detect_rotated_images:
+                            # Rotated 90 degrees
+                            rot90_image = bound_image.transpose(Image.Transpose.ROTATE_90)
+                            curr_image_bytes_set[2] = rot90_image.tobytes()
+                            curr_image_sizes_set[2] = rot90_image.size
+                            
+                            # Rotated 180 degrees
+                            rot180_image = bound_image.transpose(Image.Transpose.ROTATE_180)
+                            curr_image_bytes_set[3] = rot180_image.tobytes()
+                            curr_image_sizes_set[3] = rot180_image.size
+                            
+                            # Rotated 270 degrees
+                            rot270_image = bound_image.transpose(Image.Transpose.ROTATE_270)
+                            curr_image_bytes_set[4] = rot270_image.tobytes()
+                            curr_image_sizes_set[4] = rot270_image.size
+
+                        # Vertically-flipped image
+                        # (it's an elif because you can't select detect_rotated and detect_flip_v at the same time, since a flip_v image is
+                        # the same as flipped horizontally and rotated 180 degrees)
+                        elif detect_flip_v_images:
+                            flip_v_image = bound_image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+                            curr_image_bytes_set[8] = flip_v_image.tobytes()
+                            curr_image_sizes_set[8] = flip_v_image.size
+
+                        # Checks against every single stored image, using stored byte and size info. 8 checks per limb at worst.
+                        for stored_image_index in range(len(image_bytes_data)):
                             # Compare the images: if it's unique, continue, as there's likely still images to compare against, and another later image
-                            # might be identical. Once there are hundreds of unique images detected, this happens hundreds of times per layer per pose,
-                            # which is why this can take a while. I'm glad it's only, like, a minute to generate overall, at least on my machine.
+                            # might be identical. Once there are hundreds of unique images detected, this happens hundreds of times per layer per pose.
+                            # AS OF THE NEWEST IMPLEMENTATION, this is basically instant??? WHY is it so fast.
                             is_unique, is_flipped, rotation_amount = compare_images(
-                                bound_image, compare_to,
-                                search_data["detect_identical_images"], search_data["detect_rotated_images"],
-                                search_data["detect_flip_h_images"], search_data["detect_flip_v_images"]
+                                curr_image_bytes_set, curr_image_sizes_set, image_bytes_data[stored_image_index], image_bound_sizes_data[stored_image_index]
                             )
 
                             if not is_unique: break # If it's been detected that this image is a copy of another, no need to check for more
                             image_index += 1 # Image index is incremented here, because when I put it in other places or tried smarter methods, everything broke
+                        
+                        # If it's unique, add these bytes & size to list, to be compared against later. Not added alongside other is_unique stuff, as this
+                        # only needs to happen if any detect types are selected, and this is still in-scope for that one if statement up there
+                        if is_unique:
+                            image_bytes_data.append(curr_image_bytes_set[0])
+                            image_bound_sizes_data.append(curr_image_sizes_set[0])
 
                     # Save padding - i.e., the space between the bound search image and the edge of the output pose image on a given side. Padding is
                     # saved such that it's consistent, no matter what the flip or rotation of the image is; therefore, when calculating offsets later,
@@ -634,66 +694,41 @@ def generate_layer_data(input_layer_data):
 
 # Compare images. Return whether the two images are identical; if they are, also return image's flip and rotation relative to compare_to
 # Return vals: is_unique, is_flipped, rotation_amount
-def compare_images(image : Image.Image, compare_to : Image.Image, detect_identical_images = True, detect_rotated_images = True, detect_flip_h_images = True, detect_flip_v_images = False):
-    if detect_identical_images and image.tobytes() == compare_to.tobytes(): # If the images have identical bytes:
-        # .tobytes() comparisons can give false positives if the compared images have identical pixels but are different sizes. This prevents such situations.
-        if image.size == compare_to.size:
-            return False, False, 0 # Images are identical, so this image is already stored
+def compare_images(curr_image_bytes_set : list[bytes], curr_image_sizes_set : list[tuple[int, int]],
+                   compare_image_bytes : bytes, compare_image_size : tuple[int, int]):
+    for i in range(len(curr_image_sizes_set)):
+        # Stored byte/size are None at a given index if the relevant detect type for that index is not selected in menu_layerselect
+        if curr_image_sizes_set[i]:
+            # The bytes of the image are compared, to make sure all contained pixels are identical
+            # The sizes are also compared, as bytes do not account for that, and theoretically differently-sized images could have identical pixel info
+            if curr_image_bytes_set[i] == compare_image_bytes and curr_image_sizes_set[i] == compare_image_size:
+                is_flipped = False
+                rotation_amount = 0 # Rotation: 0 = 0 degreees, 1 = 90 degrees, 2 = 180 degrees, 3 = 270 degrees
 
-    # Declared here to remain in-scope later. A bit clunky, but ehh
-    flip_h = None
+                match i: # Indexes are organized as so because I THINK this is in order of how likely they are
+                    # case 0: # Unmodified img; Doesn't need to exist as these are the default vals
+                    case 1: # flip h
+                        is_flipped = True
+                    case 2: # rotate 90
+                        rotation_amount = 1
+                    case 3: # rotate 180
+                        rotation_amount = 2
+                    case 4: # rotate 270
+                        rotation_amount = 3
+                    case 5: # flip h, rotate 90
+                        is_flipped = True
+                        rotation_amount = 1
+                    case 6: # flip h, rotate 180
+                        is_flipped = True
+                        rotation_amount = 2
+                    case 7: # flip h, rotate 270
+                        is_flipped = True
+                        rotation_amount = 3
+                    case 8: # flip v (the same as flip h + rotate 180)
+                        is_flipped = True
+                        rotation_amount = 2
 
-    if detect_flip_h_images:
-        # Prepare a flipped version of the img, since it'll commonly be an already-stored img, and it's in a lotta checks
-        flip_h = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-        if flip_h.tobytes() == compare_to.tobytes():
-            if flip_h.size == compare_to.size:
-                return False, True, 0 # Images are identical, so this image is already stored
-
-    if detect_rotated_images:
-        # Rotate normal image 90 degrees
-        rotated_image = image.transpose(Image.Transpose.ROTATE_90)
-        if rotated_image.tobytes() == compare_to.tobytes():
-            if rotated_image.size == compare_to.size:
-                return False, False, 1 # Images are identical, so this image is already stored
-
-        # Rotate normal image 180 degrees
-        rotated_image = image.transpose(Image.Transpose.ROTATE_180)
-        if rotated_image.tobytes() == compare_to.tobytes():
-            if rotated_image.size == compare_to.size:
-                return False, False, 2 # Images are identical, so this image is already stored
-
-        # Rotate normal image 270 degrees
-        rotated_image = image.transpose(Image.Transpose.ROTATE_270)
-        if rotated_image.tobytes() == compare_to.tobytes():
-            if rotated_image.size == compare_to.size:
-                return False, False, 3 # Images are identical, so this image is already stored
-
-    if detect_flip_h_images and detect_rotated_images:
-        # Rotate flipped image 270 degrees (i.e. -90 degrees, 'cause it's flipped)
-        rotated_image = flip_h.transpose(Image.Transpose.ROTATE_270)
-        if rotated_image.tobytes() == compare_to.tobytes():
-            if rotated_image.size == compare_to.size:
-                return False, True, 3 # Images are identical, so this image is already stored
-
-        # Rotate flipped image 180 degrees
-        rotated_image = flip_h.transpose(Image.Transpose.ROTATE_180)
-        if rotated_image.tobytes() == compare_to.tobytes():
-            if rotated_image.size == compare_to.size:
-                return False, True, 2 # Images are identical, so this image is already stored
-
-        # Rotate flipped image 90 degrees (i.e. -270 degrees, 'cause it's flipped)
-        rotated_image = flip_h.transpose(Image.Transpose.ROTATE_90)
-        if rotated_image.tobytes() == compare_to.tobytes():
-            if rotated_image.size == compare_to.size:
-                return False, True, 1 # Images are identical, so this image is already stored
-        
-    elif detect_flip_v_images:
-        # Like flip_h, but just add 2 to rotation (180 degrees)
-        flip_v = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-        if flip_v.tobytes() == compare_to.tobytes():
-            if flip_v.size == compare_to.size():
-                return False, True, 2 # Images are identical, so this image is already stored
+                return False, is_flipped, rotation_amount # Return appropriate info
     
     # Getting here doesn't mean the image IS unique OVERALL - it still likely has to check against many more images
     return True, False, 0
@@ -716,7 +751,6 @@ def generate_sheet_image(selected_layers, data, input_folder_path, output_folder
     for layer_image in reversed(layer_images):
         sheet_image.alpha_composite(layer_image)
 
-    # sheet_image.save(os.path.join(output_folder_path, f"export_{data["header"]["name"]}_sheet.png")) # changing how filenames are formatted at the last second, hopefully it's fine. i do like it better this way
     sheet_image.save(os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.png"))
 
 # Generate an image for each selected layer
@@ -734,7 +768,6 @@ def generate_layer_images(selected_layers, unique_only, data, input_folder_path,
 
     for i, layer_image in enumerate(layer_images):
         if i in selected_layers:
-            # path = (f"export_{data["header"]["name"]}_layer_{data["layer_data"][i]["name"]}.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
             path = (f"{data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{data["layer_data"][i]["name"]}_export.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
             layer_image.save(os.path.join(output_folder_path, path))
 
@@ -793,7 +826,6 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
 
     for i, layer in enumerate(layer_data):
         if layer["is_border"] or layer["is_cosmetic_only"]:
-            # if paths are local (which they usually will be):
             path = os.path.join(input_folder_path, layer["search_image_path"])
             with Image.open(path) as image:
                 layer_images[i] = image.copy()
