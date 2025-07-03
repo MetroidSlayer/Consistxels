@@ -1,5 +1,6 @@
+import json
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from PIL import Image
 
 import scripts.gui.gui_shared as gui_shared
@@ -22,12 +23,27 @@ class Menu_MainMenu(tk.Frame):
         gif_player_canvas.config(height=gif_player.winfo_reqheight()) # Change height, because otherwise it's way too tall
         gif_player_canvas.create_window((0, 0), window=gif_player, anchor="nw") # Create window containing gif
 
-        tk.Label(self, text="A tool for more consistent pixel art", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(anchor="w", padx=(30), pady=(0,10))
+        tk.Label(self, text="A tool for easily maintaining consistency in pixel art", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(anchor="w", padx=(30), pady=(0,10))
 
         def open_menu_with_path(menu): # Function for opening a menu and simultaneously loading a file
             path = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Json File", "*.json")])
             if path:
-                change_menu_callback(menu, path)
+                try: # Check that the file is a valid .json
+                    json_type = ""
+                    with open(path) as json_file: # Make sure .json type matches what menu expects
+                        json_data = json.load(json_file)
+                        json_type = json_data["header"]["type"]
+
+                        if menu == "ExportSheet" and json_type != "sheetdata_generated":
+                            messagebox.showwarning("Warning!", "Please select a .json file containing generated sheet data")
+                            return
+
+                    change_menu_callback(menu, path) # Change menu
+                except json.JSONDecodeError:
+                    messagebox.showwarning("Warning!", "Please select a valid .json file")
+                except:
+                    # Not sure what to do for other exceptions, but they'd generally just be the file not existing or something, right? So this message is fine
+                    messagebox.showwarning("Warning!", "Please select a valid .json file")
 
         # Frame for boxes that contain buttons and descriptions
         content_frame = tk.Frame(self, bg=gui_shared.bg_color)

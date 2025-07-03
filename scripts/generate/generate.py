@@ -423,7 +423,7 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                         right_padding += unbound_image.width - bbox[2] # The right- and bottom- bboxes are an x- and y-coordinate respectively, so subtracting
                         bottom_padding += unbound_image.height - bbox[3] # them from the *unbound* width gets the distance between the coordinates and max edges.
 
-                    # Padding cannot be < 0, or images would get cut off. (I think they still CAN, if a source_image is used with bigger poses, and no padding
+                    # Padding cannot be < 0, or images would get cut off. (I think they still CAN, if a source_image is used that has bigger images, and no padding
                     # is used whatsoever. Will try to think of a fix for that. Or maybe it simply works, I haven't checked.)
                     left_padding = max(0, left_padding)
                     top_padding = max(0, top_padding)
@@ -496,11 +496,11 @@ def generate_pose_data(pose_locations, layer_data, search_data, generation_data)
                 "limb_data": limb_data
             })
 
-            # For updating progress bar. To prevent being called constantly, does a little math
-            new_percent = math.floor((pose_index / len(pose_locations)) * 100)
-            if new_percent > curr_percent:
-                curr_percent = new_percent
-                update_progress("update", new_percent, f"Poses searched: {pose_index}/{len(pose_locations)}", f"Unique images found: {len(image_prep_data)}")
+        # For updating progress bar. To prevent being called constantly, does a little math
+        new_percent = math.floor((pose_index / len(pose_locations)) * 100)
+        if new_percent > curr_percent:
+            curr_percent = new_percent
+            update_progress("update", new_percent, f"Poses searched: {pose_index}/{len(pose_locations)}", f"Unique images found: {len(image_prep_data)}")
                 
     # THIS is where we'll need to do a search through the limbs to change the offsets. It feels inefficient to not do it earlier, but it can't be helped.
     # (Doesn't need to happen if there's no auto padding.)
@@ -539,9 +539,7 @@ def generate_image_data(image_prep_data, layer_data, pose_data):
     layer_search_images = []
     layer_source_images = []
 
-    # Used for filenames (though I guess if the filenames already exist, this isn't good? Will want to possibly think of reworking this some more
-    # once I want to be able to update pose images for existing generated .jsons) Ok yeah TODO 
-    # (OK this is a bit of an outdated comment - no longer using this for updating existing pose images. So I probably don't have to worry about this, I think)
+    # Used for filenames
     number_of_characters = len(str(len(image_prep_data)))
 
     curr_percent = 0
@@ -596,8 +594,6 @@ def generate_image_data(image_prep_data, layer_data, pose_data):
             print(json.dumps({"type":"error","value":0,"info_text":"image_prep_data searched for a pose that is not part of pose_data"}))
             raise Exception
         
-        # If there's already appropriate image data, use that instead. We'll probably want to split generate_image_data into a few different functions for
-        # the different possibilities, honestly. I dunno.
         image_data.append({
             "path": f"{str(i).rjust(number_of_characters, '0')}.png",
             "original_pose_index": original_pose_index,

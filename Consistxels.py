@@ -175,7 +175,7 @@ def cancel_generate_process(app_closing = False):
 
 # Run main
 if __name__ == "__main__":
-    # In order for the .exe to work, it has to call itself. This ensures that the created processes actually end up doing the correct thing,
+    # In order for the .exe to work, it has to call itself. These checks ensure that the created processes actually end up doing the correct thing,
     # rather than just running main() again.
     if "--run-gui" in sys.argv:
         runpy.run_module("scripts.gui_main", run_name="__main__")

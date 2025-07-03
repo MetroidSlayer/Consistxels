@@ -20,7 +20,7 @@ class Menu_LayerSelect(tk.Frame):
 
         self.layer_data = []  # List of dicts: {name, search_image_path, source_image_path, is_border, is_cosmetic_only, export_layer_images}
         self.border_color = "#00007f" # TODO in the future, could be taken from info stored from last generation # ALSO could be a tk.StringVar()
-        self.image_size = None # For creating preview image / generating pose images(?) TODO verify
+        self.image_size = None # For creating preview image
         self.preview_image = None # Preview containing layer search images
         self.set_unsaved_changes_callback = set_unsaved_changes_callback # Sets a var in gui.py, which asks user before changing menu / exiting window if unsaved changes exist
 
@@ -612,8 +612,6 @@ class Menu_LayerSelect(tk.Frame):
 
         self.set_unsaved_changes(True)
 
-        # self.redraw_all_layer_cards()
-
     # Add multiple layer cards. A bit misleading - it works for adding from images, but mostly exists for loading existing layer data.
     def add_image_layers(self, data = None, add_to_top = True):
         if not data: # If no existing data was passed, ask user for image paths and format as if it were normal layer data
@@ -648,7 +646,6 @@ class Menu_LayerSelect(tk.Frame):
         
         if len(data): # i.e. if any layers exist
             self.set_unsaved_changes(True)
-            # if add_to_top: self.redraw_all_layer_cards()
             self.redraw_all_layer_cards()
             self.set_preview_button(True)
 
@@ -672,10 +669,8 @@ class Menu_LayerSelect(tk.Frame):
     def search_type_option_selected(self, selected_option, set_unsaved_changes = True):
         self.search_type_subframes[self.search_types.index(selected_option)].lift() # Raise subframe to be on top
 
-        # if selected_option == "Border":
         if selected_option == "Border" and self.previous_search_type_option != "Border":
             self.add_border_layer() # TODO This should ONLY run if something has actually changed
-        # else:
         elif selected_option != "Border" and self.previous_search_type_option == "Border":
             border_index = next((i for i, layer in enumerate(self.layer_data) if layer["is_border"]), None)
             if border_index != None: self.delete_layer(border_index)
@@ -697,7 +692,7 @@ class Menu_LayerSelect(tk.Frame):
         })
         
         self.redraw_layer_card(len(self.layer_data) - 1) # Redraw only bottom card
-        # TODO scroll the frame all the way down?
+        # TODO scroll the frame all the way down
 
     # Load a preset .json containing pose data.
     def load_preset_json(self):
@@ -729,7 +724,7 @@ class Menu_LayerSelect(tk.Frame):
             
             self.layer_data[index], self.layer_data[new_index] = self.layer_data[new_index], self.layer_data[index]
 
-            self.redraw_layer_card(index)
+            self.redraw_layer_card(index) # Don't need to redraw all cards, just the ones directly effected by the move
             self.redraw_layer_card(new_index)
 
             self.set_unsaved_changes(True)
@@ -1084,7 +1079,7 @@ class Menu_LayerSelect(tk.Frame):
             "generate_empty_poses": self.generate_empty_poses.get()
         }
 
-        layer_data = [] # Create new layer data, since self.layer_data stores the thumbnails too
+        layer_data = [] # Create new layer data, since self.layer_data stores the thumbnails too and we don't want to save that or pass that on
         for i, layer in enumerate(self.layer_data):
             search_image_path = layer.get("search_image_path")
             if search_image_path and json_type == "layerselect_save_folder":
@@ -1205,8 +1200,7 @@ class Menu_LayerSelect(tk.Frame):
                 # in the future, if things are different between versions, do such checks and changes here
                 # version = header.get("consistxels_version")
 
-                json_type = header.get("type") # TODO use in final release
-                # json_type = header.get("type", ("layerselect_save_folder" if header.get("paths_are_local") else "layerselect_save_json")) # TODO TEMP FOR TESTING, GET RID OF
+                json_type = header.get("type")
 
                 self.start_search_in_center.set(search_data.get("start_search_in_center", False))
                 self.search_right_to_left.set(search_data.get("search_right_to_left", False))
@@ -1249,7 +1243,7 @@ class Menu_LayerSelect(tk.Frame):
                 if json_type in ["layerselect_save_json", "sheetdata_generated"]:
                     # Reformat layer image paths to have absolute path if this json's paths are relative
                     # (because we do NEED an absolute path, it's just not SAVED that way so this is adding to that JUST FOR READING the data.
-                    # hope this makes sense to me later)
+                    # Hope this makes sense to me later)
                     curr_folder_path = os.path.dirname(path)
 
                     for layer in layer_data:
@@ -1267,7 +1261,7 @@ class Menu_LayerSelect(tk.Frame):
 
                 self.set_unsaved_changes(False)
             except json.JSONDecodeError as e:
-                messagebox.showerror("Error importing .json", e) # not sure for what reason i'd need to have these separated, but i guess it's nice to catch 'em
+                messagebox.showerror("Error importing .json", e) # Not sure for what reason I'd need to have these separated, but i guess it's nice to catch 'em
             except Exception as e:
                 messagebox.showerror("Error importing .json", e)
 

@@ -130,6 +130,8 @@ class Menu_OtherTools(tk.Frame):
                     messagebox.showwarning("Warning",
                         f"Images must be the same size.\nImage 1 is {img1.size[0]}x{img1.size[1]} and Image 2 is {img2.size[0]}x{img2.size[1]}.")
                 else:
+                    self.verify_image_size = img1.size
+
                     if img1.tobytes() == img2.tobytes():
                         self.verify_results_info_label.config(text="Images are identical")
                         self.verify_results = []

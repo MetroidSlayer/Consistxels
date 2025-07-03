@@ -15,7 +15,7 @@ def main():
         print("Missing argument", file=sys.stderr, flush=True)
         sys.exit(1)
 
-    input_data = None
+    input_data = None # The data provided by the user in menu_layerselect
     if "--run-generate" in sys.argv:
         input_data = json.loads(sys.argv[2])
     else:
