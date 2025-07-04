@@ -8,13 +8,15 @@ I hate knowing that one pixel on one pose on a sprite sheet is out-of-place, but
 
 This program _should_ work for any given sprite sheet as long as it's formatted properly, but was originally made to work with the Super Metroid Samus sprite sheet used in [SpriteSomething](https://github.com/Artheau/SpriteSomething). Check it out if you're interested.
 
+Latest release [here](https://github.com/MetroidSlayer/Consistxels/releases/tag/v1.0).
+
 ### What it can do:
 - Find poses on a sprite sheet, either by looking for pose boxes on a border, or by searching set spaces in a uniform pattern
 - Save sprite sheet data to one .json file, and save pose images to many, many individual .png files
 - Update every instance of a given pose once the relevant pose image has been modified
 - Export .png files containing layers with updated poses
 - Export .png files containing layers with only _unique_ poses - useful for modifying and updating multiple pose images at once
-- Some small bonus functions, like verifying whether or not two inputted images are identical, helpful for making sure your sprites are as consistent as you'd hoped
+- Verify whether or not two inputted images are identical, and see the differences in detail by saving the output images; helpful for making sure your sprites are as consistent as you'd hoped
 
 ### What it _can't_ do:
 - Draw your sprite art for you. Realistically, there's an upper limit to how much time this program can save
