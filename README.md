@@ -2,13 +2,11 @@
 
 A tool for easily maintaining consistency in pixel art.
 
-_<sup>If you need to, pronounce it "Consixels" - it's much easier to say. I would've just named it that, but it's less obvious what it's supposed to do that way.</sup>_
-
 I hate knowing that one pixel on one pose on a sprite sheet is out-of-place, but I might hate copying and pasting every limb from every layer to double-check even more. The solution was *obviously* to create an entire program to automatically distill a sprite sheet into JSON data, detect identical poses in a given layer, and do all that copying and pasting for me.
 
 This program _should_ work for any given sprite sheet as long as it's formatted properly, but was originally made to work with the Super Metroid Samus sprite sheet used in [SpriteSomething](https://github.com/Artheau/SpriteSomething). Check it out if you're interested.
 
-Latest release [here](https://github.com/MetroidSlayer/Consistxels/releases/tag/v1.0).
+Download the latest release of Consistxels [here](https://github.com/MetroidSlayer/Consistxels/releases/tag/v1.0).
 
 ### What it can do:
 - Find poses on a sprite sheet, either by looking for pose boxes on a border, or by searching set spaces in a uniform pattern
@@ -36,3 +34,5 @@ If you notice any bugs, feel free to open an issue or reach out to me on [Discor
 
 ## Tutorials
 Tutorials can be found [here](tutorials/tutorial_intro.md).
+
+_<sub>If you need to, pronounce it "Consixels" - it's much easier to say. I would've just named it that, but it's less obvious what it's supposed to do that way.</sub>_
