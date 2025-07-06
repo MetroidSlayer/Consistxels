@@ -848,7 +848,7 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
                     
                     if limb_placement["flip_h"]: adjusted_image = adjusted_image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
-                    layer_images[limb_placement["layer_index"]].paste(adjusted_image, (limb_placement["x_position"], limb_placement["y_position"]))
+                    layer_images[limb_placement["layer_index"]].alpha_composite(adjusted_image, (limb_placement["x_position"], limb_placement["y_position"]))
 
     return layer_images
     
