@@ -1,7 +1,7 @@
 # The version is stored in the .json outputs so future versions can know exactly how to interpret old data that may be formatted differently.
 # If and when such formatting differences happen, I'll write information about them in detail here.
 
-consistxels_version = "1.0.0"
+consistxels_version = "1.0.1"
 
 # Info on "type" in output json header:
 # "sheetdata_generated": data on the entire sprite sheet that was generated through menu_layerselect, alongside pose images.
