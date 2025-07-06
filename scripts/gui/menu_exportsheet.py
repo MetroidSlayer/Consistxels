@@ -310,6 +310,32 @@ class Menu_ExportSheet(tk.Frame):
         # Reset layer list
         self.layer_list = []
 
+        # Bandaid fix for the inconvenient process of inputting the files into the entries
+        all_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.button_bg)
+        all_frame.pack(side="top", fill="x", expand=True)
+
+        all_frame.grid_columnconfigure(0, weight=1)
+        all_frame.grid_columnconfigure(1, weight=5)
+
+        tk.Label(
+                all_frame, text="ALL", bg=gui_shared.button_bg, fg=gui_shared.fg_color
+            ).pack(side="left", padx=(10,5), pady=10)
+        
+        def autofill():
+            num_layers = len(self.json_data["layer_data"])
+            number_of_characters = len(str(num_layers))
+
+            for i in range(num_layers):
+                path = (
+                    os.path.join(self.input_folder_path,
+                    f"{self.json_data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{self.json_data["layer_data"][i]["name"]}_export.png"))
+                if os.path.exists(path):
+                    self.layer_list[i].set(path)
+        
+        all_autofill_button = tk.Button(all_frame, text="Autofill", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=autofill)
+        all_autofill_button.pack(side="left", padx=10, pady=10)
+        ToolTip(all_autofill_button, "Attempt to find image files with names that match the default individual layer export filenames. If a matching file is found, the respective text entry box is filled with the image path. If they don't, the entry is left blank.")
+
         # Create widgets for each layer
         for i, layer in enumerate(self.json_data["layer_data"]):
             frame = tk.Frame(self.scrollable_frame, bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg)
