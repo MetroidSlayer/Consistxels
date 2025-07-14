@@ -3,17 +3,31 @@ import os
 import tempfile
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-from PIL import Image
+# from PIL import Image
 
 import scripts.gui.gui_shared as gui_shared
 from scripts.gui.gui_shared import add_widget
 from scripts.classes.tooltip import ToolTip
+
+UPDATE_INDIVIDUAL_AUTO = 0
+UPDATE_INDIVIDUAL_MANUAL = 1
+UPDATE_MULTILAYER_FILE = 2
+
+EXPORT_SINGLE_MERGED = 0
+EXPORT_INDIVIDUAL_LAYERS = 1
+EXPORT_MULTILAYER_FILE = 2
+
+POSE_ALL = 0
+POSE_UNIQUE = 1
+POSE_BOTH = 2
 
 # Menu for exporting sprite sheets, layers, and pose images for already-generated sheet data
 class Menu_ExportSheet(tk.Frame):
     def __init__(self, master, change_menu_callback, load_path = None): # TODO change load to only accept sheetdata_generated json type
         super().__init__(master) # Initialize menu's tkinter widget
         self.input_folder_path = None # Input folder path must be stored so images can be loaded later
+        self.json_data = None
+        self.image_size = None
         self.configure(bg=gui_shared.bg_color) # Change bg color
         self.after(0, self.setup_ui, change_menu_callback, load_path) # .setup_ui() in .after() to prevent ugly flickering
     
@@ -95,17 +109,27 @@ class Menu_ExportSheet(tk.Frame):
         self.layer_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.layer_canvas.configure(yscrollcommand=self.layer_scrollbar.set)
 
-        # Will contain the widgets in which 
-        self.layer_list = []
+        self.layer_list_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.bg_color) # TODO Consider changing name: too similar to self.layer_frame_list
+        self.layer_list_frame.pack(fill="both", expand=True)
+        self.layer_list_frame.pack_propagate(False)
+        
+        self.layer_list_header_frame : tk.Frame = None # Frame holding options that effect all layers
+
+        self.layer_frame_list : list[tk.Frame] = [] # Will contain frame widgets containing info and options for a given layer
+        self.layer_update_list : list[tk.BooleanVar] = [] # Will contain tk.BooleanVar()s representing whether a given layer's pose images will be updated
+        self.layer_export_list : list[tk.BooleanVar] = [] # Will contain tk.BooleanVar()s representing whether a given layer will be visible in export
+        self.layer_path_list : list[tk.StringVar] = [] # Will contain tk.StringVar()s representing the paths to the image being used to update a given layer's poses
+
+        self.layer_update_all : tk.BooleanVar = None # Will contain booleanvars for layer list header
+        self.layer_export_all : tk.BooleanVar = None
 
         # For resizing the layer widgets so they fit in the canvas.
-        # (Work on this a little more - it works, but this one's a bit clunky I think)
         def resize_layer_list(_ = None):
             self.layer_canvas_frame.update_idletasks()
             self.scrollable_frame.configure(width = self.layer_canvas_frame.winfo_width())
-            for widget in self.scrollable_frame.winfo_children():
-                widget.configure(width=self.layer_canvas_frame.winfo_width())
-
+            
+            self.resize_layer_list()
+        
         self.left_frame.bind("<Configure>", resize_layer_list)
 
         self.layer_canvas.pack(side="left", fill="both", expand=True)
@@ -118,61 +142,88 @@ class Menu_ExportSheet(tk.Frame):
         export_options_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
         export_options_frame.pack(fill="both", expand=True)
 
+        # TODO make some options enable/disable if certain conditions are met / settings are selected
+
+        # Export / update checkbuttons
+
+        self.updating = tk.BooleanVar()
+        self.updating.set(True)
+        self.update_checkbutton = tk.Checkbutton(export_options_frame, text=f"Update pose images",
+            bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.updating, command=self.redraw_layer_list_items)
+        self.update_checkbutton.pack(anchor="w", padx=10, pady=(10,0))
+        ToolTip(self.update_checkbutton, "If checked, the program will attempt to update the pose images.")
+
+        self.exporting = tk.BooleanVar()
+        self.exporting.set(True)
+        self.export_checkbutton = tk.Checkbutton(export_options_frame, text=f"Export sheet / layer(s)",
+            bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.exporting, command=self.redraw_layer_list_items)
+        self.export_checkbutton.pack(anchor="w", padx=10)
+        ToolTip(self.export_checkbutton, "If checked, the program will use the pose images to export full sprite sheet or layer images.")
+
+        # Update radio buttons
+
+        tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Update type:").pack(anchor="w", padx=10, pady=10)
+        
+        self.update_type = tk.IntVar()
+        self.update_type.set(0)
+        radio_update_individual_auto = tk.Radiobutton(export_options_frame, text="Update from individual images (auto)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_INDIVIDUAL_AUTO, command=self.redraw_layer_list_items)
+        radio_update_individual_auto.pack(anchor="w", padx=10)
+        ToolTip(radio_update_individual_auto, "The current folder will be searched for images that match the default name for an individual layer export, and if they are found, they'll be used to update the relevant pose images.")
+        # TODO add a second part to tooltip that describes format being looked for
+
+        radio_update_individual_manual = tk.Radiobutton(export_options_frame, text="Update from individual images (manual)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_INDIVIDUAL_MANUAL, command=self.redraw_layer_list_items)
+        radio_update_individual_manual.pack(anchor="w", padx=10)
+        ToolTip(radio_update_individual_manual, "You'll be able to manually input file paths to be used to update the relevant pose images. If a layer is not given a file path, its unique pose images will be unaffected.")
+
+        radio_update_multilayer = tk.Radiobutton(export_options_frame, text="Update from multi-layered file", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_MULTILAYER_FILE, command=self.redraw_layer_list_items)
+        radio_update_multilayer.pack(anchor="w", padx=10)
+        ToolTip(radio_update_multilayer, "Input a multi-layered file (.aseprite, .psd). If layers are found in the file that match the layers' names, they will be used to update the relevant pose images.")
+        # TODO MAKE SURE THIS DESC FITS THE FILETYPE IM ACTUALLY SUPPORTING!!! TRY adding psd and gimp support
+
+        self.update_multilayer_file_path = tk.StringVar() # By default, not attached to a widget, but it will be later once that entry shows up
+
+        # Export radio buttons
+
         tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export type:").pack(anchor="w", padx=10, pady=10)
 
         # Stores radio button value
-        # 0: single image, 1: individual layer image(s), 2: multi-layer file, 3: update pose images
+        # 0: single image, 1: individual layer image(s), 2: multi-layer file
         self.export_type = tk.IntVar()
         self.export_type.set(0)
 
-        self.last_export_type = 0 # To check if anything in the menu needs to be changed
+        radio_export_single = tk.Radiobutton(export_options_frame, text="Single merged image", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_SINGLE_MERGED)#, command=self.redraw_layer_list_items)
+        radio_export_single.pack(anchor="w", padx=10)
+        ToolTip(radio_export_single, "Export one image containing all selected layers merged together.")
 
-        # Upon radio button selection, check if the menu needs to be changed
-        def check_update_layer_list():
-            curr_export_type = self.export_type.get()
-            
-            # Should be made more modular, and expanded to enable/disable relevant fields/buttons
-            if (curr_export_type < 3) != (self.last_export_type < 3):
-                if curr_export_type == 3: # TODO TODO TODO probably replace with a variable, in case i wanna mess with the indexes later at any point
-                    self.draw_layer_entries()
-                    self.output_folder_entry.config(state="disabled")
-                    self.output_folder_button.config(state="disabled")
-                    self.output_use_current_folder_button.config(state="disabled")
-                else:
-                    self.draw_layer_checkbuttons()
-                    self.output_folder_entry.config(state="normal")
-                    self.output_folder_button.config(state="normal")
-                    self.output_use_current_folder_button.config(state="normal")
-            
-            if curr_export_type in [0,3]:
-                self.unique_pose_images_only_checkbutton.config(state="disabled")
-            else:
-                self.unique_pose_images_only_checkbutton.config(state="normal")
+        radio_export_layers = tk.Radiobutton(export_options_frame, text="Individual layer image(s)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_INDIVIDUAL_LAYERS)#, command=self.redraw_layer_list_items)
+        radio_export_layers.pack(anchor="w", padx=10)
+        ToolTip(radio_export_layers, "Export an image for each selected layer.")
 
-            self.last_export_type = curr_export_type
+        radio_export_multilayer = tk.Radiobutton(export_options_frame, text="Multi-layered file", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_MULTILAYER_FILE)#, command=self.redraw_layer_list_items)
+        radio_export_multilayer.pack(anchor="w", padx=10)
+        ToolTip(radio_export_multilayer, "Export one file that contains all images as layers.")
 
-            self.check_reset_progress()
+        # File type selection optionmenu
+        # TODO OPTIONMENU TO SELECT FILETYPE
 
-        # Export type radio buttons
+        # Pose type radio buttons
 
-        radio_single = tk.Radiobutton(export_options_frame, text="Single merged image", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=0, command=check_update_layer_list)
-        radio_single.pack(anchor="w", padx=10)
-        ToolTip(radio_single, "Export one image containing all selected layers merged together.")
+        tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Pose images to export:").pack(anchor="w", padx=10, pady=10)
 
-        radio_layers = tk.Radiobutton(export_options_frame, text="Individual layer image(s)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=1, command=check_update_layer_list)
-        radio_layers.pack(anchor="w", padx=10)
-        ToolTip(radio_layers, "Export an image for each selected layer.")
+        self.pose_type = tk.IntVar()
+        self.pose_type.set(0)
 
-        radio_update = tk.Radiobutton(export_options_frame, text="Update pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=3, command=check_update_layer_list)
-        radio_update.pack(anchor="w", padx=10, pady=10)
-        ToolTip(radio_update, """Input new versions of layer images. Existing pose images in this folder will be updated. As long as the first unique instance of a pose image has been changed, that change will be reflected in the pose images. You can then export an entire sheet with the updated pose images.\n\n(This is what the "Unique Pose Image" and "Source Image" options are generally made for, but you don't necessarily *need* to use an image that was generated with either option.)""")
+        radio_pose_all = tk.Radiobutton(export_options_frame, text="Use all", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_ALL)#, command=self.redraw_layer_list_items)
+        radio_pose_all.pack(anchor="w", padx=10)
+        ToolTip(radio_pose_all, "Every pose image within a pose will be shown. Intended for tests or final exports in which the sheet's used in context.")
 
-        # Controls whether only unique images are exported. Does not work for single image or update pose images
-        self.unique_pose_images_only = tk.BooleanVar()
-        self.unique_pose_images_only_checkbutton = tk.Checkbutton(export_options_frame, text="Only show unique pose images", bg=gui_shared.bg_color, fg=gui_shared.fg_color,
-            selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.unique_pose_images_only, state="disabled", command=self.check_reset_progress)
-        self.unique_pose_images_only_checkbutton.pack(anchor="w", padx=10, pady=10)
-        ToolTip(self.unique_pose_images_only_checkbutton,"""Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Sprite Sheet Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
+        radio_pose_unique = tk.Radiobutton(export_options_frame, text="Use unique only", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_UNIQUE)#, command=self.redraw_layer_list_items)
+        radio_pose_unique.pack(anchor="w", padx=10)
+        ToolTip(radio_pose_unique, """Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Sprite Sheet Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
+
+        radio_pose_both = tk.Radiobutton(export_options_frame, text="Both (multi-layer only)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_BOTH)#, command=self.redraw_layer_list_items)
+        radio_pose_both.pack(anchor="w", padx=10)
+        ToolTip(radio_pose_both, "Both the complete layer and the unique-only layer will be provided in the file. (Only applies to the \"Multi-layered file\" export type; if this is not used, the pose image type will default to \"Use all\")")
 
         # Eventually, file type option menu should go here.
         # The options should be different depending on if external_filetype is chosen;
@@ -239,150 +290,194 @@ class Menu_ExportSheet(tk.Frame):
         # If a path was passed when the menu was created, open that path
         if load_path: self.load_json(load_path)
 
-    # Draw checkbuttons in a list format for choosing which layers to export
-    def draw_layer_checkbuttons(self):
+    # Initial draw of layer list, which contains options and such. Call this upon new .json loaded, not upon option change.
+    def draw_layer_list(self):
         # Destroy current layer list
-        for widget in self.scrollable_frame.winfo_children():
+        for widget in self.layer_frame_list:
+            widget.destroy()
+        
+        # Header, which contains options that effect all layers
+        self.layer_list_header_frame = tk.Frame(self.layer_list_frame, bg=gui_shared.button_bg)
+        self.layer_list_header_frame.pack(anchor="w", fill="x")
+        self.layer_list_header_frame.grid_columnconfigure(2, weight=1)
+        self.redraw_layer_list_header() # Add options
+        
+        # Reset stored vals for previous layers
+        self.layer_update_list = []
+        self.layer_export_list = []
+        self.layer_path_list = []
+
+        left_frame = tk.Frame(self.layer_list_frame, bg=gui_shared.bg_color)
+        left_frame.pack(side="left", fill="both")
+        right_frame = tk.Frame(self.layer_list_frame, bg=gui_shared.bg_color)
+        right_frame.pack(side="left", fill="both", expand=True)
+
+        right_frame.columnconfigure(0, weight=1)
+
+        for i, layer in enumerate(self.json_data["layer_data"]):
+            left_frame.rowconfigure(i, weight=1)
+
+            bg_color = gui_shared.secondary_bg if i % 2 else gui_shared.bg_color
+
+            label_frame = tk.Frame(left_frame, bg=bg_color)
+            label_frame.grid(row=i, column=0, sticky="NSEW")
+            label_frame.grid_anchor("w")
+
+            tk.Label(label_frame, bg=bg_color, fg=gui_shared.fg_color, text=f"{i + 1}: {layer.get('name', '(unnamed layer)')}{' (cosmetic)' if layer.get('is_cosmetic_only') else ''}").grid(row=0, column=0, sticky="W", padx=10, pady=10)
+
+            contents = tk.Frame(right_frame, bg=bg_color)
+            contents.grid(row=i, column=0, sticky="NSEW")
+            contents.grid_columnconfigure(2, weight=1)
+            self.layer_frame_list.append(contents)
+
+            # tk.BooleanVars for tracking if layers should update/export
+            self.layer_update_list.append(None if layer.get('is_cosmetic_only') else tk.BooleanVar(value=True))
+            self.layer_export_list.append(tk.BooleanVar(value=True))
+            self.layer_path_list.append(tk.StringVar)
+
+            self.redraw_layer_list_item(i)
+
+    # Secondary draw of the header entry in the visible layer list, which has options that effect all layers
+    # TODO for this, and for the individual list items, no reason to redraw if nothing's changed. so make sure only relevant options actually redraw, and try to find a way to prevent redraws if everything will end up being the same
+    def redraw_layer_list_header(self):
+        # Destroy existing widgets
+        for widget in self.layer_list_header_frame.winfo_children():
             widget.destroy()
 
-        # Specific checkbuttons for selecting/deselecting all layers at once
-        all_checkbutton_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.button_bg, width=0)
-        all_checkbutton_frame.pack(side="top", fill="x", expand=True)
+        update_checkbutton = None
+        export_checkbutton = None
+        update_entry_frame = None
 
-        # Doesn't need to be stored anywhere, since it doesn't directly determine anything - it's just for better usability
-        all_checkbutton_var = tk.BooleanVar()
+        # Update checkbutton will only appear if the user is updating the layers, and if it's a normal (i.e. non-cosmetic/border) layer
+        if self.updating.get():
+            
+            self.layer_update_all = tk.BooleanVar(value=True)
+            
+            def update_set_all():
+                for var in self.layer_update_list:
+                    if var != None: var.set(self.layer_update_all.get())
+            
+            update_checkbutton = tk.Checkbutton(self.layer_list_header_frame, text=f"Update all",
+                bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg,
+                onvalue=True, offvalue=False, variable=self.layer_update_all, command=update_set_all)
+            
+            ToolTip(update_checkbutton, "If checked, the program will update this layer's unique pose images according to the option selected on the right.")
 
-        # Set each layer to whatever all_checkbutton_var is set to
-        def set_all():
-            for var in self.layer_list:
-                var.set(all_checkbutton_var.get())
+            # Label, entry, and button for selecting filepath. Will only appear if the user is updating pose images w/ a multilayer file.
+            if self.update_type.get() == UPDATE_MULTILAYER_FILE:
+                update_entry_frame = tk.Frame(self.layer_list_header_frame, bg=gui_shared.button_bg)
 
-            self.check_reset_progress()
+                tk.Label(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Multi-layered file:").pack(side="left", padx=(10,5), pady=10)
+                
+                entry = add_widget(tk.Entry, update_entry_frame, {"textvariable": self.update_multilayer_file_path, "width": 1}, {"text": "Enter the path to the multi-layered file you want to use to update this layer's pose images."})
+                entry.pack(side="left", fill="x", expand=True, pady=10)
 
-        # ALL checkbutton selectcolors are now field_bg, as it probably looks better. but CONSIDER changing it back to button_bg
-        all_checkbutton = tk.Checkbutton(all_checkbutton_frame, text=f"ALL", bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=all_checkbutton_var, command=set_all)
-        all_checkbutton.pack(side="left", padx=10, pady=10)
-        ToolTip(all_checkbutton, "Check to select or deselect all layers at once.")
+                button = tk.Button(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁",
+                    command=lambda s=self.update_multilayer_file_path, f=[("Multi-layered files", "*.ase; *.aseprite")]: gui_shared.ask_open_file_for_stringvar(s,f)) # TODO make sure supported filetypes are all here
+                button.pack(side="left", padx=10, pady=10)
+                ToolTip(button, "Select the multi-layered file you want to use to update this layer's pose images.")
+
+        # Export checkbutton if the user is exporting the layers
+        if self.exporting.get():
+            
+            self.layer_export_all = tk.BooleanVar(value=True)
+            
+            def export_set_all(): # If this is checked or unchecked, do the same to all other checkbuttons
+                for var in self.layer_export_list:
+                    if var != None: var.set(self.layer_export_all.get())
+            
+            export_checkbutton = tk.Checkbutton(self.layer_list_header_frame, text=f"Export all",
+                bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg,
+                onvalue=True, offvalue=False, variable=self.layer_export_all, command=export_set_all)
+
+            ToolTip(export_checkbutton, "If checked, the program will include this layer in the export according to the option selected on the right.")
         
-        # Reset layer list
-        # (Layers list contains tk.___Var()s, not widgets)
-        self.layer_list = []
+        if update_checkbutton and self.update_type.get() != UPDATE_INDIVIDUAL_MANUAL: # If manual, no need to select layers for update - just don't input the path if you dont wanna
+            update_checkbutton.grid(row=0, column=0, sticky="W", padx=(10,0), pady=10)
+        if export_checkbutton: export_checkbutton.grid(row=0, column=1, sticky="W", padx=(10,0), pady=10)
+        if update_entry_frame: update_entry_frame.grid(row=0, column=2, sticky="EW")
 
-        # Create a checkbutton for each layer
-        for i, layer in enumerate(self.json_data["layer_data"]):
-            checkbutton_var = tk.BooleanVar()
-            
-            # BG color changes depending on if odd or even, to make list a little more readable at a glance
-            checkbutton_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.secondary_bg if i % 2 else gui_shared.bg_color)
-            checkbutton_frame.pack(side="top", fill="x", expand=True)
-            
-            # Update the ALL checkbutton if something's deselected
-            # (Just to make it more satisfying, maybe make it also update the ALL checkbutton if layers are enabled manually? idk not necessary)
-            def update_deselect(var=checkbutton_var):
-                if not var.get(): all_checkbutton_var.set(False)
+    # Secondary draw of layer list item, to avoid doing unnecessary work. Does less formatting stuff, etc.
+    def redraw_layer_list_item(self, layer_index):
+        layer = self.json_data["layer_data"][layer_index]
+        frame = self.layer_frame_list[layer_index]
+        bg_color = gui_shared.secondary_bg if layer_index % 2 else gui_shared.bg_color
 
-                self.check_reset_progress()
-            
-            checkbutton = tk.Checkbutton(checkbutton_frame, text=f"{i+1}: {layer["name"]}", bg=gui_shared.secondary_bg if i % 2 else gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=checkbutton_var, command=update_deselect)
-            checkbutton.pack(side="left", padx=10, pady=10)
-            ToolTip(checkbutton, f'Check to include layer {i+1} ("{layer["name"]}") in exports.')
-
-            self.layer_list.append(checkbutton_var)
-
-            # Configure height and width manually
-            checkbutton_frame.update_idletasks()
-            checkbutton_frame.configure(width=self.scrollable_frame.cget('width'), height=checkbutton_frame.winfo_height())
-            checkbutton_frame.pack_propagate(False)
-
-        # Set ALL to True initially, since I think most people would prefer to export all layers at once anyway
-        all_checkbutton.select()
-        set_all()
-
-        # Bind mousewheel
-        gui_shared.bind_event_to_all_children(self.scrollable_frame, "<MouseWheel>", self.on_left_frame_mousewheel)
-
-    # Draw labels, entries, and buttons in a list format
-    def draw_layer_entries(self):
-        # Destroy current layer list
-        for widget in self.scrollable_frame.winfo_children():
+        # Destroy existing buttons and such
+        for widget in frame.winfo_children():
             widget.destroy()
 
-        # Reset layer list
-        self.layer_list = []
+        update_checkbutton = None
+        export_checkbutton = None
+        update_entry_frame = None
 
-        # Bandaid fix for the inconvenient process of inputting the files into the entries
-        all_frame = tk.Frame(self.scrollable_frame, bg=gui_shared.button_bg)
-        all_frame.pack(side="top", fill="x", expand=True)
+        # Update checkbutton will only appear if the user is updating the layers, and if it's a normal (i.e. non-cosmetic/border) layer
+        if self.updating.get():
+            update_checkbutton = tk.Checkbutton(frame, text=f"Update", command=self.check_update_set_all,
+                bg=bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.layer_update_list[layer_index])
+            if layer.get("is_cosmetic_only"):
+                update_checkbutton.config(state="disabled")
+            ToolTip(update_checkbutton, "If checked, the program will update this layer's unique pose images according to the option selected on the right.")
 
-        all_frame.grid_columnconfigure(0, weight=1)
-        all_frame.grid_columnconfigure(1, weight=5)
+            # Label, entry, and button for selecting filepath. Will only appear if the user is updating pose images w/ manually selected layers.
+            if self.update_type.get() == UPDATE_INDIVIDUAL_MANUAL:
+                update_entry_frame = tk.Frame(frame, bg=bg_color)
 
-        tk.Label(
-                all_frame, text="ALL", bg=gui_shared.button_bg, fg=gui_shared.fg_color
-            ).pack(side="left", padx=(10,5), pady=10)
+                tk.Label(update_entry_frame, bg=bg_color, fg=gui_shared.fg_color, text="Update Image:").pack(side="left", padx=(10,5), pady=10)
+
+                entry = add_widget(tk.Entry, update_entry_frame, {"textvariable": self.layer_path_list[layer_index], "width": 1}, {"text": "Enter the path to the image you want to use to update this layer's pose images."})
+                entry.pack(side="left", fill="x", expand=True, pady=10)
+
+                button = tk.Button(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁",
+                    command=lambda s=self.layer_path_list[layer_index], f=[("Image file", "*.png")]: gui_shared.ask_open_file_for_stringvar(s,f))
+                button.pack(side="left", padx=10, pady=10)
+                ToolTip(button, "Select the image you want to use to update this layer's pose images.")
+
+        # Export checkbutton if the user is exporting the layers
+        if self.exporting.get():
+            export_checkbutton = tk.Checkbutton(frame, text=f"Export", command=self.check_export_set_all,
+                bg=bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.layer_export_list[layer_index])
+
+            ToolTip(export_checkbutton, "If checked, the program will include this layer in the export according to the option selected on the right.")
+
+        if update_checkbutton and self.update_type.get() != UPDATE_INDIVIDUAL_MANUAL: # If manual, no need to select layers for update - just don't input the path if you dont wanna
+            update_checkbutton.grid(row=0, column=0, sticky="W", padx=(10,0), pady=10)
+        if export_checkbutton: export_checkbutton.grid(row=0, column=1, sticky="W", padx=(10,0), pady=10)
+        if update_entry_frame: update_entry_frame.grid(row=0, column=2, sticky="EW")
+
+    # Simple for loop so that tkinter button commands will be simpler
+    def redraw_layer_list_items(self):
+        # self.layer_list_frame.pack_propagate(True)
+        # self.layer_list_frame.update_idletasks()
+
+        if self.json_data != None:
+            self.redraw_layer_list_header()
+            for i in range(len(self.json_data["layer_data"])):
+                self.redraw_layer_list_item(i)
         
-        def autofill():
-            num_layers = len(self.json_data["layer_data"])
-            number_of_characters = len(str(num_layers))
+        self.resize_layer_list()
 
-            for i in range(num_layers):
-                path = (
-                    os.path.join(self.input_folder_path,
-                    f"{self.json_data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{self.json_data["layer_data"][i]["name"]}_export.png"))
-                if os.path.exists(path):
-                    self.layer_list[i].set(path)
-        
-        all_autofill_button = tk.Button(all_frame, text="Autofill", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=autofill)
-        all_autofill_button.pack(side="left", padx=10, pady=10)
-        ToolTip(all_autofill_button, "Attempt to find image files with names that match the default individual layer export filenames. If a matching file is found, the respective text entry box is filled with the image path. If they don't, the entry is left blank.")
+    # Check if the update all checkbutton should be checked or unchecked
+    def check_update_set_all(self):
+        for var in self.layer_update_list:
+            if var != None and var.get() == False:
+                self.layer_update_all.set(False)
+                return
+        self.layer_update_all.set(True)
 
-        # Create widgets for each layer
-        for i, layer in enumerate(self.json_data["layer_data"]):
-            frame = tk.Frame(self.scrollable_frame, bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg)
-            frame.pack(side="top", fill="x", expand=True)
+    # Check if the export all checkbutton should be checked or unchecked
+    def check_export_set_all(self):
+        for var in self.layer_export_list:
+            if var != None and var.get() == False:
+                self.layer_export_all.set(False)
+                return
+        self.layer_export_all.set(True)
 
-            frame.grid_columnconfigure(0, weight=1)
-            frame.grid_columnconfigure(1, weight=5)
-
-            entry_var = tk.StringVar()
-
-            tk.Label(
-                frame, text=f"{i+1}: {layer["name"]}", bg=gui_shared.bg_color if i % 2 else gui_shared.secondary_bg, fg=gui_shared.fg_color
-            ).pack(side="left", padx=(10,5), pady=10)
-
-            entry = add_widget( # TODO: make widths of entry widgets consistent. At the moment it looks a little bad
-                tk.Entry, frame, {'textvariable':entry_var, 'width':1}, {'text':"Enter the path to the image that will update all pose images sourced from this layer."}
-            )
-            entry.pack(side="left", fill="x", expand=True, pady=10)
-
-            # Open filedialog, get new image, check size
-            def select_new_image(var=entry_var):
-                # Get path from filedialog
-                path = filedialog.askopenfilename(title="Select a new image", filetypes=[("Image File", "*.png;*.jpg;*.jpeg")])
-
-                if path and gui_shared.warn_image_valid(path):
-                    
-                    with Image.open(path) as image:
-                        if self.image_size != image.size:
-                            messagebox.showwarning("Warning!", f"All images must be the same size.\nThe original sprite sheet is {self.image_size[0]}x{self.image_size[1]}, but the selected image is {image.size[0]}x{image.size[1]}.")
-                            return
-                    
-                    var.set(path) # Set tk.StringVar() to path
-                    self.check_reset_progress()
-
-            output_folder_button = tk.Button(frame, text="📁", bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=select_new_image)
-            output_folder_button.pack(side="left", padx=10, pady=10)
-            ToolTip(output_folder_button, "Open a file dialog and select the image that will update all pose images sourced from this layer.")
-
-            self.layer_list.append(entry_var)
-
-            # Configure height and width manually
-            frame.update_idletasks()
-            frame.configure(width=self.scrollable_frame.cget('width'), height=frame.winfo_height())
-            frame.pack_propagate(False)
-
-        # Bind mousewheel
-        gui_shared.bind_event_to_all_children(self.scrollable_frame, "<MouseWheel>", self.on_left_frame_mousewheel)
+    def resize_layer_list(self): # TODO rename maybe, an inline func in setup_ui shares the name without the "self." before
+        self.layer_list_frame.pack_propagate(True)
+        self.layer_list_frame.update_idletasks()
+        self.layer_list_frame.configure(width=self.layer_canvas_frame.winfo_width(), height=self.layer_list_frame.winfo_reqheight())
+        self.layer_list_frame.pack_propagate(False)
 
     # For scrolling layer list
     def on_left_frame_mousewheel(self, event):
@@ -397,88 +492,146 @@ class Menu_ExportSheet(tk.Frame):
             with open(path) as json_file:
                 self.json_data = json.load(json_file) #could unindent after this? i.e. self.json_data's been set, so we don't need to keep the actual json file open
 
-                self.input_folder_path = os.path.dirname(path)
-                self.loaded_json_filename_label.config(text=f"Filename: {os.path.basename(path)}")
-                self.loaded_json_sheetname_label.config(text=f"Sheet name: {self.json_data['header']['name']}")
+            self.input_folder_path = os.path.dirname(path)
+            self.loaded_json_filename_label.config(text=f"Filename: {os.path.basename(path)}")
+            self.loaded_json_sheetname_label.config(text=f"Sheet name: {self.json_data['header']['name']}")
 
-                # It's *technically* possible to have a menu_exportsheet without a loaded json, and the generate buttons and stuff were disabled when that was the case.
-                # Now, it's not possible through normal means, so no need to have this check.
-                #
-                # THAT SAID, the export button is still disabled upon load. i dont wanna get rid of that, so this is fine
-                self.generate_ended() # does all necessary stuff at once
+            # It's *technically* possible to have a menu_exportsheet without a loaded json, and the generate buttons and stuff were disabled when that was the case.
+            # Now, it's not possible through normal means, so no need to have this check.
+            #
+            # THAT SAID, the export button is still disabled upon load. i dont wanna get rid of that, so this is fine
+            self.generate_ended() # does all necessary stuff at once
 
-                # If something's been generated already, reset the progress indicators
-                self.update_progress(0, "", "")
+            # If something's been generated already, reset the progress indicators
+            self.update_progress(0, "", "")
 
-                # Empty output folder path. (In theory, might not be something people want if they're trying to export a lotta things into one place. But this seems safer, and will probably prevent more confusion than it creates)
-                self.output_folder_path.set("")
+            # Empty output folder path. (In theory, might not be something people want if they're trying to export a lotta things into one place. But this seems safer, and will probably prevent more confusion than it creates)
+            self.output_folder_path.set("")
 
-                # Set image size
-                self.image_size = (self.json_data["header"]["width"], self.json_data["header"]["height"])
+            # Set image size
+            self.image_size = (self.json_data["header"]["width"], self.json_data["header"]["height"])
 
-                # Check radiobutton var. Depending on what's selected, create either checkbuttons or entries
-                if self.export_type.get() == 3:
-                    self.draw_layer_entries()
-                else:
-                    self.draw_layer_checkbuttons()
+            # Draw layer list
+            self.draw_layer_list()
             
+            # Reset the progress bar
             self.check_reset_progress()
 
     # Generate button (export button, actually) has been pressed, so communicate that to main process and provide generation info
     def generate_button_pressed(self):
 
-        output_folder_path = self.output_folder_path.get()
+        if self.exporting.get() and not self.output_folder_path.get():
+            messagebox.showwarning("Wait!", "You must select an output folder first")
+            return
 
-        # folder path needs to be treated differently depending on the export type chosen
+        if self.updating.get():
+            self.communicate_update_to_main()
+        if self.exporting.get():
+            self.communicate_export_to_main()
 
-        if output_folder_path or self.export_type.get() == 3:
-            try:
-                # Data that will be saved to a temporary file for easy transfer to main process
-                temp_json_data = {"data": self.json_data, "input_folder_path": self.input_folder_path, "output_folder_path": output_folder_path} # technically dont need input in generate_sheet, or output in update
+    # Ask the main process to start an update task
+    def communicate_update_to_main(self):
+        # TODO checks for filepaths: if multilayer doesnt exist then return, etc
 
-                if self.export_type.get() != 3: # i.e. if anything other than update pose images:
-                    selected_layers = [] # Array of ints
+        try:
+            update_type = self.update_type.get()
 
-                    for i, checkbutton in enumerate(self.layer_list): # Append selected layer to list
-                        if checkbutton.get(): selected_layers.append(i)
-                    
-                    # Update export-type-specific data to temp_json_data
-                    temp_json_data.update({"selected_layers": selected_layers, "unique_only": self.unique_pose_images_only.get()})                
-                else:
-                    new_image_paths = [] # Array of strings/paths
+            selected_layers = [] # Array of ints
 
-                    for entry_var in self.layer_list: # Append path to list
-                        new_image_path = entry_var.get()
-                        if new_image_path == "": new_image_path = None # Still not sure what's given if an entry is empty. Ought to test sometime
+            if self.update_type == UPDATE_INDIVIDUAL_MANUAL:
+                for i, var in enumerate(self.layer_path_list):
+                    if var != None:
+                        path = var.get()
+                        if path != None:
+                            selected_layers.append(i)
+            else:    
+                for i, var in enumerate(self.layer_update_list): # Append selected layer to list
+                    if var != None:
+                        if var.get():
+                            selected_layers.append(i)
+            
+            # Data that will be saved to a temporary file for easy transfer to main process
+            temp_json_data = {
+                "data": self.json_data,
+                "input_folder_path": self.input_folder_path,
+                "selected_layers": selected_layers
+            }
 
-                        if new_image_path and not gui_shared.check_image_valid(new_image_path)[0]:
-                            messagebox.showwarning("Warning!", "At least one image is invalid. Check that they exist and are the correct filetype.")
-                            return
+            match update_type:
+                case 0: # UPDATE_INDIVIDUAL_AUTO
+                    num_layers = len(self.json_data["layer_data"])
+                    number_of_characters = len(str(num_layers))
 
-                        new_image_paths.append(new_image_path)
+                    paths = []
 
-                    # Update export-type-specific data to temp_json_data
-                    temp_json_data.update({"new_image_paths": new_image_paths})
+                    for i in range(num_layers): # Try to find a file with a path matching the default export name for individual layer images
+                        path = (
+                            os.path.join(self.input_folder_path,
+                            f"{self.json_data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{self.json_data["layer_data"][i]["name"]}_export.png"))
+                        if os.path.exists(path) and (i in selected_layers): # No need to pass selected_layers here - we can simply not send the not-selected paths if they're found
+                            paths.append(path)
+                        else:
+                            paths.append(None)
 
-                # Save data to temp file
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
-                    json.dump(temp_json_data, temp_json_file)
+                    temp_json_data.update({"image_paths": paths})
 
-                    # Generation types, formatted to work with radio buttons
-                    types = ["generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]
-                    # Output data to main process
-                    print(json.dumps({"type": types[self.export_type.get()], "val": temp_json_file.name.replace('\\', '/')}), flush=True)
-            except Exception as e:
-                print(json.dumps({"type": "error", "val": e}), flush=True)
-        else: # If not all necessary info's been filled out, or if something else is wrong (make this more extensive if necessary)
-            warning_output = ""
+                case 1: # UPDATE_INDIVIDUAL_MANUAL
+                    paths = []
+                    for var in self.layer_path_list:
+                        path = var.get()
+                        if not path: path = None
+                        paths.append(path)
 
-            if not output_folder_path:
-                if warning_output != "": warning_output += "\n"
-                warning_output += "You must select an output folder first"
+                    temp_json_data.update({"image_paths": paths})
 
-            messagebox.showwarning("Wait!", warning_output)
-    
+                case 2: # UPDATE_MULTILAYER_FILE
+                    temp_json_data.update({"multilayer_file_path": self.update_multilayer_file_path.get()})
+
+            # Save data to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
+                json.dump(temp_json_data, temp_json_file)
+
+                # Subtypes. 0 and 1 are shared, as there is no difference in what generate_main.py or generate.py have to do - that's all handled here
+                temp = ["update_pose_images_with_images", "update_pose_images_with_images", "update_pose_images_with_multilayer_file"]
+
+                # Output data to main process
+                gui_shared.communicate_to_main("generate", temp_json_file.name.replace('\\', '/'), temp[update_type])
+        
+        except Exception as e:
+            gui_shared.communicate_to_main("error", e)
+
+    def communicate_export_to_main(self):
+        try:
+            # Data that will be saved to a temporary file for easy transfer to main process
+            temp_json_data = {
+                "data": self.json_data,
+                "input_folder_path": self.input_folder_path,
+                "output_folder_path": self.output_folder_path.get(),
+            }
+
+            if self.export_type.get() != 3: # i.e. if anything other than update pose images:
+                selected_layers = [] # Array of ints
+
+                for i, var in enumerate(self.layer_export_list): # Append selected layer to list
+                    if var != None:
+                        if var.get():
+                            selected_layers.append(i)
+                
+                # Update export-type-specific data to temp_json_data             
+                temp_json_data.update({"selected_layers": selected_layers, "pose_type": self.pose_type.get()})
+
+            # Save data to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
+                json.dump(temp_json_data, temp_json_file)
+
+                # Generation types, formatted to work with radio buttons
+                subtypes = ["export_sheet_image", "export_layer_images", "export_multilayer_file"]
+
+                # Output data to main process
+                gui_shared.communicate_to_main("generate", temp_json_file.name.replace('\\', '/'), subtypes[self.export_type.get()])
+        except Exception as e:
+            gui_shared.communicate_to_main("error", e)
+
     # Update menu progressbar (COULD add this stuff to the class that menus will inherit from)
     def update_progress(self, value, header_text, info_text):
         self.progress_bar["value"] = value

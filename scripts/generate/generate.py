@@ -8,6 +8,8 @@ from itertools import chain
 
 from scripts.shared import consistxels_version
 
+import aseprite_file
+
 # Output progress to main process
 def update_progress(type="update", value = None, header_text = None, info_text = None):
     update = {"type": type, "value": value, "header_text": header_text, "info_text": info_text}
@@ -47,9 +49,9 @@ def generate_sheet_data(input_data, output_folder_path): #input_data is already 
             case "Border":
                 pose_locations = search_border(search_data, search_type_data, input_layer_data)
             case "Spacing":
-                pose_locations = search_spacing(search_data, search_type_data, size) # TODO: Test
+                pose_locations = search_spacing(search_data, search_type_data, size)
             case "Preset":
-                pose_locations = input_pose_data # TODO: Test
+                pose_locations = input_pose_data
             case _:
                 print(json.dumps({"type":"error", "value":0, "info_text":f"{search_type_data["search_type"]} is not a valid search type"}))
                 raise ValueError # handle this better by putting error message in valueerror?
@@ -71,8 +73,7 @@ def generate_sheet_data(input_data, output_folder_path): #input_data is already 
         # Save OUTPUT layer data, useful if any layers are cosmetic-only or a border
         output_layer_data, search_images, source_images = generate_layer_data(input_layer_data)
 
-        # TODO: test. not sure if the method below this one had anything over something like this. maybe i was just tired??
-        # IT DID have something over it. not every search image ends up here, so it quickly checks for layers that aren't stored here, so we get an IndexError: list index out of range
+        # Save search and source images, if they exist and should be saved
         for i, layer in enumerate(output_layer_data):
             if layer.get("export_layer_images"):
                 if search_images[i]:
@@ -730,7 +731,7 @@ def compare_images(curr_image_bytes_set : list[bytes], curr_image_sizes_set : li
     return True, False, 0
 
 # Generate one image that contains all selected layers merged together
-def generate_sheet_image(selected_layers, data, input_folder_path, output_folder_path):
+def export_sheet_image(selected_layers, data, input_folder_path, output_folder_path):
     size = (data["header"]["width"], data["header"]["height"])
     layer_images = place_pose_images(
         data["image_data"],
@@ -750,7 +751,9 @@ def generate_sheet_image(selected_layers, data, input_folder_path, output_folder
     sheet_image.save(os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.png"))
 
 # Generate an image for each selected layer
-def generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path):
+def export_layer_images(selected_layers, pose_type, data, input_folder_path, output_folder_path):
+    unique_only = pose_type > 0
+
     size = (data["header"]["width"], data["header"]["height"])
     layer_images = place_pose_images(
         data["image_data"],
@@ -767,13 +770,80 @@ def generate_layer_images(selected_layers, unique_only, data, input_folder_path,
             path = (f"{data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{data["layer_data"][i]["name"]}_export.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
             layer_image.save(os.path.join(output_folder_path, path))
 
-# Not implemented yet
-def generate_external_filetype(selected_layers, unique_only, data, input_folder_path, output_folder_path):
-    raise NotImplementedError
+# Export to a multilayer file. (At the moment, the only supported filetype is .aseprite, but this SHOULD change really soon! TODO UPDATE DESC)
+def export_multilayer_file(selected_layers, pose_type, data, input_folder_path, output_folder_path, file_type = ".aseprite"):
+    match file_type:
+        case ".aseprite":
+            update_progress("update", 0, "Exporting...", "Preparing to export to .aseprite...")
+            
+            all_layer_images = []
+            unique_layer_images = []
+            size = (data["header"]["width"], data["header"]["height"])
+
+            if pose_type != 1: # Layer images that contain all pose images
+                all_layer_images = list(reversed(place_pose_images( # Lists are reversed consistently, because Aseprite handles layer order from bottom to top
+                    data["image_data"],
+                    generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]),
+                    data["layer_data"],
+                    size,
+                    input_folder_path
+                )))
+
+            if pose_type != 0: # Layer images that contain only unique pose images
+                unique_layer_images = list(reversed(place_pose_images(
+                    data["image_data"],
+                    generate_image_placement_data(selected_layers, True, data["pose_data"], data["layer_data"], data["image_data"]),
+                    data["layer_data"],
+                    size,
+                    input_folder_path
+                )))
+
+            layer_images = []
+            layer_names = []
+            if pose_type == 2:
+                # If pose_type "both" was selected, add layer images together, plus gaps for layer groups.
+                # Speaking of layer groups: for some reason, they need to be placed BEFORE the layers in that group, which DOES make sense from
+                # a top-to-bottom order, but not a bottom-to-top order? So, basically, the position of the group in the VISIBLE layer hierarcy
+                # inside the Aseprite editor itself is misleading - the groups need to be "below" the layers they hold.
+                layer_images = [None] + all_layer_images + [None] + unique_layer_images
+ 
+                layer_names.append("all")
+                layer_names += list(reversed([(layer.get("name") + "_all") for layer in data["layer_data"]]))
+                layer_names.append("unique")
+                layer_names += list(reversed([layer.get("name") for layer in data["layer_data"]]))
+            else:
+                layer_images = all_layer_images + unique_layer_images
+
+                layer_names = list(reversed([layer.get("name") for layer in data["layer_data"]]))
+
+            num_of_layers = len(data["layer_data"])
+            cels = []
+
+            layers = []
+            for i, layer_name in enumerate(layer_names):
+                layers.append({
+                    "name": layer_name,
+                    "layer_type": 0 if (i % (num_of_layers + 1)) or pose_type != 2 else 1, # 0 == normal image layer, 1 == group
+                    "child_level": 1 if (i % (num_of_layers + 1)) and pose_type == 2 else 0 # 1 == inside group, 0 == outside group OR is itself a group
+                })
+
+            for i, layer_image in enumerate(layer_images):
+                if layers[i].get("layer_type") == 0: # If this is a normal image layer:
+                    cels.append({
+                        "image": layer_image, # Shouldn't be None, because the indexes of the groups should match the Nones inserted above
+                        "layer_index": i,
+                        "z_index": num_of_layers if (i < num_of_layers) and pose_type == 2 else 0
+                    })
+            
+            update_progress("update", 50, "Exporting...", "Saving to .aseprite...")
+            formatted = aseprite_file.format_simple_dicts(size, layers, cels) # The layers and cels are inputted in a format that can be cleaned up and saved below
+            aseprite_file.save(formatted, os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.aseprite"))
 
 # Re-format pose, layer, and image data so that limb data is per-image, not per-pose.
-def generate_image_placement_data(selected_layers, unique_only, pose_data, layer_data, image_data):
+def generate_image_placement_data(selected_layers, pose_type, pose_data, layer_data, image_data):
     layer_names = [layer.get("name") for layer in layer_data]
+
+    unique_only = pose_type > 0 # pose_type: 0 == all, 1 == unique only. 2 is only for multilayer, and should be disabled here, since it's not multilayer.
 
     image_placement_data = []
     for _ in range(len(image_data)):
@@ -809,7 +879,7 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
         new_percent = math.floor((pose_index / len(pose_data)) * 100)
         if new_percent > curr_percent:
             curr_percent = new_percent
-            update_progress("update", new_percent, "Formatting...", f"Poses formatted: {pose_index + 1}/{len(pose_data)}")
+            update_progress("update", new_percent, "Exporting...", f"Formatting poses: ({pose_index + 1}/{len(pose_data)})")
 
     # dawning on me that we can check for original pose index if we simply look through pose data for the first instance. we're kinda doing that anyway. think abt this
     return image_placement_data
@@ -818,7 +888,7 @@ def generate_image_placement_data(selected_layers, unique_only, pose_data, layer
 def place_pose_images(image_data, image_placement_data, layer_data, size, input_folder_path):
     # Pose images will be placed onto layer images, which will all be returned at the end
     layer_images = [None] * len(layer_data)
-    img_base = Image.new("RGBA", size, ImageColor.getrgb("#00000000"))
+    img_base = Image.new("RGBA", size, (0,0,0,0))
 
     for i, layer in enumerate(layer_data):
         if layer["is_border"] or layer["is_cosmetic_only"]:
@@ -852,20 +922,54 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
 
     return layer_images
     
-# updated_layers in format [{"new_image_path"}, {...}...] or something to that effect
-def generate_updated_pose_images(new_image_paths, data, input_folder_path):
-    new_layer_images = [None] * len(new_image_paths)
-    for i, new_image_path in enumerate(new_image_paths):
+# Opens the new layer images that will be used to update the pose images, and then passes them along to update_pose_images()
+def update_pose_images_with_images(update_image_paths, data, input_folder_path):
+    update_layer_images = [None] * len(update_image_paths)
+    for i, new_image_path in enumerate(update_image_paths):
         if new_image_path:
             with Image.open(new_image_path) as new_layer_image:
-                new_layer_images[i] = new_layer_image.copy()
+                update_layer_images[i] = new_layer_image.copy()
 
+    # Update the pose images
+    update_pose_images(update_layer_images, data, input_folder_path)
+
+def update_pose_images_with_multilayer_file(multilayer_file_path, selected_layers, data, input_folder_path):
+    extension = os.path.splitext(multilayer_file_path)[1]
+    images = []
+
+    if extension in [".ase", ".aseprite"]:
+        update_progress("update", 0, "Updating pose images...", "Reading .aseprite file...")
+
+        multilayer_file_dict = aseprite_file.load(multilayer_file_path)
+
+        cels = aseprite_file.get_all_chunks_of_type(multilayer_file_dict, aseprite_file.CEL_CHUNK)
+        layers = aseprite_file.get_all_chunks_of_type(multilayer_file_dict, aseprite_file.LAYER_CHUNK)
+
+        layer_names_from_json_data = [layer.get("name") for layer in data.get("layer_data")]
+
+        size = (data["header"]["width"], data["header"]["height"])
+        img_base = Image.new("RGBA", size, (0,0,0,0))
+        images = [None] * len(layer_names_from_json_data)
+
+        for i, name in enumerate(layer_names_from_json_data):
+            if i in selected_layers:
+
+                for j, layer in enumerate(layers): # There's a VERY good chance that the num of layers and their indexes won't match between input .aseprite and json's layer_data...
+                    if layer.get("name") == name: # ...so instead we match by name. Not a perfect system, could allow for manual selection later. This works for now.
+                        cel = next(cel for cel in cels if cel.get("layer_index") == j)
+                        image = img_base.copy()
+                        image.paste(cel.get("image"), (cel.get("x_pos"), cel.get("y_pos")))
+                        images[i] = image
+
+    update_pose_images(images, data, input_folder_path)
+
+def update_pose_images(images, data, input_folder_path):
     curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
 
     for i, image_datum in enumerate(data["image_data"]):
 
         layer_index = image_datum["original_layer_index"]
-        if new_layer_images[layer_index] != None:
+        if images[layer_index] != None:
 
             pose = data["pose_data"][image_datum["original_pose_index"]]
             pose_box = (pose["x_position"], pose["y_position"], pose["x_position"] + pose["width"], pose["y_position"] + pose["height"])
@@ -883,14 +987,14 @@ def generate_updated_pose_images(new_image_paths, data, input_folder_path):
 
             # Generate image
             generate_image_from_source_layer(
-                new_layer_images[image_datum["original_layer_index"]], pose_box, size, offset
+                images[image_datum["original_layer_index"]], pose_box, size, offset
             ).save(os.path.join(input_folder_path, image_datum["path"]))
 
         # For updating progress bar. To prevent being called constantly, does a little math
         new_percent = math.floor((i / len(data["image_data"])) * 100)
         if new_percent > curr_percent:
             curr_percent = new_percent
-            update_progress("update", new_percent, "Updating pose images...", f"({i + 1}/{len(data['image_data'])})")
+            update_progress("update", new_percent, "Updating pose images...", f"Updated: ({i + 1}/{len(data['image_data'])})")
 
 # Given the search settings, calculate the range or ranges to search.
 def get_x_range(start = 0, end = 10, start_search_in_center = False, search_right_to_left = False, edge_offset = 0): # edge_offset modifies the end value without changing the original midpoint

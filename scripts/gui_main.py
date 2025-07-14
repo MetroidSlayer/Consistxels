@@ -119,35 +119,34 @@ class ConsistxelsApp(tk.Frame):
                         header_text = data.get("header_text") # Used to show information
                         info_text = data.get("info_text") # Used to show secondary information if there is a header, and primary information if there isn't
                         
-                        if type in ["generate_sheet_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
-                            self.curr_menu.generate_begun() # Format current menu; disable generate button, enable cancel button, etc.
-                            self.update_progress(0, "", "Initializing...")
-                        else:
-                            match type:
-                                case "update":
-                                    if self.winfo_toplevel().focus_get() != None:
-                                        self.update_progress(value, header_text, info_text)
-                                case "error":
-                                    self.curr_menu.generate_ended()
-                                    self.update_progress(0, "", "Error")
-                                    messagebox.showerror(header_text, info_text)
-                                case "done":
-                                    self.curr_menu.generate_ended()
+                        match type:
+                            case "generate":
+                                self.curr_menu.generate_begun() # Format current menu; disable generate button, enable cancel button, etc.
+                                self.update_progress(0, "", "Initializing...")
+                            case "update":
+                                if self.winfo_toplevel().focus_get() != None:
                                     self.update_progress(value, header_text, info_text)
-                                    messagebox.showinfo(header_text, info_text)
-                                case "cancel":
-                                    self.curr_menu.generate_ended()
-                                    self.update_progress(None, "", "Cancelled")
-                    except json.JSONDecodeError:
-                        print(json.dumps({"type": "error", "val": ("Malformed output to generate stdin:", line)}), flush=True)
+                            case "error":
+                                self.curr_menu.generate_ended()
+                                self.update_progress(0, "", "Error")
+                                messagebox.showerror(header_text, info_text)
+                            case "done":
+                                self.curr_menu.generate_ended()
+                                self.update_progress(value, header_text, info_text)
+                                messagebox.showinfo(header_text, info_text)
+                            case "cancel":
+                                self.curr_menu.generate_ended()
+                                self.update_progress(None, "", "Cancelled")
+
+                    except json.JSONDecodeError as e:
+                        print(json.dumps({"type": "error", "val": (f"Malformed output to generate stdin:\n{line}\n{e}")}), flush=True)
+
             except Exception as e:
                 print(json.dumps({"type": "error", "val": f"Exception in gui handle_input: {e}\nLine that caused exception: {line}"}), flush=True)
     
     # Inform main process of window focus
-
     def _on_root_focus_in(self, _event):
         print(json.dumps({"type": "root_focus", "val": True}), flush=True)
-    
     def _on_root_focus_out(self, _event):
         print(json.dumps({"type": "root_focus", "val": False}), flush=True)
 

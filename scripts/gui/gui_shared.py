@@ -1,7 +1,8 @@
 import os
+import json
 import traceback
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from PIL import Image
 
 from scripts.classes.tooltip import ToolTip
@@ -9,6 +10,9 @@ from scripts.classes.tooltip import ToolTip
 # Style info. Eventually, this will be modifiable by the user, probably
 bg_color = "#2e2e2e"
 fg_color = "#ffffff"
+
+# TODO come up with better names. also probably put these in a config & let user do whatever
+fg_fade = "#bbbbbb"
 
 secondary_bg = "#3a3a3a"
 secondary_fg = "#6a6a6a"
@@ -62,6 +66,23 @@ def bind_event_to_all_children(widget, sequence, func):
     widget.bind(sequence, func)
     for child in widget.winfo_children():
         bind_event_to_all_children(child, sequence, func)
+
+# Set a tk.StringVar to a filepath provided by the user.
+def ask_open_file_for_stringvar(stringvar : tk.StringVar, filetypes : list = None):
+    path = filedialog.askopenfilename(filetypes=filetypes)
+    if path:
+        stringvar.set(path)
+
+# Communicate info to main process
+# TODO put this in shared.py?
+def communicate_to_main(type : str, val, subtype : str = None):
+    to_main = {
+        "type": type, "val": val
+    }
+    if subtype: to_main.update({"subtype": subtype})
+    
+    print(json.dumps(to_main), flush=True)
+
 
 # Funcs for checking various common things in the menus
 # TODO TODO TODO: revise all of these. none of them are very good

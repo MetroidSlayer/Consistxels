@@ -33,30 +33,29 @@ def main():
     os.remove(temp_json_path) # Remove temp json file
 
     # Using the type passed in the json, choose which generation to run
-    type = input_data.get("type", "")
-    match type:
+    subtype = input_data.get("subtype", input_data.get("type", "")) # TODO fix preventative forgetfulness measure here, where it looks for type
+    match subtype:
         case "generate_sheet_data":
             generate_sheet_data(temp_json_data)
-        case "generate_sheet_image":
-            generate_sheet_image(temp_json_data)
-        case "generate_layer_images":
-            generate_layer_images(temp_json_data)
-        case "generate_external_filetype":
-            generate_external_filetype(temp_json_data)
-        case "generate_updated_pose_images":
-            generate_updated_pose_images(temp_json_data)
+        case "export_sheet_image":
+            export_sheet_image(temp_json_data)
+        case "export_layer_images":
+            export_layer_images(temp_json_data)
+        case "export_multilayer_file":
+            export_multilayer_file(temp_json_data)
+        case "update_pose_images_with_images":
+            update_pose_images_with_images(temp_json_data)
+        case "update_pose_images_with_multilayer_file":
+            update_pose_images_with_multilayer_file(temp_json_data)
 
     # Generation finished, calculate time
     end_time = datetime.now()
     time_elapsed = end_time - start_time
-    time_elapsed_seconds = int(time_elapsed.total_seconds())
-    hours = time_elapsed_seconds // 3600
-    minutes = (time_elapsed_seconds % 3600) // 60
-    seconds = time_elapsed_seconds % 60
-    formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
+    time_elapsed_float = time_elapsed.total_seconds()
 
-    # Output that the generation has finished.
-    generate.update_progress("done", 100, "Complete!", f"Time elapsed: {formatted_time_elapsed}")
+    # generate.update_progress("done")
+    update = {"type": "done", "value": 100, "time_elapsed": time_elapsed_float}
+    print(json.dumps(update), flush=True)
 
 # Generate sprite sheet data (from menu_layerselect)
 def generate_sheet_data(temp_json_data):
@@ -68,7 +67,7 @@ def generate_sheet_data(temp_json_data):
     generate.generate_sheet_data(data, output_folder_path)
 
 # Generate single sprite sheet image, with all selected layers merged (from menu_loadjson)
-def generate_sheet_image(temp_json_data):
+def export_sheet_image(temp_json_data):
     # Get vars
     selected_layers = temp_json_data.get("selected_layers", [])
     data = temp_json_data.get("data", {})
@@ -76,41 +75,52 @@ def generate_sheet_image(temp_json_data):
     output_folder_path = temp_json_data.get("output_folder_path", "")
 
     # Generate
-    generate.generate_sheet_image(selected_layers, data, input_folder_path, output_folder_path)
+    generate.export_sheet_image(selected_layers, data, input_folder_path, output_folder_path)
 
 # Generate multiple images, one for each selected layer (from menu_loadjson)
-def generate_layer_images(temp_json_data):
+def export_layer_images(temp_json_data):
     # Get vars
     selected_layers = temp_json_data.get("selected_layers", [])
-    unique_only = temp_json_data.get("unique_only", False)
+    pose_type = temp_json_data.get("pose_type", 0)
     data = temp_json_data.get("data", {})
     input_folder_path = temp_json_data.get("input_folder_path", "")
     output_folder_path = temp_json_data.get("output_folder_path", "")
 
     # Generate
-    generate.generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path)
+    # generate.generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path)
+    generate.export_layer_images(selected_layers, pose_type, data, input_folder_path, output_folder_path) # In theory, could still pass unique_only if it's calculated here; might work better. idk
 
 # Generate a multi-layered file (from menu_loadjson)
-def generate_external_filetype(temp_json_data):
+def export_multilayer_file(temp_json_data):
     selected_layers = temp_json_data.get("selected_layers", [])
 
-    unique_only = temp_json_data.get("unique_only", False)
+    pose_type = temp_json_data.get("pose_type", 0)
 
     data = temp_json_data.get("data", {})
     input_folder_path = temp_json_data.get("input_folder_path", "")
     output_folder_path = temp_json_data.get("output_folder_path", "")
 
-    generate.generate_external_filetype(selected_layers, unique_only, data, input_folder_path, output_folder_path)
+    generate.export_multilayer_file(selected_layers, pose_type, data, input_folder_path, output_folder_path)
 
 # Generate updated pose images by using inputted layers (from menu_loadjson)
-def generate_updated_pose_images(temp_json_data):
+def update_pose_images_with_images(temp_json_data):
     # Get vars
-    new_image_paths = temp_json_data.get("new_image_paths", [])
+    image_paths = temp_json_data.get("image_paths", [])
     data = temp_json_data.get("data", {})
     input_folder_path = temp_json_data.get("input_folder_path", "")
+    # selected_layers = temp_json_data.get("selected_layers", [])
     
     # Generate
-    generate.generate_updated_pose_images(new_image_paths, data, input_folder_path)
+    generate.update_pose_images_with_images(image_paths, data, input_folder_path)
+
+def update_pose_images_with_multilayer_file(temp_json_data):
+    # Get vars
+    multilayer_file_path = temp_json_data.get("multilayer_file_path", "")
+    selected_layers = temp_json_data.get("selected_layers", [])
+    data = temp_json_data.get("data", {})
+    input_folder_path = temp_json_data.get("input_folder_path", "")
+
+    generate.update_pose_images_with_multilayer_file(multilayer_file_path, selected_layers, data, input_folder_path)
 
 # Run main()
 if __name__ == "__main__":

@@ -5,9 +5,15 @@ import threading
 import runpy
 
 # Global vars
+
+# GUI
 gui_process : subprocess.Popen = None # Process that handles the GUI
-generate_process : subprocess.Popen = None # Process that handes image/data generation
 gui_has_focus : bool = True # Based on output from gui_process, prevents updates from being sent to the GUI if the window is unfocused
+
+# Generation
+generate_process : subprocess.Popen = None # Process that handes image/data generation
+generate_queue : list[str] = [] # Queue of tasks to run generate processes for
+generate_time_elapsed : float = 0.0 # Total elapsed time of generate processes. Resets to 0 after queue fully empties
 
 # Main function. Starts the GUI process and the listener thread
 def main():
@@ -65,6 +71,8 @@ def start_generate_process(temp_json_filepath):
 def read_gui_stdout():
     # Global vars
     global gui_process
+    global generate_process
+    global generate_queue
     global gui_has_focus
 
     if gui_process != None:
@@ -76,28 +84,27 @@ def read_gui_stdout():
                 data = json.loads(line)
                 type = data.get("type")
                 val = data.get("val")
-
-                # No matter the type of generation, main acts the same
-                if type in ["generate_sheet_data", "generate_sheet_image", "generate_layer_images", "generate_external_filetype", "generate_updated_pose_images"]:
-                    start_generate_process(line)
-                    output_generate_progress(line, True)
-                else:
-                    match type: # Handle non-generation output
-                        case "root_focus":
-                            gui_has_focus = val
-                        case "cancel":
-                            cancel_generate_process()
+                
+                match type: # Handle output
+                    case "generate":
+                        if generate_process == None:
+                            start_generate_process(line)
                             output_generate_progress(line, True)
-                        case "error":
-                            print(f"Error in gui\n{val}")
-                            return
-                        case "done":
-                            print(line)
-                            return
-                        case "print":
-                            print(val)
-                        case _:
-                            print(line)
+                        else:
+                            generate_queue.append(line)
+                    case "root_focus":
+                        gui_has_focus = val
+                    case "cancel":
+                        cancel_generate_process()
+                        output_generate_progress(line, True)
+                    case "error":
+                        print(f"Error in gui\n{line}")
+                    case "done":
+                        print(line)
+                    case "print":
+                        print(val)
+                    case _:
+                        print(line)
 
             except json.JSONDecodeError:
                 print("Malformed output from gui to main:", line)
@@ -109,6 +116,7 @@ def read_generate_stdout():
     # Global vars
     global generate_process
     global gui_has_focus
+    global generate_time_elapsed
 
     if generate_process != None:
         for line in generate_process.stdout:
@@ -127,7 +135,26 @@ def read_generate_stdout():
                         output_generate_progress(line, True)
                         return
                     case "done":
-                        output_generate_progress(line, True)
+                        output : str
+                        generate_time_elapsed += data.get("time_elapsed", 0.0)
+
+                        if len(generate_queue): # If there are queued tasks, start the next one
+                            task = generate_queue.pop(0)
+                            output = task
+                            start_generate_process(task)
+                        else: # No queued tasks, inform user that tasks are finished
+                            time_elapsed_seconds = int(generate_time_elapsed)
+                            hours = time_elapsed_seconds // 3600
+                            minutes = (time_elapsed_seconds % 3600) // 60
+                            seconds = time_elapsed_seconds % 60
+                            formatted_time_elapsed = f"{hours:02}:{minutes:02}:{seconds:02}"
+
+                            output = json.dumps({"type": "done", "value": data.get("value"), "header_text": "Complete!", "info_text": f"Time elapsed: {formatted_time_elapsed}"})
+
+                            generate_time_elapsed = 0
+                            generate_process = None
+
+                        output_generate_progress(output, True) # Update GUI
                         return
                     case "print":
                         print(data.get("info_text", line))
@@ -164,8 +191,15 @@ def output_generate_progress(line, use_gui_process = False):
 
 # Cancel the current generation process
 def cancel_generate_process(app_closing = False):
-    # Global var
+    # Global vars
     global generate_process
+    global generate_queue
+    global generate_time_elapsed
+
+    if len(generate_queue): # If there are queued tasks, remove them from the queue
+        generate_queue = []
+    if generate_time_elapsed: # If some elapsed time is stored, clear it
+        generate_time_elapsed = 0.0
 
     if generate_process != None: # If there's a process, order it to close, then wait for it to close
         generate_process.terminate()

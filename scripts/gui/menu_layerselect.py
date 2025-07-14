@@ -1339,10 +1339,10 @@ class Menu_LayerSelect(tk.Frame):
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".json", mode="w") as temp_json_file:
                     json.dump(temp_json_data, temp_json_file) # Save data to temporary .json
-                    print(json.dumps({"type": "generate_sheet_data", "val": temp_json_file.name.replace('\\', '/')}), flush=True) # Tell main process to generate
+                    gui_shared.communicate_to_main("generate", temp_json_file.name.replace('\\', '/'), "generate_sheet_data") # Tell main process to generate
 
             except Exception as e:
-                print(json.dumps({"type": "error", "val": e}), flush=True)
+                gui_shared.communicate_to_main("error", e)
     
     # Update progress bar, labels
     def update_progress(self, value, header_text, info_text):
