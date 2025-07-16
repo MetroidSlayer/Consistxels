@@ -1,6 +1,7 @@
 import math
 import os
 import json
+import numpy
 import traceback
 
 from PIL import Image, ImageColor
@@ -9,6 +10,8 @@ from itertools import chain
 from scripts.shared import consistxels_version
 
 import aseprite_file
+
+import psapi # https://github.com/EmilDohne/PhotoshopAPI/tree/master
 
 # Output progress to main process
 def update_progress(type="update", value = None, header_text = None, info_text = None):
@@ -627,13 +630,8 @@ def generate_image_from_source_layer(source_layer_image, pose_box, size, offset)
 
 # Generate a new image with the given input image, size, and offset
 def generate_image(input_image, size, offset):
-    image = Image.new( # Create new image
-        "RGBA", size,
-        ImageColor.getrgb("#00000000") # Transparency
-    )
-
-    # Paste input image at position, then return
-    image.paste(input_image, offset)
+    image = Image.new("RGBA", size, (0,0,0,0)) # Create new image
+    image.paste(input_image, offset) # Paste input image at position
     return image
 
 # Generate data about the layers used, and return layer images as well
@@ -731,7 +729,7 @@ def compare_images(curr_image_bytes_set : list[bytes], curr_image_sizes_set : li
     return True, False, 0
 
 # Generate one image that contains all selected layers merged together
-def export_sheet_image(selected_layers, data, input_folder_path, output_folder_path):
+def export_sheet_image(selected_layers, data, input_folder_path, output_folder_path, file_type):
     size = (data["header"]["width"], data["header"]["height"])
     layer_images = place_pose_images(
         data["image_data"],
@@ -740,7 +738,7 @@ def export_sheet_image(selected_layers, data, input_folder_path, output_folder_p
         input_folder_path
     )
 
-    sheet_image = Image.new("RGBA", size, ImageColor.getrgb("#00000000"))
+    sheet_image = Image.new("RGBA", size, (0,0,0,0))
 
     for i, layer_image in enumerate(layer_images): # probably a better way to do this
         if not i in selected_layers: layer_images.pop(i)
@@ -748,10 +746,10 @@ def export_sheet_image(selected_layers, data, input_folder_path, output_folder_p
     for layer_image in reversed(layer_images):
         sheet_image.alpha_composite(layer_image)
 
-    sheet_image.save(os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.png"))
+    sheet_image.save(os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export{file_type}")) # TODO ALWAYS make sure that supported filetypes work naturally with PIL. particularly worried about .bmp
 
 # Generate an image for each selected layer
-def export_layer_images(selected_layers, pose_type, data, input_folder_path, output_folder_path):
+def export_layer_images(selected_layers, pose_type, data, input_folder_path, output_folder_path, file_type):
     unique_only = pose_type > 0
 
     size = (data["header"]["width"], data["header"]["height"])
@@ -767,77 +765,164 @@ def export_layer_images(selected_layers, pose_type, data, input_folder_path, out
 
     for i, layer_image in enumerate(layer_images):
         if i in selected_layers:
-            path = (f"{data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{data["layer_data"][i]["name"]}_export.png") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
+            path = (f"{data["header"]["name"]}_layer{str(i + 1).rjust(number_of_characters, '0')}_{data["layer_data"][i]["name"]}_export{file_type}") # TODO once filetype is selectable, add it here. do the same for the single merged image, too
             layer_image.save(os.path.join(output_folder_path, path))
 
 # Export to a multilayer file. (At the moment, the only supported filetype is .aseprite, but this SHOULD change really soon! TODO UPDATE DESC)
-def export_multilayer_file(selected_layers, pose_type, data, input_folder_path, output_folder_path, file_type = ".aseprite"):
+def export_multilayer_file(selected_layers, pose_type, data, input_folder_path, output_folder_path, file_type):
     match file_type:
         case ".aseprite":
-            update_progress("update", 0, "Exporting...", "Preparing to export to .aseprite...")
+            export_aseprite(selected_layers, pose_type, data, input_folder_path, output_folder_path)
+        case ".psd":
+            export_psd(selected_layers, pose_type, data, input_folder_path, output_folder_path)
+
+# Export an .aseprite file with the given info.
+def export_aseprite(selected_layers, pose_type, data, input_folder_path, output_folder_path):
+    update_progress("update", 0, "Exporting...", "Preparing to export to .aseprite...")
+    
+    # In theory, could move these to export_multilayer_file, but I like 'em standalone and also what if the weird handling of layer groups is drasically different between filetypes
+    all_layer_images = []
+    unique_layer_images = []
+    size = (data["header"]["width"], data["header"]["height"])
+
+    if pose_type != 1: # Layer images that contain all pose images
+        all_layer_images = list(reversed(place_pose_images( # Lists are reversed consistently, because Aseprite handles layer order from bottom to top
+            data["image_data"],
+            generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]),
+            data["layer_data"],
+            size,
+            input_folder_path
+        )))
+
+    if pose_type != 0: # Layer images that contain only unique pose images
+        unique_layer_images = list(reversed(place_pose_images(
+            data["image_data"],
+            generate_image_placement_data(selected_layers, True, data["pose_data"], data["layer_data"], data["image_data"]),
+            data["layer_data"],
+            size,
+            input_folder_path
+        )))
+
+    layer_images = []
+    layer_names = []
+    if pose_type == 2:
+        # If pose_type "both" was selected, add layer images together, plus gaps for layer groups.
+        # Speaking of layer groups: for some reason, they need to be placed BEFORE the layers in that group, which DOES make sense from
+        # a top-to-bottom order, but not a bottom-to-top order? So, basically, the position of the group in the VISIBLE layer hierarcy
+        # inside the Aseprite editor itself is misleading - the groups need to be "below" the layers they hold.
+        layer_images = [None] + all_layer_images + [None] + unique_layer_images
+
+        layer_names.append("all")
+        layer_names += list(reversed([(layer.get("name") + "_all") for layer in data["layer_data"]]))
+        layer_names.append("unique")
+        layer_names += list(reversed([layer.get("name") for layer in data["layer_data"]]))
+    else:
+        layer_images = all_layer_images + unique_layer_images
+
+        layer_names = list(reversed([layer.get("name") for layer in data["layer_data"]]))
+
+    num_of_layers = len(data["layer_data"])
+    cels = []
+
+    layers = []
+    for i, layer_name in enumerate(layer_names):
+        layers.append({
+            "name": layer_name,
+            "layer_type": 0 if (i % (num_of_layers + 1)) or pose_type != 2 else 1, # 0 == normal image layer, 1 == group
+            "child_level": 1 if (i % (num_of_layers + 1)) and pose_type == 2 else 0 # 1 == inside group, 0 == outside group OR is itself a group
+        })
+
+    for i, layer_image in enumerate(layer_images):
+        if layers[i].get("layer_type") == 0: # If this is a normal image layer:
+            cels.append({
+                "image": layer_image, # Shouldn't be None, because the indexes of the groups should match the Nones inserted above
+                "layer_index": i,
+                "z_index": num_of_layers if (i < num_of_layers) and pose_type == 2 else 0
+            })
+    
+    update_progress("update", 50, "Exporting...", "Saving to .aseprite...")
+    formatted = aseprite_file.format_simple_dicts(size, layers, cels) # The layers and cels are inputted in a format that can be cleaned up and saved below
+    aseprite_file.save(formatted, os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.aseprite"))
+
+# Export a .psd file with the given info.
+def export_psd(selected_layers, pose_type, data, input_folder_path, output_folder_path):
+    update_progress("update", 0, "Exporting...", "Preparing to export to .psd...")
+
+    all_layer_images = []
+    unique_layer_images = []
+    size = (data["header"]["width"], data["header"]["height"])
+    width = size[0]
+    height = size[1]
+    offset_x = math.ceil(width/2)
+    offset_y = math.ceil(height/2)
+
+    if pose_type != 1: # Layer images that contain all pose images
+        all_layer_images = list(place_pose_images(
+            data["image_data"],
+            generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]),
+            data["layer_data"],
+            size,
+            input_folder_path
+        ))
+
+    if pose_type != 0: # Layer images that contain only unique pose images
+        unique_layer_images = list(place_pose_images(
+            data["image_data"],
+            generate_image_placement_data(selected_layers, True, data["pose_data"], data["layer_data"], data["image_data"]),
+            data["layer_data"],
+            size,
+            input_folder_path
+        ))
+    
+    layer_images : list[Image.Image] = []
+    layer_names : list[str] = []
+    if pose_type == 2:
+        # If pose_type "both" was selected, add layer images together, plus gaps for layer groups.
+        # Speaking of layer groups: for some reason, they need to be placed BEFORE the layers in that group, which DOES make sense from
+        # a top-to-bottom order, but not a bottom-to-top order? So, basically, the position of the group in the VISIBLE layer hierarcy
+        # inside the Aseprite editor itself is misleading - the groups need to be "below" the layers they hold.
+        layer_images = [None] + unique_layer_images + [None] + all_layer_images
+
+        layer_names.append("unique")
+        layer_names += [layer.get("name") for layer in data["layer_data"]]
+        layer_names.append("all")
+        layer_names += [(layer.get("name") + "_all") for layer in data["layer_data"]]
+    else:
+        layer_images = unique_layer_images + all_layer_images
+
+        layer_names = [layer.get("name") for layer in data["layer_data"]]
+
+    color_mode = psapi.enum.ColorMode.rgb
+    document = psapi.LayeredFile_8bit(color_mode, width, height)
+    last_group = None
+
+    for i, layer_image in enumerate(layer_images):
+        if layer_image != None: # If layer_image == None, it's a layer group. TODO this is unsafe, as unchecking Export for a layer may make that qualify as a layer group!
+            img_data = numpy.zeros((4, height, width), numpy.uint8)
             
-            all_layer_images = []
-            unique_layer_images = []
-            size = (data["header"]["width"], data["header"]["height"])
+            # PhotoshopAPI library requires the images to be separated into channels
+            r = layer_image.getchannel("R")
+            g = layer_image.getchannel("G")
+            b = layer_image.getchannel("B")
+            a = layer_image.getchannel("A")
+            img_data[0] = numpy.asarray(r)
+            img_data[1] = numpy.asarray(g)
+            img_data[2] = numpy.asarray(b)
+            img_data[3] = numpy.asarray(a)
 
-            if pose_type != 1: # Layer images that contain all pose images
-                all_layer_images = list(reversed(place_pose_images( # Lists are reversed consistently, because Aseprite handles layer order from bottom to top
-                    data["image_data"],
-                    generate_image_placement_data(selected_layers, False, data["pose_data"], data["layer_data"], data["image_data"]),
-                    data["layer_data"],
-                    size,
-                    input_folder_path
-                )))
+            # Create image layer
+            img_layer = psapi.ImageLayer_8bit(img_data, layer_names[i], width=width, height=height, pos_x=offset_x, pos_y=offset_y)
 
-            if pose_type != 0: # Layer images that contain only unique pose images
-                unique_layer_images = list(reversed(place_pose_images(
-                    data["image_data"],
-                    generate_image_placement_data(selected_layers, True, data["pose_data"], data["layer_data"], data["image_data"]),
-                    data["layer_data"],
-                    size,
-                    input_folder_path
-                )))
-
-            layer_images = []
-            layer_names = []
-            if pose_type == 2:
-                # If pose_type "both" was selected, add layer images together, plus gaps for layer groups.
-                # Speaking of layer groups: for some reason, they need to be placed BEFORE the layers in that group, which DOES make sense from
-                # a top-to-bottom order, but not a bottom-to-top order? So, basically, the position of the group in the VISIBLE layer hierarcy
-                # inside the Aseprite editor itself is misleading - the groups need to be "below" the layers they hold.
-                layer_images = [None] + all_layer_images + [None] + unique_layer_images
- 
-                layer_names.append("all")
-                layer_names += list(reversed([(layer.get("name") + "_all") for layer in data["layer_data"]]))
-                layer_names.append("unique")
-                layer_names += list(reversed([layer.get("name") for layer in data["layer_data"]]))
+            if last_group != None:
+                last_group.add_layer(document, img_layer)
             else:
-                layer_images = all_layer_images + unique_layer_images
+                document.add_layer(img_layer)
+        else:
+            group_layer = psapi.GroupLayer_8bit(layer_names[i])
+            document.add_layer(group_layer)
+            last_group = group_layer
 
-                layer_names = list(reversed([layer.get("name") for layer in data["layer_data"]]))
-
-            num_of_layers = len(data["layer_data"])
-            cels = []
-
-            layers = []
-            for i, layer_name in enumerate(layer_names):
-                layers.append({
-                    "name": layer_name,
-                    "layer_type": 0 if (i % (num_of_layers + 1)) or pose_type != 2 else 1, # 0 == normal image layer, 1 == group
-                    "child_level": 1 if (i % (num_of_layers + 1)) and pose_type == 2 else 0 # 1 == inside group, 0 == outside group OR is itself a group
-                })
-
-            for i, layer_image in enumerate(layer_images):
-                if layers[i].get("layer_type") == 0: # If this is a normal image layer:
-                    cels.append({
-                        "image": layer_image, # Shouldn't be None, because the indexes of the groups should match the Nones inserted above
-                        "layer_index": i,
-                        "z_index": num_of_layers if (i < num_of_layers) and pose_type == 2 else 0
-                    })
-            
-            update_progress("update", 50, "Exporting...", "Saving to .aseprite...")
-            formatted = aseprite_file.format_simple_dicts(size, layers, cels) # The layers and cels are inputted in a format that can be cleaned up and saved below
-            aseprite_file.save(formatted, os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.aseprite"))
+    document.write(os.path.join(output_folder_path, f"{data["header"]["name"]}_sheet_export.psd"))
 
 # Re-format pose, layer, and image data so that limb data is per-image, not per-pose.
 def generate_image_placement_data(selected_layers, pose_type, pose_data, layer_data, image_data):
@@ -924,45 +1009,86 @@ def place_pose_images(image_data, image_placement_data, layer_data, size, input_
     
 # Opens the new layer images that will be used to update the pose images, and then passes them along to update_pose_images()
 def update_pose_images_with_images(update_image_paths, data, input_folder_path):
-    update_layer_images = [None] * len(update_image_paths)
+    update_layer_images = [None] * len(update_image_paths) # Pre-format the list for simplicity
     for i, new_image_path in enumerate(update_image_paths):
         if new_image_path:
             with Image.open(new_image_path) as new_layer_image:
-                update_layer_images[i] = new_layer_image.copy()
+                update_layer_images[i] = new_layer_image.copy() # Make copies of the images, so that we don't have to keep the files open
 
     # Update the pose images
     update_pose_images(update_layer_images, data, input_folder_path)
 
+# Gets the new layer images from the multilayer file using the respective function, then passes them along to update_pose_images()
 def update_pose_images_with_multilayer_file(multilayer_file_path, selected_layers, data, input_folder_path):
-    extension = os.path.splitext(multilayer_file_path)[1]
-    images = []
+    extension = os.path.splitext(multilayer_file_path)[1] # Get the extension
+    images : list[Image.Image] = []
 
-    if extension in [".ase", ".aseprite"]:
+    if extension == ".ase" or extension == ".aseprite":
         update_progress("update", 0, "Updating pose images...", "Reading .aseprite file...")
+        images = get_layer_images_from_aseprite(multilayer_file_path, selected_layers, data) # Get .aseprite cels as PIL images
+    elif extension == ".psd": # May add other filetypes to this if they're identical
+        update_progress("update", 0, "Updating pose images...", "Reading .psd file...")
+        images = get_layer_images_from_psd(multilayer_file_path, selected_layers, data) # Get .psd ImageLayer image_data as PIL images
 
-        multilayer_file_dict = aseprite_file.load(multilayer_file_path)
-
-        cels = aseprite_file.get_all_chunks_of_type(multilayer_file_dict, aseprite_file.CEL_CHUNK)
-        layers = aseprite_file.get_all_chunks_of_type(multilayer_file_dict, aseprite_file.LAYER_CHUNK)
-
-        layer_names_from_json_data = [layer.get("name") for layer in data.get("layer_data")]
-
-        size = (data["header"]["width"], data["header"]["height"])
-        img_base = Image.new("RGBA", size, (0,0,0,0))
-        images = [None] * len(layer_names_from_json_data)
-
-        for i, name in enumerate(layer_names_from_json_data):
-            if i in selected_layers:
-
-                for j, layer in enumerate(layers): # There's a VERY good chance that the num of layers and their indexes won't match between input .aseprite and json's layer_data...
-                    if layer.get("name") == name: # ...so instead we match by name. Not a perfect system, could allow for manual selection later. This works for now.
-                        cel = next(cel for cel in cels if cel.get("layer_index") == j)
-                        image = img_base.copy()
-                        image.paste(cel.get("image"), (cel.get("x_pos"), cel.get("y_pos")))
-                        images[i] = image
-
+    # Update the pose images
     update_pose_images(images, data, input_folder_path)
 
+# If the selected layers exist, get and return them from the .aseprite file
+def get_layer_images_from_aseprite(aseprite_file_path, selected_layers, data) -> list[Image.Image]:
+    # Get dict that holds .aseprite's data
+    sprite_dict = aseprite_file.load(aseprite_file_path)
+
+    cels = aseprite_file.get_all_chunks_of_type(sprite_dict, aseprite_file.CEL_CHUNK) # Cels contain the images, and an index for the layer they're part of
+    layers = aseprite_file.get_all_chunks_of_type(sprite_dict, aseprite_file.LAYER_CHUNK) # Layers contain the names, which are matched against json's layer_data
+
+    layer_names_from_json_data = [layer.get("name") for layer in data.get("layer_data")] # Layer names. I gave this a long name because the "layers" variable above would've confused me otherwise
+
+    size = (data["header"]["width"], data["header"]["height"]) # Image size
+    img_base = Image.new("RGBA", size, (0,0,0,0)) # A basic transparent image that the cels are pasted onto
+    images : list[Image.Image] = [None] * len(layer_names_from_json_data) # Pre-format list for simplicity
+
+    for i, name in enumerate(layer_names_from_json_data): # Go off of layer names, as those will match the actual json's layer_data much better than the .aseprite
+        if i in selected_layers:
+            for j, layer in enumerate(layers): # There's a VERY good chance that the num of layers and their indexes won't match between input .aseprite and json's layer_data...
+                if layer.get("name") == name: # ...so instead we match by name. Not a perfect system, could allow for manual selection later. This works for now.
+                    cel = next(cel for cel in cels if cel.get("layer_index") == j) # Get the cel that matches this layer's index
+                    image = img_base.copy() # Copy base image
+                    image.paste(cel.get("image"), (cel.get("x_pos"), cel.get("y_pos"))) # Paste cel image, which is likely smaller than needed & has a stored offset
+                    images[i] = image # Set the image at the index
+    
+    # TODO print something if a selected layer was not found in the .aseprite?
+
+    return images
+
+# If the selected layers exist, get and return them from the .psd file
+def get_layer_images_from_psd(psd_file_path, selected_layers, data):
+    psd_file = psapi.LayeredFile.read(psd_file_path)
+    layer_names_from_json_data = [layer.get("name") for layer in data.get("layer_data")]
+    images : list[Image.Image] = [None] * len(layer_names_from_json_data)
+
+    for layer in psd_file.flat_layers: # TODO check this! the library's pretty inconsistent, so this name might change
+        try:
+            # This returns an error if the name's not found, so it's wrapped in a try/except that does nothing
+            curr_layer_index = layer_names_from_json_data.index(layer.name) # Layer name indexes are always consistent with json's layer_data, and that's not a guarantee with the .psd's layers
+        except ValueError:
+            continue
+
+        if curr_layer_index in selected_layers:
+            # Get each channel, because this library is freakin' weird and if I used get_image_data I'd get a DICT that contains everything organized by channel anyway!
+            r = layer.get_channel_by_id(psapi.enum.ChannelID.red)
+            g = layer.get_channel_by_id(psapi.enum.ChannelID.green)
+            b = layer.get_channel_by_id(psapi.enum.ChannelID.blue)
+            a = layer.get_channel_by_id(psapi.enum.ChannelID.alpha)
+
+            img_data = numpy.stack((r, g, b, a), axis=-1) # Use numpy to reformat the individual channels into a single list, with each pixel now represented by a list: [r, g, b, a]
+            image : Image.Image = Image.fromarray(img_data) # Get PIL image
+            images[curr_layer_index] = image
+    
+    # TODO print something if a selected layer was not found in the .psd?
+
+    return images
+
+# Use several layer images to update the pose images
 def update_pose_images(images, data, input_folder_path):
     curr_percent = 0 # Exists to prevent near-constant calls to update_progress later on
 

@@ -71,11 +71,12 @@ def export_sheet_image(temp_json_data):
     # Get vars
     selected_layers = temp_json_data.get("selected_layers", [])
     data = temp_json_data.get("data", {})
-    input_folder_path = temp_json_data.get("input_folder_path", "")
-    output_folder_path = temp_json_data.get("output_folder_path", "")
+    input_folder_path = temp_json_data.get("input_folder_path", "") # set to json file location? idk
+    output_folder_path = temp_json_data.get("output_folder_path", "") # set to json file location? idk
+    file_type = temp_json_data.get("file_type", ".png")
 
     # Generate
-    generate.export_sheet_image(selected_layers, data, input_folder_path, output_folder_path)
+    generate.export_sheet_image(selected_layers, data, input_folder_path, output_folder_path, file_type)
 
 # Generate multiple images, one for each selected layer (from menu_loadjson)
 def export_layer_images(temp_json_data):
@@ -85,10 +86,11 @@ def export_layer_images(temp_json_data):
     data = temp_json_data.get("data", {})
     input_folder_path = temp_json_data.get("input_folder_path", "")
     output_folder_path = temp_json_data.get("output_folder_path", "")
+    file_type = temp_json_data.get("file_type", ".png")
 
     # Generate
     # generate.generate_layer_images(selected_layers, unique_only, data, input_folder_path, output_folder_path)
-    generate.export_layer_images(selected_layers, pose_type, data, input_folder_path, output_folder_path) # In theory, could still pass unique_only if it's calculated here; might work better. idk
+    generate.export_layer_images(selected_layers, pose_type, data, input_folder_path, output_folder_path, file_type) # In theory, could still pass unique_only if it's calculated here; might work better. idk
 
 # Generate a multi-layered file (from menu_loadjson)
 def export_multilayer_file(temp_json_data):
@@ -99,8 +101,9 @@ def export_multilayer_file(temp_json_data):
     data = temp_json_data.get("data", {})
     input_folder_path = temp_json_data.get("input_folder_path", "")
     output_folder_path = temp_json_data.get("output_folder_path", "")
+    file_type = temp_json_data.get("file_type", ".aseprite")
 
-    generate.export_multilayer_file(selected_layers, pose_type, data, input_folder_path, output_folder_path)
+    generate.export_multilayer_file(selected_layers, pose_type, data, input_folder_path, output_folder_path, file_type)
 
 # Generate updated pose images by using inputted layers (from menu_loadjson)
 def update_pose_images_with_images(temp_json_data):
