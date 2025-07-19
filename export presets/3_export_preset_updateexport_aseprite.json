@@ -1,0 +1,19 @@
+{
+	"header": {
+		"name": "Update from / Export to .aseprite",
+		"consistxels_version": "1.1.0",
+		"type": "export_preset"
+	},
+	"export_data": {
+		"update": true,
+		"update_layers": true,
+		"update_type": 2,
+		"update_multilayer_file_path": "(aseprite)",
+		"export": true,
+		"export_layers": true,
+		"export_type": 2,
+		"export_file_type": ".aseprite (Aseprite)",
+		"pose_type": 0,
+		"output_folder_path": true
+	}
+}

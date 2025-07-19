@@ -8,6 +8,7 @@ from tkinter import filedialog, messagebox, ttk
 import scripts.gui.gui_shared as gui_shared
 from scripts.gui.gui_shared import add_widget
 from scripts.classes.tooltip import ToolTip
+from scripts.shared import consistxels_version
 
 UPDATE_INDIVIDUAL_AUTO = 0
 UPDATE_INDIVIDUAL_MANUAL = 1
@@ -25,9 +26,20 @@ POSE_BOTH = 2
 class Menu_ExportSheet(tk.Frame):
     def __init__(self, master, change_menu_callback, load_path = None): # TODO change load to only accept sheetdata_generated json type
         super().__init__(master) # Initialize menu's tkinter widget
+        
+        self.json_path = load_path
         self.input_folder_path = None # Input folder path must be stored so images can be loaded later
-        self.json_data = None
+        self.json_data : dict = None
         self.image_size = None
+
+        self.updating = tk.BooleanVar()
+        self.update_type = tk.IntVar()
+        self.exporting = tk.BooleanVar()
+        self.export_type = tk.IntVar()
+        self.pose_type = tk.IntVar()
+        self.update_multilayer_file_path = tk.StringVar()
+        self.output_folder_path = tk.StringVar()
+
         self.configure(bg=gui_shared.bg_color) # Change bg color
         self.after(0, self.setup_ui, change_menu_callback, load_path) # .setup_ui() in .after() to prevent ugly flickering
     
@@ -139,14 +151,82 @@ class Menu_ExportSheet(tk.Frame):
 
         # Export options
 
+        export_preset_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+        export_preset_frame.pack(fill="both", expand=True)
+
+        self.export_preset_optionmenu : tk.OptionMenu = None
+        self.export_preset_option : tk.StringVar = tk.StringVar() # TODO have this .set() to "Custom" any time ANY setting is changed?
+
+        self.export_preset_dict = {}
+
+        def change_export_preset_option(_ = None):
+            path = self.export_preset_dict.get(self.export_preset_option.get())
+            self.load_export_preset_json(path)
+
+        def create_export_preset_optionmenu():
+            if self.export_preset_optionmenu != None:
+               self.export_preset_optionmenu.destroy() 
+               self.export_preset_optionmenu = None
+
+            # Get export presets
+            preset_dir_path = os.path.abspath("export presets")
+
+            preset_paths : list[str] = []
+            _, _, files = list(os.walk(preset_dir_path))[0]
+            for file in files:
+                preset_paths.append(os.path.join(preset_dir_path, file))
+
+            options : list[str] = []
+            self.export_preset_dict.clear()
+
+            for path in preset_paths:
+                with open(path) as preset_json:
+                    try:
+                        preset_data = json.load(preset_json)
+                    except json.JSONDecodeError:
+                        continue
+
+                header = preset_data.get("header")
+                if header:
+                    name = header.get("name")
+                    if name:
+                        options.append(name)
+                        self.export_preset_dict.update({name: path})
+
+            if len(options):
+                self.export_preset_optionmenu = tk.OptionMenu(export_preset_frame, self.export_preset_option, *options, command=change_export_preset_option)
+                self.export_preset_optionmenu.configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.bg_color, activeforeground=gui_shared.fg_color, width=28, anchor="w", justify="left", highlightthickness=1, highlightbackground=gui_shared.secondary_fg, bd=0, relief="flat")
+                self.export_preset_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color, relief="solid")
+                self.export_preset_optionmenu.grid(padx=10, pady=(10,0), row=0, column=0, sticky="EW", columnspan=3)
+
+                if (not self.export_preset_option.get()) or (not self.export_preset_option.get() in options):
+                    self.export_preset_option.set(options[0])
+                    change_export_preset_option()
+            else:
+                tk.Label(export_preset_frame, text="No export presets found!", bg=gui_shared.bg_color, fg=gui_shared.fg_fade).grid(padx=10, pady=10, row=0, column=0, sticky="EW", columnspan=3)
+
+        # save current preset
+        preset_save_button = tk.Button(export_preset_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Save custom preset", command=self.save_export_preset_json)
+        preset_save_button.grid(row=1, column=0, padx=10, pady=10)
+        ToolTip(preset_save_button, "Save the currently selected settings as a preset.")
+
+        # set default preset
+        # TODO maybe disable this unless it's strictly a saved/loaded preset being used? either way, will need to track whether settings have been changed,
+        # kinda like the ask-if-save-before-quit thing from menu_layerselect
+        preset_default_button = tk.Button(export_preset_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Set as default", command=self.set_default_preset)
+        preset_default_button.grid(row=1, column=1, pady=10)
+        ToolTip(preset_default_button, "Set the currently selected preset as the default for this sprite sheet. (ONLY works for presets that have been saved.)")
+
+        # reload preset list
+        preset_reload_button = tk.Button(export_preset_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Reload presets", command=create_export_preset_optionmenu) # TODO maybe put another inline func that also shows a messagebox saying that reload was successful
+        preset_reload_button.grid(row=1, column=2, padx=10, pady=10)
+        ToolTip(preset_reload_button, "Reload the list of presets. (Probably won't matter!)")
+
         update_options_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
         update_options_frame.pack(fill="both", expand=True)
 
-        # TODO make some options enable/disable if certain conditions are met / settings are selected
-
         # Update checkbutton
 
-        self.updating = tk.BooleanVar()
         self.updating.set(True)
         self.update_checkbutton = tk.Checkbutton(update_options_frame, text=f"Update pose images",
             bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.updating)
@@ -157,44 +237,31 @@ class Menu_ExportSheet(tk.Frame):
 
         tk.Label(update_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Update type:").pack(anchor="w", padx=10, pady=10)
         
-        self.update_type = tk.IntVar()
         self.update_type.set(0)
 
-        radio_update_individual_auto = tk.Radiobutton(update_options_frame, text="Update from individual images (auto)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_INDIVIDUAL_AUTO, command=self.redraw_layer_list_items)
-        radio_update_individual_auto.pack(anchor="w", padx=10)
-        ToolTip(radio_update_individual_auto, "The current folder will be searched for images that match the default name for an individual layer export, and if they are found, they'll be used to update the relevant pose images.")
+        self.radio_update_individual_auto = tk.Radiobutton(update_options_frame, text="Update from individual images (auto)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_INDIVIDUAL_AUTO, command=self.redraw_layer_list_items)
+        self.radio_update_individual_auto.pack(anchor="w", padx=10)
+        ToolTip(self.radio_update_individual_auto, "The current folder will be searched for images that match the default name for an individual layer export, and if they are found, they'll be used to update the relevant pose images.")
         # TODO add a second part to tooltip that describes format being looked for
 
-        radio_update_individual_manual = tk.Radiobutton(update_options_frame, text="Update from individual images (manual)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_INDIVIDUAL_MANUAL, command=self.redraw_layer_list_items)
-        radio_update_individual_manual.pack(anchor="w", padx=10)
-        ToolTip(radio_update_individual_manual, "You'll be able to manually input file paths to be used to update the relevant pose images. If a layer is not given a file path, its unique pose images will be unaffected.")
+        self.radio_update_individual_manual = tk.Radiobutton(update_options_frame, text="Update from individual images (manual)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_INDIVIDUAL_MANUAL, command=self.redraw_layer_list_items)
+        self.radio_update_individual_manual.pack(anchor="w", padx=10)
+        ToolTip(self.radio_update_individual_manual, "You'll be able to manually input file paths to be used to update the relevant pose images. If a layer is not given a file path, its unique pose images will be unaffected.")
 
-        radio_update_multilayer = tk.Radiobutton(update_options_frame, text="Update from multi-layered file", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_MULTILAYER_FILE, command=self.redraw_layer_list_items)
-        radio_update_multilayer.pack(anchor="w", padx=10)
-        ToolTip(radio_update_multilayer, "Input a multi-layered file (.aseprite, .psd). If layers are found in the file that match the layers' names, they will be used to update the relevant pose images.")
+        self.radio_update_multilayer = tk.Radiobutton(update_options_frame, text="Update from multi-layered file", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.update_type, value=UPDATE_MULTILAYER_FILE, command=self.redraw_layer_list_items)
+        self.radio_update_multilayer.pack(anchor="w", padx=10)
+        ToolTip(self.radio_update_multilayer, "Input a multi-layered file (.aseprite, .psd). If layers are found in the file that match the layers' names, they will be used to update the relevant pose images.")
         # TODO MAKE SURE THIS DESC FITS THE FILETYPE IM ACTUALLY SUPPORTING!!! TRY adding psd and gimp support
 
-        def update_check_button_states():
-            state = "normal" if self.updating.get() else "disabled"
+        self.update_checkbutton.config(command=self.check_update_button_states)
 
-            radio_update_individual_auto.config(state=state)
-            radio_update_individual_manual.config(state=state)
-            radio_update_multilayer.config(state=state)
-
-            self.redraw_layer_list_items()
-
-        self.update_checkbutton.config(command=update_check_button_states)
-
-        self.update_multilayer_file_path = tk.StringVar() # By default, not attached to a widget, but it will be later once that entry shows up
-
-        export_options_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
-        export_options_frame.pack(fill="both", expand=True)
+        self.export_options_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
+        self.export_options_frame.pack(fill="both", expand=True)
 
         # Export checkbutton
 
-        self.exporting = tk.BooleanVar()
         self.exporting.set(True)
-        self.export_checkbutton = tk.Checkbutton(export_options_frame, text=f"Export sheet / layer(s)",
+        self.export_checkbutton = tk.Checkbutton(self.export_options_frame, text=f"Export sheet / layer(s)",
             bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, onvalue=True, offvalue=False, variable=self.exporting, command=self.redraw_layer_list_items)
         self.export_checkbutton.grid(padx=10, pady=10, row=0, column=0, sticky="W", columnspan=2)
         ToolTip(self.export_checkbutton, "If checked, the program will use the pose images to export full sprite sheet or layer images.")
@@ -202,46 +269,43 @@ class Menu_ExportSheet(tk.Frame):
         # Export radio buttons
 
         # tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export type:").pack(anchor="w", padx=10, pady=10)
-        tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export type:").grid(padx=10, pady=10, row=1, column=0, sticky="W")
+        tk.Label(self.export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export type:").grid(padx=10, pady=10, row=1, column=0, sticky="W")
 
         # Stores radio button value
-        # 0: single image, 1: individual layer image(s), 2: multi-layer file
-        self.export_type = tk.IntVar()
         self.export_type.set(0)
 
-        radio_export_single = tk.Radiobutton(export_options_frame, text="Single merged image", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_SINGLE_MERGED)
-        radio_export_single.grid(padx=10, row=2, column=0, sticky="W")
-        ToolTip(radio_export_single, "Export one image containing all selected layers merged together.")
+        self.radio_export_single = tk.Radiobutton(self.export_options_frame, text="Single merged image", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_SINGLE_MERGED)
+        self.radio_export_single.grid(padx=10, row=2, column=0, sticky="W")
+        ToolTip(self.radio_export_single, "Export one image containing all selected layers merged together.")
 
-        radio_export_layers = tk.Radiobutton(export_options_frame, text="Individual layer image(s)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_INDIVIDUAL_LAYERS)
-        radio_export_layers.grid(padx=10, row=3, column=0, sticky="W")
-        ToolTip(radio_export_layers, "Export an image for each selected layer.")
+        self.radio_export_layers = tk.Radiobutton(self.export_options_frame, text="Individual layer image(s)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_INDIVIDUAL_LAYERS)
+        self.radio_export_layers.grid(padx=10, row=3, column=0, sticky="W")
+        ToolTip(self.radio_export_layers, "Export an image for each selected layer.")
 
-        radio_export_multilayer = tk.Radiobutton(export_options_frame, text="Multi-layered file", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_MULTILAYER_FILE)
-        radio_export_multilayer.grid(padx=10, row=4, column=0, sticky="W")
-        ToolTip(radio_export_multilayer, "Export one file that contains all images as layers.")
+        self.radio_export_multilayer = tk.Radiobutton(self.export_options_frame, text="Multi-layered file", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.export_type, value=EXPORT_MULTILAYER_FILE)
+        self.radio_export_multilayer.grid(padx=10, row=4, column=0, sticky="W")
+        ToolTip(self.radio_export_multilayer, "Export one file that contains all images as layers.")
 
         # Pose type radio buttons
 
-        tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Pose images to export:").grid(padx=10, pady=10, row=1, column=1, sticky="W")
+        tk.Label(self.export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Pose images to export:").grid(padx=10, pady=10, row=1, column=1, sticky="W")
 
-        self.pose_type = tk.IntVar()
         self.pose_type.set(0)
 
-        radio_pose_all = tk.Radiobutton(export_options_frame, text="Use all", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_ALL)#, command=self.redraw_layer_list_items)
-        radio_pose_all.grid(padx=10, row=2, column=1, sticky="W")
-        ToolTip(radio_pose_all, "Every pose image within a pose will be shown. Intended for tests or final exports in which the sheet's used in context.")
+        self.radio_pose_all = tk.Radiobutton(self.export_options_frame, text="Use all", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_ALL)#, command=self.redraw_layer_list_items)
+        self.radio_pose_all.grid(padx=10, row=2, column=1, sticky="W")
+        ToolTip(self.radio_pose_all, "Every pose image within a pose will be shown. Intended for tests or final exports in which the sheet's used in context.")
 
-        radio_pose_unique = tk.Radiobutton(export_options_frame, text="Use unique only", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_UNIQUE)#, command=self.redraw_layer_list_items)
-        radio_pose_unique.grid(padx=10, row=3, column=1, sticky="W")
-        ToolTip(radio_pose_unique, """Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Sprite Sheet Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
+        self.radio_pose_unique = tk.Radiobutton(self.export_options_frame, text="Use unique only", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_UNIQUE)#, command=self.redraw_layer_list_items)
+        self.radio_pose_unique.grid(padx=10, row=3, column=1, sticky="W")
+        ToolTip(self.radio_pose_unique, """Exported layers will only contain unique pose images. They'll be positioned where they were initially found during the "Generate Sprite Sheet Data" search, so they might be a little spread out.\n\nIn general, if you're transferring a number of poses from one sheet to another, this will be much faster than opening each pose image individually. After modifying unique-only layers, use the "Update pose images" export type to make sure individual pose images are up-to-date, then generate the whole sheet.\n\n(Does not work with the "Single merged image" or "Update pose images" export types.)""")
 
-        radio_pose_both = tk.Radiobutton(export_options_frame, text="Both (multi-layer only)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_BOTH, state="disabled")#, command=self.redraw_layer_list_items)
-        radio_pose_both.grid(padx=10, row=4, column=1, sticky="W")
-        ToolTip(radio_pose_both, "Both the complete layer and the unique-only layer will be provided in the file. (Only applies to the \"Multi-layered file\" export type.)")
+        self.radio_pose_both = tk.Radiobutton(self.export_options_frame, text="Both (multi-layer only)", bg=gui_shared.bg_color, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg, variable=self.pose_type, value=POSE_BOTH, state="disabled")#, command=self.redraw_layer_list_items)
+        self.radio_pose_both.grid(padx=10, row=4, column=1, sticky="W")
+        ToolTip(self.radio_pose_both, "Both the complete layer and the unique-only layer will be provided in the file. (Only applies to the \"Multi-layered file\" export type.)")
 
         # File type selection optionmenu
-        tk.Label(export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export file type:").grid(padx=10, pady=10, row=5, column=0, sticky="W", columnspan=2)
+        tk.Label(self.export_options_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color, text="Export file type:").grid(padx=10, pady=10, row=5, column=0, sticky="W", columnspan=2)
 
         self.image_file_types = [".png", ".jpg", ".bmp"] # Options for image filetypes
         self.multilayer_file_types = [".aseprite (Aseprite)", ".psd (PhotoShop, GIMP)"] # Options for multilayer filetypes
@@ -249,69 +313,22 @@ class Menu_ExportSheet(tk.Frame):
         self.file_type_option = tk.StringVar(value=self.image_file_types[0])
         self.file_type_optionmenu : tk.OptionMenu = None
 
-        def create_file_type_optionmenu():
-            if self.file_type_optionmenu != None:
-               self.file_type_optionmenu.destroy() 
-               self.file_type_optionmenu = None
-            
-            options = self.image_file_types if self.export_type.get() != EXPORT_MULTILAYER_FILE else self.multilayer_file_types
-            
-            if not self.file_type_option.get() in options:
-                self.file_type_option.set(options[0])
+        self.create_file_type_optionmenu()
 
-            self.file_type_optionmenu = tk.OptionMenu(export_options_frame, self.file_type_option, *options)
-            self.file_type_optionmenu.configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.bg_color, activeforeground=gui_shared.fg_color, width=28, anchor="w", justify="left", highlightthickness=1, highlightbackground=gui_shared.secondary_fg, bd=0, relief="flat")
-            self.file_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color, relief="solid")
-            self.file_type_optionmenu.grid(padx=10, pady=(0,10), row=6, column=0, sticky="EW", columnspan=2)
-
-        create_file_type_optionmenu()
-
-        def export_check_button_states():
-            exporting = self.exporting.get()
-            state = "normal" if exporting else "disabled"
-
-            radio_export_single.config(state=state)
-            radio_export_layers.config(state=state)
-            radio_export_multilayer.config(state=state)
-
-            radio_pose_all.config(state=state)
-            radio_pose_unique.config(state=state)
-            radio_pose_both.config(state=state)
-
-            if self.file_type_optionmenu != None:
-                self.file_type_optionmenu.config(state=state)
-
-            if exporting:
-                if self.export_type.get() == EXPORT_MULTILAYER_FILE:
-                    
-                    if not self.file_type_option.get() in self.multilayer_file_types:
-                        create_file_type_optionmenu()
-                        self.file_type_option.set(self.multilayer_file_types[0])
-                else:
-                    radio_pose_both.config(state="disabled")
-
-                    if self.pose_type.get() == POSE_BOTH:
-                        self.pose_type.set(0)
-                    
-                    if not self.file_type_option.get() in self.image_file_types:
-                        create_file_type_optionmenu()
-                        self.file_type_option.set(self.image_file_types[0])
-        
         def export_check_button_states_and_redraw():
-            export_check_button_states()
+            self.check_export_button_states()
             self.redraw_layer_list_items()
 
         self.export_checkbutton.config(command=export_check_button_states_and_redraw)
-        radio_export_single.config(command=export_check_button_states)
-        radio_export_layers.config(command=export_check_button_states)
-        radio_export_multilayer.config(command=export_check_button_states)
+        self.radio_export_single.config(command=self.check_export_button_states)
+        self.radio_export_layers.config(command=self.check_export_button_states)
+        self.radio_export_multilayer.config(command=self.check_export_button_states)
 
         output_path_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
         output_path_frame.pack(fill="both", expand=True, anchor="s")
 
         tk.Label(output_path_frame, text="Output folder path:", bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(side="left", padx=(10,5), pady=10)
 
-        self.output_folder_path = tk.StringVar()
         self.output_folder_entry = add_widget(tk.Entry, output_path_frame, {'width':1, 'textvariable':self.output_folder_path, 'disabledbackground':gui_shared.secondary_bg}, {'text':"""Enter the path to the folder where the exported images will be output.\n\n(It's recommended that you choose a new, EMPTY folder! Choosing an existing one will clutter up your files at best, and overwrite existing data at worst. That said, if you WANT to overwrite existing data, go for it.)"""})
         self.output_folder_entry.pack(side="left", fill="x", expand=True, pady=10)
 
@@ -336,7 +353,7 @@ class Menu_ExportSheet(tk.Frame):
         ToolTip(self.output_use_current_folder_button, """Select this .json's folder as the output folder.\n\n(Recommended. Keep in mind that you might still overwrite previous exports, but you're very unlikely to overwrite any pose images.)""")
 
         # Progress bar, confirmation/cancellation buttons
-        
+
         export_container_frame = tk.Frame(self.right_frame, bg=gui_shared.bg_color, highlightthickness=1, highlightbackground=gui_shared.secondary_fg)
         export_container_frame.pack(side="bottom", fill="x")
 
@@ -359,12 +376,75 @@ class Menu_ExportSheet(tk.Frame):
 
         self.progress_info_label = tk.Label(generate_progress_frame, bg=gui_shared.bg_color, fg=gui_shared.fg_color)
         self.progress_info_label.pack(side="top", padx=(0,10), pady=(0,5), fill="x", expand=True)
-        
+
         self.progress_bar = ttk.Progressbar(generate_progress_frame, orient="horizontal", maximum=100)
         self.progress_bar.pack(padx=(0,10), pady=(0,10), side="top", fill="x", expand=True)
-        
+
         # If a path was passed when the menu was created, open that path
         if load_path: self.load_json(load_path)
+
+        create_export_preset_optionmenu()
+
+    def create_file_type_optionmenu(self):
+        if self.file_type_optionmenu != None:
+            self.file_type_optionmenu.destroy() 
+            self.file_type_optionmenu = None
+        
+        options = self.image_file_types if self.export_type.get() != EXPORT_MULTILAYER_FILE else self.multilayer_file_types
+        
+        if not self.file_type_option.get() in options:
+            self.file_type_option.set(options[0])
+
+        self.file_type_optionmenu = tk.OptionMenu(self.export_options_frame, self.file_type_option, *options)
+        self.file_type_optionmenu.configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.bg_color, activeforeground=gui_shared.fg_color, width=28, anchor="w", justify="left", highlightthickness=1, highlightbackground=gui_shared.secondary_fg, bd=0, relief="flat")
+        self.file_type_optionmenu["menu"].configure(bg=gui_shared.field_bg, fg=gui_shared.fg_color, activebackground=gui_shared.secondary_bg, activeforeground=gui_shared.fg_color, relief="solid")
+        self.file_type_optionmenu.grid(padx=10, pady=(0,10), row=6, column=0, sticky="EW", columnspan=2)
+
+    def check_update_button_states(self):
+        state = "normal" if self.updating.get() else "disabled"
+
+        self.radio_update_individual_auto.config(state=state)
+        self.radio_update_individual_manual.config(state=state)
+        self.radio_update_multilayer.config(state=state)
+
+        self.redraw_layer_list_items()
+
+    def check_export_button_states(self):
+        # update_state = "normal" if self.updating.get() else "disabled"
+
+        exporting = self.exporting.get()
+        state = "normal" if exporting else "disabled"
+
+        # self.radio_update_individual_auto.config(state=update_state)
+        # self.radio_update_individual_manual.config(state=update_state)
+        # self.radio_update_multilayer.config(state=update_state)
+
+        self.radio_export_single.config(state=state)
+        self.radio_export_layers.config(state=state)
+        self.radio_export_multilayer.config(state=state)
+
+        self.radio_pose_all.config(state=state)
+        self.radio_pose_unique.config(state=state)
+        self.radio_pose_both.config(state=state)
+
+        if self.file_type_optionmenu != None:
+            self.file_type_optionmenu.config(state=state)
+
+        if exporting:
+            if self.export_type.get() == EXPORT_MULTILAYER_FILE:
+                
+                if not self.file_type_option.get() in self.multilayer_file_types:
+                    self.create_file_type_optionmenu()
+                    self.file_type_option.set(self.multilayer_file_types[0])
+            else:
+                self.radio_pose_both.config(state="disabled")
+
+                if self.pose_type.get() == POSE_BOTH:
+                    self.pose_type.set(0)
+                
+                if not self.file_type_option.get() in self.image_file_types:
+                    self.create_file_type_optionmenu()
+                    self.file_type_option.set(self.image_file_types[0])
 
     # Initial draw of layer list, which contains options and such. Call this upon new .json loaded, not upon option change.
     def draw_layer_list(self):
@@ -416,67 +496,72 @@ class Menu_ExportSheet(tk.Frame):
     # Secondary draw of the header entry in the visible layer list, which has options that effect all layers
     # TODO for this, and for the individual list items, no reason to redraw if nothing's changed. so make sure only relevant options actually redraw, and try to find a way to prevent redraws if everything will end up being the same
     def redraw_layer_list_header(self):
-        # Destroy existing widgets
-        for widget in self.layer_list_header_frame.winfo_children():
-            widget.destroy()
+        # This should only run if the header ALREADY EXISTS, so...
+        if self.layer_list_header_frame != None:
+            # Destroy existing widgets
+            for widget in self.layer_list_header_frame.winfo_children():
+                widget.destroy()
 
-        update_checkbutton = None
-        export_checkbutton = None
-        update_entry_frame = None
+            update_checkbutton = None
+            export_checkbutton = None
+            update_entry_frame = None
 
-        # Update checkbutton will only appear if the user is updating the layers, and if it's a normal (i.e. non-cosmetic/border) layer
-        if self.updating.get():
-            
-            self.layer_update_all = tk.BooleanVar(value=True)
-            
-            def update_set_all():
-                for var in self.layer_update_list:
-                    if var != None: var.set(self.layer_update_all.get())
-            
-            update_checkbutton = tk.Checkbutton(self.layer_list_header_frame, text=f"Update all",
-                bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg,
-                onvalue=True, offvalue=False, variable=self.layer_update_all, command=update_set_all)
-            
-            ToolTip(update_checkbutton, "If checked, the program will update this layer's unique pose images according to the option selected on the right.")
+            # Update checkbutton will only appear if the user is updating the layers, and if it's a normal (i.e. non-cosmetic/border) layer
+            if self.updating.get():
 
-            # Label, entry, and button for selecting filepath. Will only appear if the user is updating pose images w/ a multilayer file.
-            if self.update_type.get() == UPDATE_MULTILAYER_FILE:
-                update_entry_frame = tk.Frame(self.layer_list_header_frame, bg=gui_shared.button_bg)
+                self.layer_update_all = tk.BooleanVar(value=True)
 
-                tk.Label(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Multi-layered file:").pack(side="left", padx=(10,5), pady=10)
-                
-                entry = add_widget(tk.Entry, update_entry_frame, {"textvariable": self.update_multilayer_file_path, "width": 1}, {"text": "Enter the path to the multi-layered file you want to use to update this layer's pose images."})
-                entry.pack(side="left", fill="x", expand=True, pady=10)
+                def update_set_all():
+                    for var in self.layer_update_list:
+                        if var != None: var.set(self.layer_update_all.get())
 
-                button = tk.Button(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁",
-                    command=lambda s=self.update_multilayer_file_path, f=[("Multi-layered files", "*.ase; *.aseprite; *.psd")]: gui_shared.ask_open_file_for_stringvar(s,f)) # TODO make sure supported filetypes are all here
-                button.pack(side="left", padx=10, pady=10)
-                ToolTip(button, "Select the multi-layered file you want to use to update this layer's pose images.")
+                update_checkbutton = tk.Checkbutton(self.layer_list_header_frame, text=f"Update all",
+                    bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg,
+                    onvalue=True, offvalue=False, variable=self.layer_update_all, command=update_set_all)
 
-        # Export checkbutton if the user is exporting the layers
-        if self.exporting.get():
-            
-            self.layer_export_all = tk.BooleanVar(value=True)
-            
-            def export_set_all(): # If this is checked or unchecked, do the same to all other checkbuttons
-                for var in self.layer_export_list:
-                    if var != None: var.set(self.layer_export_all.get())
-            
-            export_checkbutton = tk.Checkbutton(self.layer_list_header_frame, text=f"Export all",
-                bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg,
-                onvalue=True, offvalue=False, variable=self.layer_export_all, command=export_set_all)
+                ToolTip(update_checkbutton, "If checked, the program will update this layer's unique pose images according to the option selected on the right.")
 
-            ToolTip(export_checkbutton, "If checked, the program will include this layer in the export according to the option selected on the right.")
-        
-        if update_checkbutton and self.update_type.get() != UPDATE_INDIVIDUAL_MANUAL: # If manual, no need to select layers for update - just don't input the path if you dont wanna
-            update_checkbutton.grid(row=0, column=0, sticky="W", padx=(10,0), pady=10)
-        if export_checkbutton: export_checkbutton.grid(row=0, column=1, sticky="W", padx=(10,0), pady=10)
-        if update_entry_frame: update_entry_frame.grid(row=0, column=2, sticky="EW")
+                # Label, entry, and button for selecting filepath. Will only appear if the user is updating pose images w/ a multilayer file.
+                if self.update_type.get() == UPDATE_MULTILAYER_FILE:
+                    update_entry_frame = tk.Frame(self.layer_list_header_frame, bg=gui_shared.button_bg)
+
+                    tk.Label(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="Multi-layered file:").pack(side="left", padx=(10,5), pady=10)
+                    
+                    entry = add_widget(tk.Entry, update_entry_frame, {"textvariable": self.update_multilayer_file_path, "width": 1}, {"text": "Enter the path to the multi-layered file you want to use to update this layer's pose images."})
+                    entry.pack(side="left", fill="x", expand=True, pady=10)
+
+                    button = tk.Button(update_entry_frame, bg=gui_shared.button_bg, fg=gui_shared.fg_color, text="📁",
+                        command=lambda s=self.update_multilayer_file_path, f=[("Multi-layered files", "*.ase; *.aseprite; *.psd")]: gui_shared.ask_open_file_for_stringvar(s,f)) # TODO make sure supported filetypes are all here
+                    button.pack(side="left", padx=10, pady=10)
+                    ToolTip(button, "Select the multi-layered file you want to use to update this layer's pose images.")
+
+            # Export checkbutton if the user is exporting the layers
+            if self.exporting.get():
+
+                self.layer_export_all = tk.BooleanVar(value=True)
+
+                def export_set_all(): # If this is checked or unchecked, do the same to all other checkbuttons
+                    for var in self.layer_export_list:
+                        if var != None: var.set(self.layer_export_all.get())
+
+                export_checkbutton = tk.Checkbutton(self.layer_list_header_frame, text=f"Export all",
+                    bg=gui_shared.button_bg, fg=gui_shared.fg_color, selectcolor=gui_shared.field_bg,
+                    onvalue=True, offvalue=False, variable=self.layer_export_all, command=export_set_all)
+
+                ToolTip(export_checkbutton, "If checked, the program will include this layer in the export according to the option selected on the right.")
+
+            if update_checkbutton and self.update_type.get() != UPDATE_INDIVIDUAL_MANUAL: # If manual, no need to select layers for update - just don't input the path if you dont wanna
+                update_checkbutton.grid(row=0, column=0, sticky="W", padx=(10,0), pady=10)
+                self.check_update_set_all()
+            if export_checkbutton:
+                export_checkbutton.grid(row=0, column=1, sticky="W", padx=(10,0), pady=10)
+                self.check_export_set_all()
+            if update_entry_frame: update_entry_frame.grid(row=0, column=2, sticky="EW")
 
     # Secondary draw of layer list item, to avoid doing unnecessary work. Does less formatting stuff, etc.
     def redraw_layer_list_item(self, layer_index):
-        layer = self.json_data["layer_data"][layer_index]
-        frame = self.layer_frame_list[layer_index]
+        layer : dict = self.json_data["layer_data"][layer_index]
+        frame : tk.Frame = self.layer_frame_list[layer_index]
         bg_color = gui_shared.secondary_bg if layer_index % 2 else gui_shared.bg_color
 
         # Destroy existing buttons and such
@@ -565,6 +650,8 @@ class Menu_ExportSheet(tk.Frame):
         # If a path was not passed as parameter, ask for one
         if not path: path = filedialog.askopenfilename(title="Select a sheet data .json, in the same folder as its pose images", defaultextension=".json", filetypes=[("Json File", "*.json")]) # TODO: make sure file dialogs are consistent with filetypes, titles, etc.
         if path: # If a path was not passed as param nor given through filedialog, don't continue
+            self.json_path = path
+
             with open(path) as json_file:
                 self.json_data = json.load(json_file) #could unindent after this? i.e. self.json_data's been set, so we don't need to keep the actual json file open
 
@@ -589,9 +676,153 @@ class Menu_ExportSheet(tk.Frame):
 
             # Draw layer list
             self.draw_layer_list()
+
+            # Load export preset if it exists
+            export_preset = self.json_data.get("export_preset")
+            if export_preset:
+                preset_path = os.path.join(os.path.abspath("export presets"), export_preset)
+                if os.path.exists(preset_path):
+                    self.load_export_preset_json(preset_path)
+                    # self.export_preset_option.set
             
             # Reset the progress bar
             self.check_reset_progress()
+
+    # Load an export_preset .json.
+    def load_export_preset_json(self, path):
+        if path:
+            with open(path) as json_file:
+                preset_json_data : dict = json.load(json_file)
+            
+            preset_header : dict = preset_json_data.get("header")
+            # check for version differences
+            if preset_header.get("type") != "export_preset":
+                raise ValueError(f"Expected .json of type \"export_preset\", instead got {preset_header.get('type')}")
+            
+            self.export_preset_option.set(preset_header.get("name"))
+
+            export_data : dict = preset_json_data.get("export_data")
+
+            self.updating.set(export_data.get("update", True))
+            
+            update_layers = export_data.get("update_layers")
+            if update_layers == True: # ALL layers
+                for var in self.layer_update_list:
+                    if var != None: var.set(True)
+            elif update_layers == False: # NO layers
+                for var in self.layer_update_list:
+                    if var != None: var.set(False)
+            else:
+                # Check that it really is a list
+                for i, var in enumerate(self.layer_update_list):
+                    if var != None: var.set(i in update_layers)
+            
+            self.update_type.set(export_data.get("update_type", 0))
+
+            update_multilayer_file_path : str = export_data.get("update_multilayer_file_path")
+            if update_multilayer_file_path.startswith("(") and update_multilayer_file_path.endswith(")"): # i.e. if it's "(aseprite)", it means it's supposed to autofill with any found .aseprite file
+                extension = update_multilayer_file_path.strip("()")
+                update_multilayer_file_path = os.path.join(self.input_folder_path, f"{self.json_data["header"]["name"]}_sheet_export.{extension}")
+                
+            if update_multilayer_file_path != None and os.path.exists(update_multilayer_file_path):
+                self.update_multilayer_file_path.set(update_multilayer_file_path)
+            else:
+                self.update_multilayer_file_path.set("")
+
+            self.exporting.set(export_data.get("export", True))
+            
+            export_layers = export_data.get("export_layers")
+            if export_layers == True: # ALL layers
+                for var in self.layer_export_list:
+                    if var != None: var.set(True)
+            elif export_layers == False: # NO layers
+                for var in self.layer_export_list:
+                    if var != None: var.set(False)
+            else:
+                # Check that it really is a list
+                for i, var in enumerate(self.layer_export_list):
+                    if var != None: var.set(i in export_layers)
+            
+            self.export_type.set(export_data.get("export_type", 0))
+
+            self.file_type_option.set(export_data.get("export_file_type", (".aseprite (Aseprite)" if self.export_type.get() == EXPORT_MULTILAYER_FILE else ".png")))
+            
+            self.pose_type.set(export_data.get("pose_type", 0))
+
+            output_folder_path = export_data.get("output_folder_path")
+            if output_folder_path == True:
+                self.output_folder_path.set(self.input_folder_path)
+            elif output_folder_path != None:
+                self.output_folder_path.set(output_folder_path)
+            else:
+                self.output_folder_path.set("")
+
+            # redraw menu, button states, etc.
+            self.check_export_button_states()
+            self.check_update_button_states()
+            self.check_update_set_all()
+            self.check_export_set_all()
+            # check more stuff
+
+    def save_export_preset_json(self):
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("Json File", "*.json")], initialfile=f"export_preset_custom{"_update" if self.updating.get() else ""}{"_export" if self.exporting.get() else ""}.json", initialdir=os.path.abspath("export presets"))
+
+        if path:
+            name = os.path.splitext(os.path.basename(path))[0] # TODO probably have user input a custom name elsewhere, or through input popup, or something
+
+            header = {
+                "name": name,
+                "consistxels_version": consistxels_version,
+                "type": "export_preset"
+            }
+
+            update_layers = None
+            self.check_update_set_all()
+            if self.layer_update_all.get():
+                update_layers = True
+            else:
+                update_layers = []
+                for i, var in enumerate(self.layer_update_list):
+                    if var != None: update_layers.append(i)
+                if not len(update_layers): update_layers = False
+
+            export_layers = None
+            self.check_export_set_all()
+            if self.layer_export_all.get():
+                export_layers = True
+            else:
+                export_layers = []
+                for i, var in enumerate(self.layer_export_list):
+                    if var != None: export_layers.append(i)
+                if not len(export_layers): export_layers = False
+
+            export_data = {
+                "update": self.updating.get(),
+                "update_layers": update_layers,
+                "update_type": self.update_type.get(),
+                "update_multilayer_file_path": self.update_multilayer_file_path.get() if self.update_type.get() == UPDATE_MULTILAYER_FILE else None,
+                "export": self.exporting.get(),
+                "export_layers": export_layers,
+                "export_type": self.export_type.get(),
+                "export_file_type": self.file_type_option.get(),
+                "pose_type": self.pose_type.get(),
+                "output_folder_path": self.output_folder_path.get()
+            }
+
+            json_data = {"header": header, "export_data": export_data}
+            
+            with open(path, "w") as file:
+                json.dump(json_data, file, indent=4)
+
+    def set_default_preset(self):
+        if self.json_data != None:
+            self.json_data.update({"export_preset": os.path.basename(self.export_preset_dict[self.export_preset_option.get()])})
+
+            with open(self.json_path, 'w') as json_file:
+                json.dump(self.json_data, json_file)
+            
+            messagebox.showinfo("Success", f"Sprite sheet {self.json_data["header"]["name"]} will now use this preset by default when loaded.")
+
 
     # Generate button (export button, actually) has been pressed, so communicate that to main process and provide generation info
     def generate_button_pressed(self):

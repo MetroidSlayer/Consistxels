@@ -27,3 +27,7 @@ if __name__ == "__main__":
     # Copy resources folder into dist/Consistxels
     shutil.copytree(os.path.join(BASE_DIR, "resources"), os.path.join(BASE_DIR, "dist", "Consistxels", "resources"))
     print("./resources copied successfully")
+
+    # Copy export presets folder into dist/Consistxels
+    shutil.copytree(os.path.join(BASE_DIR, "export presets"), os.path.join(BASE_DIR, "dist", "Consistxels", "export presets"))
+    print("./export presets copied successfully")
