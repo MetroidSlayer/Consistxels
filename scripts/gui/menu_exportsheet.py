@@ -720,7 +720,7 @@ class Menu_ExportSheet(tk.Frame):
             self.update_type.set(export_data.get("update_type", 0))
 
             update_multilayer_file_path : str = export_data.get("update_multilayer_file_path")
-            if update_multilayer_file_path.startswith("(") and update_multilayer_file_path.endswith(")"): # i.e. if it's "(aseprite)", it means it's supposed to autofill with any found .aseprite file
+            if update_multilayer_file_path != None and update_multilayer_file_path.startswith("(") and update_multilayer_file_path.endswith(")"): # i.e. if it's "(aseprite)", it means it's supposed to autofill with any found .aseprite file
                 extension = update_multilayer_file_path.strip("()")
                 update_multilayer_file_path = os.path.join(self.input_folder_path, f"{self.json_data["header"]["name"]}_sheet_export.{extension}")
                 
