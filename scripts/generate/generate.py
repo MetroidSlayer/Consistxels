@@ -837,7 +837,7 @@ def export_aseprite(selected_layers, pose_type, data, input_folder_path, output_
             cels.append({
                 "image": layer_image, # Shouldn't be None, because the indexes of the groups should match the Nones inserted above
                 "layer_index": i,
-                "z_index": num_of_layers if (i < num_of_layers) and pose_type == 2 else 0
+                "z_index": num_of_layers if (i < num_of_layers + 1) and pose_type == 2 else 0 # +1 to account for layer groups, I think? idk it works this way, but keep an eye on it TODO
             })
     
     update_progress("update", 50, "Exporting...", "Saving to .aseprite...")
