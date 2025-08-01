@@ -178,3 +178,11 @@ cython_debug/
 
 # Test scripts
 test_*
+
+# Custom export presets (allow built-in ones) (TODO: come up with something different, 'cause it'll be annoying to add presets to here manually) 
+export presets
+!export presets/0_export_preset*
+!export presets/1_export_preset*
+!export presets/2_export_preset*
+!export presets/3_export_preset*
+!export presets/4_export_preset*
