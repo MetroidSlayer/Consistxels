@@ -12,6 +12,7 @@ import scripts.gui.gui_shared as gui_shared
 from scripts.gui.menu_mainmenu import Menu_MainMenu
 from scripts.gui.menu_layerselect import Menu_LayerSelect
 from scripts.gui.menu_exportsheet import Menu_ExportSheet
+from scripts.gui.menu_editsheetdata import Menu_EditSheetData
 from scripts.gui.menu_othertools import Menu_OtherTools
 
 from scripts.shared import consistxels_version
@@ -68,6 +69,8 @@ class ConsistxelsApp(tk.Frame):
                     new_menu_widget = Menu_LayerSelect(self.container, self.change_menu, self.set_unsaved_changes, arg)
                 case "ExportSheet":
                     new_menu_widget = Menu_ExportSheet(self.container, self.change_menu, arg)
+                case "EditSheetData":
+                    new_menu_widget = Menu_EditSheetData(self.container, self.change_menu, arg)
                 case "OtherTools":
                     new_menu_widget = Menu_OtherTools(self.container, self.change_menu)
                 case _:

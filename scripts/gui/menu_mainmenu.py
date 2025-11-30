@@ -97,6 +97,29 @@ class Menu_MainMenu(tk.Frame):
         tk.Label(load_sheet_description_frame, text="Using the .json file that was generated alongside the pose images, load a sprite sheet. Then, choose whether to export the entire sheet as one image, or to export each layer as its own image, etc.\n\nIf a pose image has been modified, and the sheet is exported, each instance of that pose image on the original sheet will be correctly updated, so you don't have to copy-and-paste onto a gazillion different poses every time you make a tiny change.\n\nOpening each and every pose image can be time consuming, so alternatively, you can export a layer with only unique pose images, then modify them. Return to this menu with that modified sheet in order to update multiple individual pose images at once. This is probably the most efficient way of using Consistxels.",
                  bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw", fill="x")
 
+        # Edit Sprite Sheet Data / menu_editsheetdata
+        
+        tk.Label(content_frame, text="Edit Sprite Sheet Data:",
+                 bg=gui_shared.bg_color, fg=gui_shared.fg_color).pack(padx=10, pady=(10,0), anchor="w")
+
+        edit_data_frame = tk.Frame(content_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
+        edit_data_frame.pack(padx=10, anchor="w", fill="x")
+        
+        edit_data_frame.grid_columnconfigure(0, weight=3)
+        edit_data_frame.grid_columnconfigure(1, weight=1)
+        
+        edit_data_buttons_frame = tk.Frame(edit_data_frame, bg=gui_shared.bg_color)
+        edit_data_buttons_frame.grid(row=0, column=0, sticky="EW")
+
+        tk.Button(edit_data_buttons_frame, text="Load sheet data json",
+                  bg=gui_shared.button_bg, fg=gui_shared.fg_color, command=lambda: open_menu_with_path("EditSheetData")).pack(padx=10, pady=10, fill="x", expand=True)
+        
+        edit_data_description_frame = tk.Frame(edit_data_frame, bg=gui_shared.bg_color)
+        edit_data_description_frame.grid(row=0, column=1, columnspan=5, sticky="W")
+
+        tk.Label(edit_data_description_frame, text="Using the .json file that was generated alongside the pose images, load a sprite sheet. Then, view the data (i.e. see individual poses, check which poses use which pose images)",
+                 bg=gui_shared.bg_color, fg=gui_shared.fg_color, justify="left", wraplength=800).pack(padx=(0,10), pady=10, anchor="nw", fill="x")
+
         # Other tools / menu_othertools
 
         other_tools_frame = tk.Frame(content_frame, bg=gui_shared.bg_color, highlightthickness=2, highlightbackground=gui_shared.secondary_fg)
